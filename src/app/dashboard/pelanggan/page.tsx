@@ -51,8 +51,7 @@ export default function DashboardPelangganPage() {
   }, [selectedCategory, searchQuery, stockFilter]);
 
   return (
-    <CartProvider>
-      <div className="min-h-screen flex bg-[#F8FAFC]">
+    <div className="min-h-screen flex bg-[#F8FAFC]">
         {/* Desktop Sidebar */}
         <div className="hidden md:block">
           <Sidebar />
@@ -136,6 +135,5 @@ export default function DashboardPelangganPage() {
         {/* Slide-over Cart Drawer */}
         <CartDrawer />
       </div>
-    </CartProvider>
   );
 }

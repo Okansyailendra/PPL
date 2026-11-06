@@ -14,11 +14,20 @@ import {
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 
+interface NavItem {
+  label: string;
+  href: string;
+  icon: any;
+  active: boolean;
+  badge?: string;
+  onClick?: () => void;
+}
+
 export default function Sidebar() {
   const pathname = usePathname();
-  const { totalItems, setIsCartOpen } = useCart();
+  const { totalItems } = useCart();
 
-  const navItems = [
+  const navItems: NavItem[] = [
     {
       label: 'Etalase warung',
       href: '/dashboard/pelanggan',
@@ -27,11 +36,10 @@ export default function Sidebar() {
     },
     {
       label: 'Keranjang saya',
-      href: '#',
+      href: '/dashboard/pelanggan/keranjang',
       icon: ShoppingCart,
-      active: false,
+      active: pathname === '/dashboard/pelanggan/keranjang',
       badge: totalItems > 0 ? `${totalItems}` : undefined,
-      onClick: () => setIsCartOpen(true),
     },
     {
       label: 'Kasbon saya',
@@ -153,15 +161,21 @@ export default function Sidebar() {
             </div>
           </div>
 
-          <a
-            href="https://wa.me/6281234567890?text=Halo%20AlinStore,%20mau%20tanya%20stok%20warung"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full mt-1.5 py-1.5 px-2 bg-white hover:bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-2xs transition"
+          <button
+            onClick={() => {
+              const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+              const text = encodeURIComponent('Halo AlinStore, mau tanya stok warung');
+              const url = isMobile
+                ? `https://wa.me/6289516201846?text=${text}`
+                : `https://web.whatsapp.com/send?phone=6289516201846&text=${text}`;
+              window.open(url, '_blank');
+            }}
+            type="button"
+            className="w-full mt-1.5 py-1.5 px-2 bg-white hover:bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shadow-2xs transition cursor-pointer"
           >
             <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
             <span>Tanya WA ke WhatsApp</span>
-          </a>
+          </button>
         </div>
 
         {/* User Profile Info & Admin Link */}

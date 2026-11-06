@@ -47,6 +47,15 @@ export interface Transaction {
   debt_id?: string | null;
 }
 
+export interface ProductVariant {
+  id: string;
+  name: string;
+  sublabel: string;
+  price: number;
+  savingsNote?: string;
+  multiplier?: number;
+}
+
 export interface Product {
   id: string;
   umkm_id?: string;
@@ -54,6 +63,8 @@ export interface Product {
   brand?: string;
   category?: string;
   categoryLabel?: string;
+  description?: string;
+  equivalentNote?: string;
   price: number;
   cost_price?: number;
   stock: number;
@@ -62,6 +73,7 @@ export interface Product {
   image?: string;
   isLowStock?: boolean;
   created_at?: string;
+  variants?: ProductVariant[];
 }
 
 export interface Category {
@@ -74,6 +86,7 @@ export interface Category {
 export interface CartItem {
   product: Product;
   quantity: number;
+  selectedVariant?: ProductVariant;
 }
 
 export interface Order {

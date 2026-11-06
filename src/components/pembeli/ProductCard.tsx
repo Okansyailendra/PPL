@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Plus, Check } from 'lucide-react';
 import { Product } from '../../types';
 import { useCart } from '../../context/CartContext';
@@ -14,7 +15,8 @@ export default function ProductCard({ product }: ProductCardProps) {
   const { addToCart } = useCart();
   const [justAdded, setJustAdded] = useState(false);
 
-  const handleAdd = () => {
+  const handleAdd = (e: React.MouseEvent) => {
+    e.stopPropagation();
     addToCart(product);
     setJustAdded(true);
     setTimeout(() => setJustAdded(false), 900);
@@ -22,7 +24,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 p-3 flex flex-col justify-between hover:shadow-md hover:border-emerald-300 transition-all duration-200 group">
-      <div>
+      <Link href={`/dashboard/pelanggan/produk/${product.id}`} className="block">
         <div className="relative w-full aspect-4/3 rounded-xl bg-slate-100 overflow-hidden mb-3 flex items-center justify-center">
           <Image
             src={product.image || '/assets/logo.png'}
@@ -49,7 +51,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             {product.brand || product.unit || ''}
           </p>
         </div>
-      </div>
+      </Link>
 
       <div className="pt-2 border-t border-slate-100 flex items-center justify-between mt-auto">
         <div>

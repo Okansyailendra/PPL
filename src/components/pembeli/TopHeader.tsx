@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { ShoppingCart, Menu } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 
@@ -54,17 +55,18 @@ export default function TopHeader({ onToggleMobileSidebar }: TopHeaderProps) {
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="hidden sm:block text-xs font-medium text-slate-500">
-          {currentDateTime || 'Rabu, 06 Okt • 14.15 WIB'}
+        <div className="hidden sm:flex flex-col text-right leading-tight">
+          <span className="text-xs font-bold text-slate-800">Halo, Bu Siti</span>
+          <span className="text-[11px] text-slate-400 font-medium">Melati • Blok B No. 7</span>
         </div>
 
-        <button
-          onClick={() => setIsCartOpen(true)}
+        <Link
+          href="/dashboard/pelanggan/keranjang"
           className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-slate-200 hover:border-emerald-500 bg-white hover:bg-emerald-50/50 text-slate-800 font-semibold text-sm transition shadow-2xs group"
         >
           <ShoppingCart className="w-4 h-4 text-emerald-700 group-hover:scale-110 transition" />
-          <span>{totalItems} item</span>
-        </button>
+          <span>{totalItems} unit</span>
+        </Link>
       </div>
     </header>
   );
