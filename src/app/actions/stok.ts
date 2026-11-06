@@ -86,8 +86,8 @@ export async function addProduct(formData: FormData) {
     return { error: 'Gagal menambah barang: ' + error.message };
   }
 
-  revalidatePath('/dashboard/stok');
-  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/penjual/stok');
+  revalidatePath('/dashboard/penjual');
   return { success: true };
 }
 
@@ -125,8 +125,8 @@ export async function updateProduct(formData: FormData) {
     return { error: 'Gagal memperbarui barang: ' + error.message };
   }
 
-  revalidatePath('/dashboard/stok');
-  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/penjual/stok');
+  revalidatePath('/dashboard/penjual');
   return { success: true };
 }
 
@@ -161,8 +161,8 @@ export async function adjustProductStock(productId: string, delta: number) {
     return { error: 'Gagal mengubah stok: ' + error.message };
   }
 
-  revalidatePath('/dashboard/stok');
-  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/penjual/stok');
+  revalidatePath('/dashboard/penjual');
   return { success: true, newStock };
 }
 
@@ -183,7 +183,7 @@ export async function deleteProduct(productId: string) {
     return { error: 'Gagal menghapus barang: ' + error.message };
   }
 
-  revalidatePath('/dashboard/stok');
-  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/penjual/stok');
+  revalidatePath('/dashboard/penjual');
   return { success: true };
 }

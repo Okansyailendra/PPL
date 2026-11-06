@@ -377,7 +377,7 @@ export default function StokClient({ initialProducts = [] }: StokClientProps) {
 
           <div className="flex flex-wrap gap-2 w-full md:w-auto">
             <Link
-              href="/dashboard/transaksi"
+              href="/dashboard/penjual/transaksi"
               className="flex-1 md:flex-initial bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm text-xs cursor-pointer"
             >
               <span className="material-symbols-outlined text-sm">point_of_sale</span> Input Penjualan (Kasir)

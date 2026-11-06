@@ -1,19 +1,7 @@
-import { cookies } from 'next/headers';
-import DashboardShell from '@/components/admin/DashboardShell';
-import type { UserSession } from '@/types';
-
-export default async function DashboardLayout({
+export default function DashboardRootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = await cookies();
-  const userSessionStr = cookieStore.get('userSession')?.value;
-  const user: UserSession | null = userSessionStr ? JSON.parse(userSessionStr) : null;
-
-  return (
-    <DashboardShell user={user}>
-      {children}
-    </DashboardShell>
-  );
+  return <>{children}</>;
 }

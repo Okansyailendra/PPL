@@ -493,14 +493,14 @@ export default function TransaksiClient({
         {/* Quick Links */}
         <div className="flex items-center gap-2">
           <Link
-            href="/dashboard/laporan"
+            href="/dashboard/penjual/laporan"
             className="px-4 py-2.5 bg-surface-container-low hover:bg-surface-container border border-outline/20 text-on-surface font-bold text-xs rounded-xl flex items-center gap-2 transition-all shadow-sm"
           >
             <span className="material-symbols-outlined text-base text-primary">receipt_long</span>
             Lihat Pembukuan &amp; Laporan
           </Link>
           <Link
-            href="/dashboard/stok"
+            href="/dashboard/penjual/stok"
             className="px-4 py-2.5 bg-surface-container-low hover:bg-surface-container border border-outline/20 text-on-surface font-bold text-xs rounded-xl flex items-center gap-2 transition-all shadow-sm"
           >
             <span className="material-symbols-outlined text-base text-amber-600">inventory_2</span>
@@ -1017,7 +1017,7 @@ export default function TransaksiClient({
         </div>
 
         <Link
-          href="/dashboard/laporan"
+          href="/dashboard/penjual/laporan"
           className="px-4 py-2.5 bg-surface-container-lowest hover:bg-surface-container border border-outline/20 text-primary font-bold text-xs rounded-xl flex items-center gap-2 transition-all shadow-sm shrink-0 self-stretch md:self-auto justify-center"
         >
           <span className="material-symbols-outlined text-base">receipt_long</span>
@@ -1033,7 +1033,7 @@ export default function TransaksiClient({
             <h2 className="font-bold text-base text-on-surface">Riwayat Transaksi Terakhir</h2>
           </div>
           <Link
-            href="/dashboard/laporan"
+            href="/dashboard/penjual/laporan"
             className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
           >
             Buka Buku Besar Lengkap <span className="material-symbols-outlined text-xs">arrow_forward</span>
@@ -1204,7 +1204,7 @@ export default function TransaksiClient({
                   Cetak Struk
                 </button>
                 <Link
-                  href="/dashboard/laporan"
+                  href="/dashboard/penjual/laporan"
                   className="py-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors text-center"
                 >
                   <span className="material-symbols-outlined text-base">receipt_long</span>

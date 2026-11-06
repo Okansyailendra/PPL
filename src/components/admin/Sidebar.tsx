@@ -21,13 +21,13 @@ export default function Sidebar({ user, isOpen = false, onClose }: SidebarProps)
   const pathname = usePathname();
 
   const links: NavLinkItem[] = [
-    { href: '/dashboard', label: 'Beranda & Arus Kas', icon: 'dashboard' },
-    { href: '/dashboard/transaksi', label: 'Kasir & Transaksi', icon: 'point_of_sale', badge: 'Input' },
-    { href: '/dashboard/laporan', label: 'Buku Besar & Laporan', icon: 'receipt_long' },
-    { href: '/dashboard/chat', label: 'Copilot AI Chat', icon: 'smart_toy', badge: 'Online' },
-    { href: '/dashboard/piutang', label: 'Buku Piutang & Kasbon', icon: 'menu_book' },
-    { href: '/dashboard/stok', label: 'Stok & Restock', icon: 'inventory_2' },
-    { href: '/dashboard/scan', label: 'Scanner AI (Foto)', icon: 'document_scanner', badge: 'New' }
+    { href: '/dashboard/penjual', label: 'Beranda & Arus Kas', icon: 'dashboard' },
+    { href: '/dashboard/penjual/transaksi', label: 'Kasir & Transaksi', icon: 'point_of_sale', badge: 'Input' },
+    { href: '/dashboard/penjual/laporan', label: 'Buku Besar & Laporan', icon: 'receipt_long' },
+    { href: '/dashboard/penjual/chat', label: 'Copilot AI Chat', icon: 'smart_toy', badge: 'Online' },
+    { href: '/dashboard/penjual/piutang', label: 'Buku Piutang & Kasbon', icon: 'menu_book' },
+    { href: '/dashboard/penjual/stok', label: 'Stok & Restock', icon: 'inventory_2' },
+    { href: '/dashboard/penjual/scan', label: 'Scanner AI (Foto)', icon: 'document_scanner', badge: 'New' }
   ];
 
   return (
@@ -99,6 +99,20 @@ export default function Sidebar({ user, isOpen = false, onClose }: SidebarProps)
               );
             })}
           </nav>
+
+          {/* Quick link to buyer catalog */}
+          <div className="p-space-md border-t border-outline/10">
+            <Link
+              href="/dashboard/pelanggan"
+              className="flex items-center justify-between w-full p-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-semibold transition"
+            >
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-emerald-700 text-lg">storefront</span>
+                <span>Lihat Etalase Toko</span>
+              </div>
+              <span className="material-symbols-outlined text-sm text-on-surface-variant">open_in_new</span>
+            </Link>
+          </div>
         </div>
       </aside>
     </>

@@ -115,7 +115,7 @@ export default function LaporanClient({ user, initialTransactions, products, deb
         
         <div className="flex flex-wrap items-center gap-2.5">
           <Link
-            href="/dashboard/transaksi"
+            href="/dashboard/penjual/transaksi"
             className="px-4 py-2 bg-primary hover:bg-primary/90 text-on-primary font-bold rounded-xl text-sm flex items-center gap-2 transition-all shadow-sm cursor-pointer"
           >
             <span className="material-symbols-outlined text-base">point_of_sale</span>
@@ -400,7 +400,7 @@ export default function LaporanClient({ user, initialTransactions, products, deb
                   Mulai input transaksi penjualan melalui menu Kasir agar stok otomatis terpotong.
                 </p>
                 <Link
-                  href="/dashboard/transaksi"
+                  href="/dashboard/penjual/transaksi"
                   className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-xl text-xs font-bold"
                 >
                   <span className="material-symbols-outlined text-sm">point_of_sale</span>

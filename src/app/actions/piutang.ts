@@ -83,8 +83,8 @@ export async function addDebt(formData: FormData) {
     return { error: 'Gagal menyimpan catatan piutang: ' + error.message };
   }
 
-  revalidatePath('/dashboard/piutang');
-  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/penjual/piutang');
+  revalidatePath('/dashboard/penjual');
   return { success: true };
 }
 
@@ -107,8 +107,8 @@ export async function toggleDebtStatus(debtId: string, currentStatus: 'UNPAID' |
     return { error: 'Gagal memperbarui status: ' + error.message };
   }
 
-  revalidatePath('/dashboard/piutang');
-  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/penjual/piutang');
+  revalidatePath('/dashboard/penjual');
   return { success: true, newStatus };
 }
 
@@ -129,8 +129,8 @@ export async function deleteDebt(debtId: string) {
     return { error: 'Gagal menghapus catatan: ' + error.message };
   }
 
-  revalidatePath('/dashboard/piutang');
-  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/penjual/piutang');
+  revalidatePath('/dashboard/penjual');
   return { success: true };
 }
 
@@ -148,7 +148,7 @@ export async function updateLastBilled(debtId: string) {
     console.error('Error updating last_billed_at', e);
   }
   
-  revalidatePath('/dashboard/piutang');
+  revalidatePath('/dashboard/penjual/piutang');
   return { success: true };
 }
 
@@ -169,7 +169,7 @@ export async function updateDebtPhone(debtId: string, phone: string) {
     return { error: e.message };
   }
   
-  revalidatePath('/dashboard/piutang');
+  revalidatePath('/dashboard/penjual/piutang');
   return { success: true };
 }
 
@@ -205,7 +205,7 @@ export async function updateDebt(formData: FormData) {
     return { error: 'Gagal memperbarui catatan piutang: ' + error.message };
   }
 
-  revalidatePath('/dashboard/piutang');
-  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/penjual/piutang');
+  revalidatePath('/dashboard/penjual');
   return { success: true };
 }

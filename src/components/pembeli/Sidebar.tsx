@@ -21,9 +21,9 @@ export default function Sidebar() {
   const navItems = [
     {
       label: 'Etalase warung',
-      href: '/',
+      href: '/dashboard/pelanggan',
       icon: Store,
-      active: pathname === '/',
+      active: pathname === '/dashboard/pelanggan' || pathname === '/katalog',
     },
     {
       label: 'Keranjang saya',
@@ -35,15 +35,15 @@ export default function Sidebar() {
     },
     {
       label: 'Kasbon saya',
-      href: '/kasbon',
+      href: '/dashboard/pelanggan/kasbon',
       icon: BookOpen,
-      active: pathname === '/kasbon',
+      active: pathname === '/dashboard/pelanggan/kasbon',
     },
     {
       label: 'Struk & pengingat',
-      href: '/struk',
+      href: '/dashboard/pelanggan/struk',
       icon: Receipt,
-      active: pathname === '/struk',
+      active: pathname === '/dashboard/pelanggan/struk',
     },
   ];
 

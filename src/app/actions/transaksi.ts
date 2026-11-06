@@ -222,11 +222,11 @@ export async function createSaleTransaction(input: CreateSaleInput) {
   }
 
   // Revalidate cache agar dashboard, stok, dan buku besar langsung terupdate
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/transaksi');
-  revalidatePath('/dashboard/stok');
-  revalidatePath('/dashboard/laporan');
-  revalidatePath('/dashboard/piutang');
+  revalidatePath('/dashboard/penjual');
+  revalidatePath('/dashboard/penjual/transaksi');
+  revalidatePath('/dashboard/penjual/stok');
+  revalidatePath('/dashboard/penjual/laporan');
+  revalidatePath('/dashboard/penjual/piutang');
 
   return {
     success: true,
@@ -321,10 +321,10 @@ export async function createRestockTransaction(input: {
     return { error: 'Gagal mencatat transaksi kulakan ke pembukuan: ' + trxErr.message };
   }
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/transaksi');
-  revalidatePath('/dashboard/stok');
-  revalidatePath('/dashboard/laporan');
+  revalidatePath('/dashboard/penjual');
+  revalidatePath('/dashboard/penjual/transaksi');
+  revalidatePath('/dashboard/penjual/stok');
+  revalidatePath('/dashboard/penjual/laporan');
 
   return {
     success: true,
@@ -395,11 +395,11 @@ export async function deleteTransaction(transactionId: string, revertStock: bool
     return { error: 'Gagal menghapus transaksi: ' + delErr.message };
   }
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/transaksi');
-  revalidatePath('/dashboard/stok');
-  revalidatePath('/dashboard/laporan');
-  revalidatePath('/dashboard/piutang');
+  revalidatePath('/dashboard/penjual');
+  revalidatePath('/dashboard/penjual/transaksi');
+  revalidatePath('/dashboard/penjual/stok');
+  revalidatePath('/dashboard/penjual/laporan');
+  revalidatePath('/dashboard/penjual/piutang');
 
   return { success: true, message: 'Transaksi berhasil dibatalkan dan stok telah disesuaikan kembali.' };
 }

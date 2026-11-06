@@ -39,7 +39,7 @@ export async function login(formData: FormData) {
     maxAge: 24 * 60 * 60 
   });
 
-  redirect('/dashboard');
+  redirect('/dashboard/penjual');
 }
 
 export async function register(formData: FormData) {
@@ -93,7 +93,7 @@ export async function register(formData: FormData) {
     maxAge: 24 * 60 * 60 
   });
 
-  redirect('/dashboard');
+  redirect('/dashboard/penjual');
 }
 
 export async function logout() {
