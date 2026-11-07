@@ -52,8 +52,8 @@ export default function Sidebar({ user, isOpen = false, onClose }: SidebarProps)
           <div className="h-[80px] px-space-md flex items-center gap-3 bg-surface-container-low/40">
             <img src="/assets/maskotlogo.png" alt="Logo" className="w-[60px] h-[60px] object-contain drop-shadow-sm" />
             <div className="flex flex-col min-w-0">
-              <span className="font-headline-sm text-headline-sm text-primary leading-tight font-bold tracking-tight">WarungCopilot</span>
-              <span className="font-label-sm text-label-sm text-on-surface-variant">AI Sembako &amp; Retail</span>
+              <span className="font-headline-sm text-headline-sm text-primary leading-tight font-bold tracking-tight">Toko Wadira</span>
+              <span className="font-label-sm text-label-sm text-on-surface-variant">Portal Kasir &amp; Pengelola</span>
             </div>
           </div>
 

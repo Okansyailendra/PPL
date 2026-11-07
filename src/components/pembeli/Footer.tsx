@@ -4,12 +4,13 @@ import React from 'react';
 
 export default function Footer() {
   return (
-    <footer className="mt-12 pt-6 pb-8 border-t border-slate-200/60 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-400">
-      <div>
-        © 2026 WarungCopilot • AlinStore
+    <footer className="mt-14 pt-8 pb-10 border-t border-neutral-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-neutral-500 font-medium">
+      <div className="flex items-center gap-2">
+        <span className="font-sans font-black text-neutral-900 text-sm">Wadira.</span>
+        <span>• Warung Madura &amp; Pembayaran Digital PPOB</span>
       </div>
       <div>
-        Belanja dekat rumah, tanpa ribet.
+        Buka Setiap Hari: 06.00 – 24.00 WIB
       </div>
     </footer>
   );

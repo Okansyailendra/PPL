@@ -320,7 +320,7 @@ export default function StokClient({ initialProducts = [] }: StokClientProps) {
                   jumlah: p.min_stock * 2,
                   satuan: p.unit
                 }));
-                const msg = buatPesanOrder({ agen: 'Bapak/Ibu Agen', toko: 'WarungCopilot', items: itemsToOrder });
+                const msg = buatPesanOrder({ agen: 'Bapak/Ibu Agen', toko: 'Toko Wadira', items: itemsToOrder });
                 setPreviewOrderMsg(msg);
                 setPreviewOrder(true);
               }}

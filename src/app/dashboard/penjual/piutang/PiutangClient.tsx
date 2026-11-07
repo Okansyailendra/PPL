@@ -274,7 +274,7 @@ export default function PiutangClient({ initialDebts = [] }: PiutangClientProps)
                                 nama: debt.customer_name,
                                 nominal: debt.amount,
                                 hariTelat: hariTelat,
-                                toko: 'WarungCopilot'
+                                toko: 'Toko Wadira'
                               });
                               setPreviewMessage(msg);
                               setPreviewDebt(debt);

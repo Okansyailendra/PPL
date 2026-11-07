@@ -17,33 +17,34 @@ export default function SearchBar({
   setStockFilter,
 }: SearchBarProps) {
   return (
-    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white p-2 sm:p-2.5 rounded-2xl border border-slate-200/80 shadow-2xs">
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white p-2.5 sm:p-3 rounded-2xl border border-neutral-200/90 shadow-2xs">
       <div className="relative flex-1 flex items-center">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
+        <Search className="w-4 h-4 text-neutral-400 absolute left-3 pointer-events-none" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Cari beras, minyak, gas, atau kebutuhan lainnya..."
-          className="w-full pl-9 pr-4 py-1.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 bg-transparent rounded-xl focus:outline-hidden"
+          placeholder="Cari beras, minyak, telur, gas 3kg, atau sembako..."
+          className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm text-neutral-900 placeholder-neutral-400 bg-transparent rounded-xl focus:outline-hidden font-medium"
         />
         {searchQuery && (
           <button
             onClick={() => setSearchQuery('')}
-            className="text-xs text-slate-400 hover:text-slate-600 px-2"
+            className="text-xs text-neutral-400 hover:text-neutral-700 px-2 font-medium"
           >
             Bersihkan
           </button>
         )}
       </div>
 
-      <div className="flex items-center gap-1 border-t sm:border-t-0 sm:border-l border-slate-100 pt-2 sm:pt-0 sm:pl-3 shrink-0">
+      <div className="flex items-center gap-1.5 border-t sm:border-t-0 sm:border-l border-neutral-100 pt-2 sm:pt-0 sm:pl-3 shrink-0">
         <button
           onClick={() => setStockFilter('all')}
-          className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
+          type="button"
+          className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
             stockFilter === 'all'
-              ? 'bg-slate-900 text-white'
-              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              ? 'bg-neutral-950 text-white shadow-xs'
+              : 'text-neutral-600 hover:text-neutral-950 hover:bg-neutral-100'
           }`}
         >
           Semua
@@ -51,10 +52,11 @@ export default function SearchBar({
 
         <button
           onClick={() => setStockFilter('in_stock')}
-          className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
+          type="button"
+          className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
             stockFilter === 'in_stock'
-              ? 'bg-emerald-700 text-white'
-              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              ? 'bg-[#d4f952] text-neutral-950 border border-[#c4ec3e] shadow-xs'
+              : 'text-neutral-600 hover:text-neutral-950 hover:bg-neutral-100'
           }`}
         >
           Tersedia
@@ -62,10 +64,11 @@ export default function SearchBar({
 
         <button
           onClick={() => setStockFilter('low_stock')}
-          className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
+          type="button"
+          className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
             stockFilter === 'low_stock'
-              ? 'bg-amber-600 text-white'
-              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-xs'
+              : 'text-neutral-600 hover:text-neutral-950 hover:bg-neutral-100'
           }`}
         >
           Menipis

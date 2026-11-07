@@ -8,47 +8,49 @@ export default function HeroBanner() {
   const { fulfillmentType, setFulfillmentType } = useCart();
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-900 text-white p-6 shadow-sm">
-      <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 left-1/3 -mb-16 w-48 h-48 rounded-full bg-teal-500/10 blur-2xl pointer-events-none" />
-
+    <div className="relative overflow-hidden rounded-3xl bg-[#d4f952] text-neutral-950 p-6 sm:p-7 shadow-xs border border-[#c4ec3e]">
       <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div className="space-y-1.5 max-w-lg">
-          <h2 className="text-xl md:text-2xl font-bold tracking-tight text-white">
+        <div className="space-y-1.5 max-w-xl">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-[11px] font-bold text-neutral-900 mb-1 border border-neutral-900/10">
+            <span>TOKO WADIRA (WARUNG MADURA)</span>
+          </div>
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight leading-tight text-neutral-950">
             Kebutuhan rumah, dari warung tetangga.
           </h2>
-          <p className="text-xs md:text-sm text-emerald-100/90 leading-relaxed">
-            Order sampai dus. Pesan lewat WhatsApp, pesanan disiapkan langsung oleh warung Alin.
+          <p className="text-xs sm:text-sm text-neutral-800 leading-relaxed font-medium">
+            Pesan sembako harian dan belanjaan dapur lewat katalog online, pesanan langsung disiapkan kasir Toko Wadira.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 bg-emerald-950/40 p-1.5 rounded-xl border border-emerald-700/50 backdrop-blur-xs">
+        <div className="flex flex-wrap items-center gap-2 bg-neutral-950/10 p-1.5 rounded-2xl border border-neutral-950/15">
           <button
             onClick={() => setFulfillmentType('pickup')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition ${
+            type="button"
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
               fulfillmentType === 'pickup'
-                ? 'bg-white text-emerald-955 shadow-sm'
-                : 'text-emerald-100 hover:text-white hover:bg-white/10'
+                ? 'bg-neutral-950 text-white shadow-xs'
+                : 'text-neutral-800 hover:bg-white/60'
             }`}
           >
-            <ShoppingBag className="w-3.5 h-3.5 text-emerald-700" />
+            <ShoppingBag className="w-3.5 h-3.5 text-[#d4f952]" />
             <span>Ambil di warung</span>
           </button>
 
           <button
             onClick={() => setFulfillmentType('delivery')}
-            className={`flex flex-col items-start px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+            type="button"
+            className={`flex flex-col items-start px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
               fulfillmentType === 'delivery'
-                ? 'bg-white text-emerald-950 shadow-sm'
-                : 'text-emerald-100 hover:text-white hover:bg-white/10'
+                ? 'bg-neutral-950 text-white shadow-xs'
+                : 'text-neutral-800 hover:bg-white/60'
             }`}
           >
             <div className="flex items-center gap-1.5">
-              <Truck className="w-3.5 h-3.5 text-emerald-700" />
+              <Truck className="w-3.5 h-3.5 text-[#d4f952]" />
               <span>Antar ke rumah</span>
             </div>
-            <span className="text-[10px] text-emerald-300 font-normal">
-              Bisa di jam non-ramai
+            <span className={`text-[10px] font-normal ${fulfillmentType === 'delivery' ? 'text-neutral-300' : 'text-neutral-600'}`}>
+              Radius pemukiman warga
             </span>
           </button>
         </div>

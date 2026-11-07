@@ -15,12 +15,17 @@ export default function LoginPage() {
     <div className="min-h-screen bg-surface flex flex-col font-sans antialiased">
       {/* Header */}
       <header className="h-[80px] border-b border-outline/20 px-6 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 group">
-          <Store className="w-8 h-8 text-primary group-hover:scale-105 transition-transform" />
-          <span className="font-display font-bold text-2xl text-primary tracking-tight">WarungCopilot</span>
+        <Link href="/" className="flex items-center gap-3 group">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white">
+            <Store className="w-5 h-5 group-hover:scale-105 transition-transform" />
+          </div>
+          <div className="flex flex-col">
+            <span className="font-display font-bold text-xl text-primary tracking-tight">Toko Wadira</span>
+            <span className="text-[11px] font-medium text-on-surface-variant">Portal Pengelola & Kasir</span>
+          </div>
         </Link>
-        <Link href="/register" className="text-sm font-bold text-primary hover:text-primary-container transition-colors">
-          Daftar UMKM
+        <Link href="/dashboard/pelanggan" className="text-sm font-bold text-primary hover:text-emerald-700 transition-colors">
+          Buka Katalog Belanja →
         </Link>
       </header>
 
@@ -28,8 +33,8 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center p-6 bg-gradient-to-b from-surface to-surface-container-low">
         <div className="w-full max-w-[440px] bg-white p-8 md:p-10 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-outline/20">
           <div className="text-center mb-8">
-            <h1 className="font-display font-bold text-3xl text-on-surface mb-2 tracking-tight">Masuk ke Dasbor</h1>
-            <p className="text-on-surface-variant text-[15px]">Lanjutkan pengelolaan warung pintar Anda</p>
+            <h1 className="font-display font-bold text-3xl text-on-surface mb-2 tracking-tight">Portal Kasir Toko Wadira</h1>
+            <p className="text-on-surface-variant text-[15px]">Masuk untuk mengelola transaksi, kasir, dan stok barang</p>
           </div>
 
           <form action={formAction} className="space-y-5">
@@ -79,11 +84,8 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-8 pt-6 border-t border-outline/20 text-center">
-            <p className="text-[15px] text-on-surface-variant">
-              Belum mendaftarkan warung?{' '}
-              <Link href="/register" className="text-primary font-bold hover:underline transition-all">
-                Daftar Gratis
-              </Link>
+            <p className="text-xs text-on-surface-variant leading-relaxed">
+              Portal internal khusus staf, kasir, dan pengelola <strong>Toko Wadira</strong> untuk mengelola transaksi, stok barang, dan piutang.
             </p>
           </div>
         </div>

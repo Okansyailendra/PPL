@@ -241,27 +241,27 @@ function ProductDetailContent({ productId }: { productId: string }) {
                           onClick={() => setSelectedVariant(v)}
                           className={`relative p-3.5 rounded-2xl cursor-pointer transition-all duration-150 flex flex-col justify-between ${
                             isSelected
-                              ? 'border-2 border-emerald-600 bg-emerald-50/25 shadow-xs ring-2 ring-emerald-500/10'
-                              : 'border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
+                              ? 'border-2 border-emerald-600 bg-[#f2f7ec] shadow-xs'
+                              : 'border border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50/50'
                           }`}
                         >
                           {isSelected && (
-                            <div className="absolute top-2.5 right-2.5 text-emerald-600">
+                            <div className="absolute top-2.5 right-2.5 text-emerald-700">
                               <CheckCircle2 className="w-4 h-4 fill-emerald-600 text-white" />
                             </div>
                           )}
 
                           <div>
-                            <div className="font-bold text-slate-800 text-sm">
+                            <div className="font-bold text-neutral-900 text-sm">
                               {v.name}
                             </div>
-                            <div className="text-[11px] text-slate-400 mt-0.5">
+                            <div className="text-[11px] text-neutral-500 mt-0.5">
                               {v.sublabel}
                             </div>
                           </div>
 
-                          <div className="mt-4 pt-2 border-t border-slate-100/80">
-                            <span className="text-base font-extrabold text-emerald-800">
+                          <div className="mt-4 pt-2 border-t border-neutral-200/60">
+                            <span className="text-base font-black text-neutral-950">
                               Rp{v.price.toLocaleString('id-ID')}
                             </span>
                           </div>
@@ -321,15 +321,15 @@ function ProductDetailContent({ productId }: { productId: string }) {
                   <button
                     onClick={handleAddToCart}
                     type="button"
-                    className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition active:scale-[0.99] cursor-pointer ${
+                    className={`w-full py-4 px-6 rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.99] cursor-pointer ${
                       justAdded
-                        ? 'bg-emerald-600 text-white shadow-emerald-600/30'
-                        : 'bg-[#0F4A3C] hover:bg-[#0c3c31] text-white shadow-emerald-950/20'
+                        ? 'bg-[#d4f952] text-neutral-950 border border-[#c4ec3e]'
+                        : 'bg-[#d4f952] hover:bg-[#c4ec3e] text-neutral-950 border border-[#c4ec3e]'
                     }`}
                   >
                     {justAdded ? (
                       <>
-                        <Check className="w-4 h-4" />
+                        <Check className="w-4 h-4 stroke-[3]" />
                         <span>Pilihan berhasil ditambahkan!</span>
                       </>
                     ) : (
@@ -365,7 +365,7 @@ function ProductDetailContent({ productId }: { productId: string }) {
                       Ambil sendiri • Gratis
                     </div>
                     <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
-                      Kasir menyiapkan pesanan. Ambil setelah mendapat kabar dari Alin.
+                      Kasir menyiapkan pesanan. Ambil setelah mendapat konfirmasi dari Toko Wadira.
                     </p>
                   </div>
                 </div>
@@ -395,7 +395,7 @@ function ProductDetailContent({ productId }: { productId: string }) {
                 </div>
                 <div>
                   <div className="text-xs font-bold text-slate-800">
-                    Pesanan diteruskan ke WhatsApp AlinStore
+                    Pesanan diteruskan ke WhatsApp Toko Wadira
                   </div>
                   <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
                     Cek lagi belanjaan, isi identitas, lalu buka WhatsApp dengan rekap yang sudah disiapkan. Kasir akan memastikan stok dan waktu layanan.

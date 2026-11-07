@@ -51,7 +51,7 @@ export default function DashboardPelangganPage() {
   }, [selectedCategory, searchQuery, stockFilter]);
 
   return (
-    <div className="min-h-screen flex bg-[#F8FAFC]">
+    <div className="min-h-screen flex bg-[#fbfbf9]">
         {/* Desktop Sidebar */}
         <div className="hidden md:block">
           <Sidebar />
@@ -68,7 +68,7 @@ export default function DashboardPelangganPage() {
               <div className="p-3 flex justify-end">
                 <button
                   onClick={() => setIsMobileSidebarOpen(false)}
-                  className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100"
+                  className="p-1.5 rounded-lg text-neutral-500 hover:bg-neutral-100"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -87,19 +87,19 @@ export default function DashboardPelangganPage() {
             {/* Breadcrumb & Page Heading */}
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div className="space-y-1">
-                <div className="text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-                  ALINSTORE &gt; ETALASE WARUNG
+                <div className="text-[11px] font-bold text-neutral-400 tracking-wider uppercase">
+                  TOKO WADIRA • ETALASE RESMI
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-neutral-950 tracking-tight">
                   Belanja dekat, nggak perlu repot.
                 </h1>
-                <p className="text-xs sm:text-sm text-slate-500">
-                  Oleh anak warung sebelum berangkat. Mau diambil atau diantar, tinggal pilih.
+                <p className="text-xs sm:text-sm text-neutral-600">
+                  Sembako komplit dan kebutuhan dapur langsung dari kasir Toko Wadira. Mau diambil atau diantar, tinggal pilih.
                 </p>
               </div>
 
-              <div className="self-start px-3 py-1 rounded-full border border-slate-200 bg-white text-xs font-semibold text-slate-600 shadow-2xs">
-                Operasional 06-21 WIB
+              <div className="self-start px-3.5 py-1.5 rounded-full border border-[#e2edd8] bg-[#f2f7ec] text-xs font-bold text-emerald-800 shadow-2xs">
+                Buka Setiap Hari • 06.00 – 24.00 WIB
               </div>
             </div>
 

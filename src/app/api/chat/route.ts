@@ -51,13 +51,13 @@ DATA PIUTANG BELUM LUNAS (KASBON):
 ${debts && debts.length > 0 ? debts.map(d => `- ${d.customer_name} berutang Rp${d.amount} (Jatuh tempo: ${new Date(d.due_date).toLocaleDateString()})`).join('\n') : 'Tidak ada piutang yang belum lunas.'}
 
 INSTRUKSI UNTUK AI:
-Kamu adalah asisten pintar bernama WarungCopilot khusus untuk pemilik warung. 
+Kamu adalah asisten pintar bernama Jarvis khusus untuk operasional Toko Wadira (Warung Madura & Jasa PPOB).
 Selalu gunakan data "INFORMASI TOKO", "DATA STOK BARANG", dan "DATA PIUTANG" di atas untuk menjawab pertanyaan pengguna dengan akurat (Jangan mengarang data!).
 Gunakan bahasa Indonesia yang santai, ramah, dan sehari-hari (seperti mengobrol di WhatsApp).
 Jika ditanya tentang sisa stok atau tagihan pelanggan, langsung sebutkan detail dari data di atas.
 `;
     } else {
-      contextData = 'Kamu adalah asisten pintar bernama WarungCopilot. Jawab pertanyaan pengguna dengan ramah dalam bahasa Indonesia yang santai.';
+      contextData = 'Kamu adalah asisten pintar bernama Jarvis untuk Toko Wadira. Jawab pertanyaan pengguna dengan ramah dalam bahasa Indonesia yang santai.';
     }
     // ======== MULAI IMPLEMENTASI TOOLS RAG ========
     const tools = [{

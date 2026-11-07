@@ -60,8 +60,9 @@ function KeranjangContent() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Toko WA
+  // Nomor WhatsApp Toko Wadira Resmi
   const WARUNG_WA_NUMBER = '6289516201846';
-  const WARUNG_NAME = 'AlinStore (Warung Sembako)';
+  const WARUNG_NAME = 'Toko Wadira (Warung Madura)';
 
   // Load profile from LocalStorage if available
   useEffect(() => {
@@ -578,7 +579,7 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
                             </div>
                             <div className="text-xs font-bold text-emerald-700">Gratis</div>
                             <p className="text-[11px] text-slate-500 mt-1">
-                              Kasir menyiapkan pesanan. Ambil setelah mendapat kabar dari Alin.
+                              Kasir menyiapkan pesanan. Ambil setelah mendapat konfirmasi dari kasir Toko Wadira.
                             </p>
                           </div>
                         </div>
@@ -607,38 +608,20 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
                       </div>
                     </div>
 
-                    {/* Form Identitas */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">
-                          Nama Pemesan <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                          <input
-                            type="text"
-                            value={customerName}
-                            onChange={(e) => setCustomerName(e.target.value)}
-                            placeholder="Cth: Bu Siti"
-                            className="w-full text-xs pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 bg-white"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">
-                          No. WhatsApp / HP
-                        </label>
-                        <div className="relative">
-                          <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                          <input
-                            type="tel"
-                            value={customerPhone}
-                            onChange={(e) => setCustomerPhone(e.target.value)}
-                            placeholder="0812xxxxxxx"
-                            className="w-full text-xs pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 bg-white"
-                          />
-                        </div>
+                    {/* Form Identitas: Hanya Nama Pemesan (Nomor WA pengirim otomatis dari akun WhatsApp pembeli) */}
+                    <div className="pt-2">
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Nama Pemesan <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={customerName}
+                          onChange={(e) => setCustomerName(e.target.value)}
+                          placeholder="Cth: Bu Rohmah / Pak Budi"
+                          className="w-full text-xs pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-[#d4f952] focus:border-neutral-900 bg-white"
+                        />
                       </div>
                     </div>
 
@@ -746,7 +729,7 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
                           setValidationError('');
                           setCurrentStep(3);
                         }}
-                        className="px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                        className="px-5 py-2.5 rounded-xl bg-[#d4f952] hover:bg-[#c4ec3e] text-neutral-950 font-bold text-xs border border-[#c4ec3e] shadow-xs transition flex items-center gap-1.5 cursor-pointer"
                       >
                         <span>Lanjut ke Tinjau &amp; WhatsApp</span>
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -757,37 +740,37 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
 
                 {/* STEP 3: TINJAU & SIAP KIRIM KE WHATSAPP */}
                 {currentStep === 3 && (
-                  <div className="bg-white rounded-3xl border border-slate-200/90 p-6 md:p-8 shadow-xs space-y-6">
+                  <div className="bg-white rounded-3xl border border-neutral-200/90 p-6 md:p-8 shadow-xs space-y-6">
                     <div>
-                      <h2 className="text-lg font-extrabold text-slate-900">
+                      <h2 className="text-lg font-black text-neutral-950">
                         Langkah 3: Tinjau &amp; Kirim Pesanan
                       </h2>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Pesanan Anda sudah siap dikirimkan langsung ke kasir WhatsApp warung.
+                      <p className="text-xs text-neutral-500 mt-0.5">
+                        Pesanan Anda sudah siap dikirimkan langsung ke kasir WhatsApp Toko Wadira.
                       </p>
                     </div>
 
                     {/* Ringkasan Data Pemesan */}
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
+                    <div className="p-4 rounded-2xl bg-[#f2f7ec] border border-[#e2edd8] space-y-2 text-xs">
                       <div className="flex justify-between">
-                        <span className="text-slate-500">Pemesan:</span>
-                        <span className="font-bold text-slate-900">{customerName} ({customerPhone || '-'})</span>
+                        <span className="text-neutral-600">Pemesan:</span>
+                        <span className="font-bold text-neutral-950">{customerName}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-500">Metode:</span>
-                        <span className="font-bold text-slate-900">
+                        <span className="text-neutral-600">Metode:</span>
+                        <span className="font-bold text-neutral-950">
                           {fulfillmentType === 'delivery' ? '🛵 Antar ke Rumah (+Rp5.000)' : '🏪 Ambil di Warung (Gratis)'}
                         </span>
                       </div>
                       {fulfillmentType === 'delivery' && (
                         <div className="flex justify-between">
-                          <span className="text-slate-500">Alamat:</span>
-                          <span className="font-bold text-slate-900 text-right">{customerAddress}</span>
+                          <span className="text-neutral-600">Alamat:</span>
+                          <span className="font-bold text-neutral-950 text-right">{customerAddress}</span>
                         </div>
                       )}
                       <div className="flex justify-between">
-                        <span className="text-slate-500">Pembayaran:</span>
-                        <span className="font-bold text-slate-900 capitalize">
+                        <span className="text-neutral-600">Pembayaran:</span>
+                        <span className="font-bold text-neutral-950 capitalize">
                           {paymentMethod === 'cash' ? 'Tunai / COD' : paymentMethod === 'qris' ? 'Transfer / QRIS' : 'Catat Kasbon'}
                         </span>
                       </div>
@@ -795,7 +778,7 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
 
                     {/* Preview Rekap Barang */}
                     <div className="space-y-2">
-                      <div className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      <div className="text-xs font-bold text-neutral-800 uppercase tracking-wider">
                         Rincian {totalKinds} Jenis Barang ({totalItems} unit):
                       </div>
                       <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
@@ -803,11 +786,11 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
                           const itemPrice = item.selectedVariant ? item.selectedVariant.price : item.product.price;
                           const subtotal = itemPrice * item.quantity;
                           return (
-                            <div key={idx} className="flex justify-between text-xs p-2 rounded-lg bg-slate-50 border border-slate-100">
-                              <span className="text-slate-800">
+                            <div key={idx} className="flex justify-between text-xs p-2 rounded-lg bg-neutral-50 border border-neutral-100">
+                              <span className="text-neutral-800">
                                 {idx + 1}. {item.product.name} {item.selectedVariant ? `(${item.selectedVariant.name})` : ''} x {item.quantity}
                               </span>
-                              <span className="font-bold text-slate-900">Rp{subtotal.toLocaleString('id-ID')}</span>
+                              <span className="font-bold text-neutral-950">Rp{subtotal.toLocaleString('id-ID')}</span>
                             </div>
                           );
                         })}
@@ -815,13 +798,13 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
                     </div>
 
                     {/* Tombol Kirim WhatsApp Utama */}
-                    <div className="pt-3 border-t border-slate-100 space-y-2">
+                    <div className="pt-3 border-t border-neutral-100 space-y-2">
                       <button
                         onClick={handleCheckoutWA}
-                        className="w-full py-4 px-6 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm shadow-md shadow-emerald-700/20 flex items-center justify-center gap-2.5 transition active:scale-[0.99] cursor-pointer"
+                        className="w-full py-4 px-6 rounded-xl bg-[#d4f952] hover:bg-[#c4ec3e] text-neutral-950 font-black text-sm border border-[#c4ec3e] shadow-xs flex items-center justify-center gap-2.5 transition active:scale-[0.99] cursor-pointer"
                       >
                         <Send className="w-4 h-4" />
-                        <span>Kirim Pesanan ke WhatsApp Warung (089516201846)</span>
+                        <span>Kirim Pesanan ke WhatsApp Toko Wadira</span>
                       </button>
 
                       <div className="flex justify-between items-center pt-2">

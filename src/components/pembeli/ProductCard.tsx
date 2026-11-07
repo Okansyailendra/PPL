@@ -23,9 +23,9 @@ export default function ProductCard({ product }: ProductCardProps) {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 p-3 flex flex-col justify-between hover:shadow-md hover:border-emerald-300 transition-all duration-200 group">
+    <div className="bg-white rounded-2xl border border-neutral-200/90 p-3.5 flex flex-col justify-between hover:shadow-md hover:border-neutral-400 transition-all duration-200 group">
       <Link href={`/dashboard/pelanggan/produk/${product.id}`} className="block">
-        <div className="relative w-full aspect-4/3 rounded-xl bg-slate-100 overflow-hidden mb-3 flex items-center justify-center">
+        <div className="relative w-full aspect-4/3 rounded-xl bg-neutral-100 overflow-hidden mb-3 flex items-center justify-center">
           <Image
             src={product.image || '/assets/logo.png'}
             alt={product.name}
@@ -34,33 +34,33 @@ export default function ProductCard({ product }: ProductCardProps) {
             className="object-cover group-hover:scale-105 transition-transform duration-300"
           />
           {product.isLowStock && (
-            <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-amber-500/90 text-white font-bold text-[10px] tracking-wide shadow-2xs">
+            <span className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full bg-amber-500 text-white font-bold text-[10px] tracking-wide shadow-2xs">
               Stok Menipis
             </span>
           )}
         </div>
 
         <div className="space-y-0.5 mb-2">
-          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+          <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">
             {product.categoryLabel || product.category || 'Produk'}
           </span>
-          <h4 className="font-bold text-slate-800 text-sm leading-snug line-clamp-1 group-hover:text-emerald-800 transition">
+          <h4 className="font-bold text-neutral-950 text-sm leading-snug line-clamp-1 group-hover:text-emerald-700 transition">
             {product.name}
           </h4>
-          <p className="text-[11px] text-slate-500 truncate">
+          <p className="text-[11px] text-neutral-500 truncate">
             {product.brand || product.unit || ''}
           </p>
         </div>
       </Link>
 
-      <div className="pt-2 border-t border-slate-100 flex items-center justify-between mt-auto">
+      <div className="pt-2.5 border-t border-neutral-100 flex items-center justify-between mt-auto">
         <div>
-          <div className="font-extrabold text-slate-900 text-sm tracking-tight">
+          <div className="font-black text-neutral-950 text-sm tracking-tight">
             Rp {product.price.toLocaleString('id-ID')}
           </div>
           <div
             className={`text-[11px] font-medium ${
-              product.isLowStock ? 'text-amber-600 font-semibold' : 'text-slate-400'
+              product.isLowStock ? 'text-amber-700 font-bold' : 'text-neutral-400'
             }`}
           >
             Tersedia {product.stock} {product.unit}
@@ -71,14 +71,14 @@ export default function ProductCard({ product }: ProductCardProps) {
           onClick={handleAdd}
           type="button"
           aria-label={`Tambah ${product.name} ke keranjang`}
-          className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all active:scale-90 ${
+          className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all active:scale-90 cursor-pointer ${
             justAdded
-              ? 'bg-emerald-600 text-white shadow-xs'
-              : 'border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 bg-white'
+              ? 'bg-[#d4f952] text-neutral-950 font-bold border border-[#c4ec3e] shadow-xs'
+              : 'border border-neutral-300 hover:border-[#c4ec3e] hover:bg-[#d4f952] text-neutral-800 hover:text-neutral-950 bg-white shadow-2xs'
           }`}
         >
           {justAdded ? (
-            <Check className="w-4 h-4 animate-scale-in" />
+            <Check className="w-4 h-4 stroke-[3]" />
           ) : (
             <Plus className="w-4 h-4" />
           )}

@@ -42,9 +42,9 @@ export default function CartDrawer() {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris' | 'kasbon'>('cash');
   const [validationError, setValidationError] = useState('');
 
-  // Nomor WhatsApp Warung Tujuan (Bisa disesuaikan dengan nomor pemilik toko)
+  // Nomor WhatsApp Warung Tujuan (Nomor pemilik Toko Wadira)
   const WARUNG_WA_NUMBER = '6289516201846';
-  const WARUNG_NAME = 'AlinStore (Warung Sembako)';
+  const WARUNG_NAME = 'Toko Wadira (Warung Madura)';
 
   // Muat data pemesan dari LocalStorage jika pernah belanja sebelumnya
   useEffect(() => {
@@ -272,41 +272,23 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
                   </div>
                 )}
 
-                {/* Nama & No. HP */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                      Nama Pemesan <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <User className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        placeholder="Cth: Bu Siti"
-                        value={customerName}
-                        onChange={(e) => {
-                          setCustomerName(e.target.value);
-                          if (validationError) setValidationError('');
-                        }}
-                        className="w-full text-xs pl-8 pr-3 py-2 rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 bg-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                      No. WhatsApp / HP
-                    </label>
-                    <div className="relative">
-                      <Phone className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="tel"
-                        placeholder="0812xxxxxxx"
-                        value={customerPhone}
-                        onChange={(e) => setCustomerPhone(e.target.value)}
-                        className="w-full text-xs pl-8 pr-3 py-2 rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 bg-white"
-                      />
-                    </div>
+                {/* Nama Pemesan */}
+                <div>
+                  <label className="block text-[11px] font-bold text-neutral-700 mb-1">
+                    Nama Pemesan <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-neutral-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Cth: Bu Siti / Pak Budi"
+                      value={customerName}
+                      onChange={(e) => {
+                        setCustomerName(e.target.value);
+                        if (validationError) setValidationError('');
+                      }}
+                      className="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-neutral-200 focus:outline-hidden focus:ring-2 focus:ring-[#d4f952] focus:border-neutral-900 bg-white"
+                    />
                   </div>
                 </div>
 
@@ -319,25 +301,25 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
                     <button
                       type="button"
                       onClick={() => setFulfillmentType('pickup')}
-                      className={`flex items-center justify-center gap-1.5 p-2 rounded-xl text-xs font-semibold border transition ${
+                      className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
                         fulfillmentType === 'pickup'
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                          ? 'bg-neutral-950 text-white border-neutral-950 shadow-xs'
+                          : 'bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50'
                       }`}
                     >
-                      <Store className="w-3.5 h-3.5" />
+                      <Store className="w-3.5 h-3.5 text-[#d4f952]" />
                       <span>Ambil Sendiri</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setFulfillmentType('delivery')}
-                      className={`flex items-center justify-center gap-1.5 p-2 rounded-xl text-xs font-semibold border transition ${
+                      className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
                         fulfillmentType === 'delivery'
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                          ? 'bg-neutral-950 text-white border-neutral-950 shadow-xs'
+                          : 'bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50'
                       }`}
                     >
-                      <Truck className="w-3.5 h-3.5" />
+                      <Truck className="w-3.5 h-3.5 text-[#d4f952]" />
                       <span>Antar ke Rumah</span>
                     </button>
                   </div>
@@ -371,38 +353,38 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('cash')}
-                      className={`flex flex-col items-center justify-center p-2 rounded-lg text-[11px] font-semibold border transition text-center ${
+                      className={`flex flex-col items-center justify-center p-2 rounded-xl text-[11px] font-bold border transition text-center cursor-pointer ${
                         paymentMethod === 'cash'
-                          ? 'bg-emerald-50 border-emerald-500 text-emerald-900 font-bold'
-                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                          ? 'bg-[#d4f952] border-[#c4ec3e] text-neutral-950 shadow-xs'
+                          : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
                       }`}
                     >
-                      <Banknote className="w-4 h-4 mb-0.5 text-emerald-700" />
+                      <Banknote className="w-4 h-4 mb-0.5 text-neutral-900" />
                       <span>Tunai / COD</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('qris')}
-                      className={`flex flex-col items-center justify-center p-2 rounded-lg text-[11px] font-semibold border transition text-center ${
+                      className={`flex flex-col items-center justify-center p-2 rounded-xl text-[11px] font-bold border transition text-center cursor-pointer ${
                         paymentMethod === 'qris'
-                          ? 'bg-emerald-50 border-emerald-500 text-emerald-900 font-bold'
-                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                          ? 'bg-[#d4f952] border-[#c4ec3e] text-neutral-950 shadow-xs'
+                          : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
                       }`}
                     >
-                      <CreditCard className="w-4 h-4 mb-0.5 text-emerald-700" />
+                      <CreditCard className="w-4 h-4 mb-0.5 text-neutral-900" />
                       <span>QRIS / TF</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('kasbon')}
-                      className={`flex flex-col items-center justify-center p-2 rounded-lg text-[11px] font-semibold border transition text-center ${
+                      className={`flex flex-col items-center justify-center p-2 rounded-xl text-[11px] font-bold border transition text-center cursor-pointer ${
                         paymentMethod === 'kasbon'
-                          ? 'bg-emerald-50 border-emerald-500 text-emerald-900 font-bold'
-                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                          ? 'bg-[#d4f952] border-[#c4ec3e] text-neutral-950 shadow-xs'
+                          : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
                       }`}
                       title="Khusus warga langganan tetap warung"
                     >
-                      <BookOpen className="w-4 h-4 mb-0.5 text-amber-600" />
+                      <BookOpen className="w-4 h-4 mb-0.5 text-neutral-900" />
                       <span>Catat Bon</span>
                     </button>
                   </div>
@@ -431,28 +413,29 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
 
         {/* Footer Checkout Bar */}
         {cart.length > 0 && (
-          <div className="p-4 border-t border-slate-200 bg-white space-y-3">
+          <div className="p-4 border-t border-neutral-200/80 bg-[#fbfbf9] space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-xs text-slate-500 block">Total Pembayaran ({totalItems} item)</span>
-                <span className="text-xl font-extrabold text-slate-900">
+                <span className="text-xs text-neutral-500 block font-medium">Total Pembayaran ({totalItems} item)</span>
+                <span className="text-xl font-black text-neutral-950">
                   Rp {totalPrice.toLocaleString('id-ID')}
                 </span>
               </div>
-              <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-full">
+              <span className="text-[11px] font-bold text-emerald-800 bg-[#f2f7ec] border border-[#e2edd8] px-2.5 py-1 rounded-full">
                 {fulfillmentType === 'delivery' ? '🛵 Antar ke Rumah' : '🏪 Ambil di Warung'}
               </span>
             </div>
 
             <button
               onClick={handleCheckoutWA}
-              className="w-full py-3.5 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2.5 shadow-md shadow-emerald-700/20 active:scale-[0.99] transition cursor-pointer"
+              type="button"
+              className="w-full py-4 px-4 bg-[#d4f952] hover:bg-[#c4ec3e] border border-[#c4ec3e] text-neutral-950 font-black text-sm rounded-xl flex items-center justify-center gap-2.5 shadow-xs active:scale-[0.99] transition cursor-pointer"
             >
               <Send className="w-4 h-4" />
-              <span>Kirim Pesanan ke WhatsApp Warung</span>
+              <span>Kirim Pesanan ke WhatsApp Toko Wadira</span>
             </button>
-            <p className="text-[11px] text-center text-slate-400">
-              Format rincian belanja otomatis disiapkan untuk dikirim ke chat WhatsApp warung.
+            <p className="text-[11px] text-center text-neutral-400">
+              Format rincian belanja otomatis disiapkan untuk dikirim ke chat WhatsApp kasir Wadira.
             </p>
           </div>
         )}

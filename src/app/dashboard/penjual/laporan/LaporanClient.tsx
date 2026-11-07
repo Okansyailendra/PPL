@@ -459,7 +459,7 @@ export default function LaporanClient({ user, initialTransactions, products, deb
 
       {/* FOOTER PRINT ONLY */}
       <div className="hidden print:block mt-8 pt-4 border-t border-black text-center text-xs italic">
-        Laporan dibuat otomatis dari catatan transaksi WarungCopilot.<br/>
+        Laporan dibuat otomatis dari catatan transaksi Toko Wadira.<br/>
         Angka bergantung pada kelengkapan pencatatan transaksi kasir.
       </div>
       

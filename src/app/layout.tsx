@@ -8,8 +8,8 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'WarungCopilot - Smart Restock & Pembukuan AI',
-  description: 'Asisten Keuangan & Inventaris Pintar Khusus Pemilik Warung dan UMKM Sembako/Ritel.',
+  title: 'Toko Wadira - Warung Madura Modern & Pembayaran Digital PPOB',
+  description: 'Belanja sembako, kebutuhan rumah tangga, dan bayar tagihan listrik PLN, PDAM, pulsa, serta e-wallet lengkap di Toko Wadira.',
 };
 
 export default function RootLayout({
