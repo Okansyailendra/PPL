@@ -55,9 +55,11 @@ function KeranjangContent() {
   const [customerPhone, setCustomerPhone] = useState('089516201846');
   const [customerAddress, setCustomerAddress] = useState('Melati • Blok B No. 7');
   const [customerNote, setCustomerNote] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris' | 'kasbon'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris' | 'kasbon'>('qris');
   const [validationError, setValidationError] = useState('');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [paymentResult, setPaymentResult] = useState<{ status: 'success' | 'pending' | 'error'; message: string; orderId?: string } | null>(null);
 
   // Toko WA
   // Nomor WhatsApp Toko Wadira Resmi
@@ -166,6 +168,94 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
       : `https://web.whatsapp.com/send?phone=${WARUNG_WA_NUMBER}&text=${encodedMessage}`;
 
     window.open(waUrl, '_blank');
+  };
+
+  const handlePayWithMidtrans = async () => {
+    if (cart.length === 0) return;
+
+    if (!customerName.trim() || !customerPhone.trim()) {
+      setValidationError('Nama dan Nomor Telepon wajib diisi untuk pembayaran online.');
+      setCurrentStep(2);
+      return;
+    }
+
+    try {
+      setIsProcessingPayment(true);
+      setValidationError('');
+
+      // Kirim request ke backend untuk mendapatkan Snap Token
+      const res = await fetch('/api/payment/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: cart.map((it) => ({
+            productId: it.product.id,
+            name: `${it.product.name}${it.selectedVariant ? ` (${it.selectedVariant.name})` : ''}`,
+            price: it.selectedVariant ? it.selectedVariant.price : it.product.price,
+            quantity: it.quantity,
+            unit: it.selectedVariant ? it.selectedVariant.name : (it.product.unit || 'pcs'),
+          })),
+          customer: {
+            name: customerName.trim(),
+            phone: customerPhone.trim(),
+            address: customerAddress.trim() || 'Alamat warung',
+          },
+          shipping: {
+            courier: fulfillmentType === 'delivery' ? 'Kurir Toko' : 'Ambil di Toko',
+            service: fulfillmentType === 'delivery' ? 'Antar Cepat' : 'Self-Pickup',
+            cost: deliveryFee,
+          },
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.snapToken) {
+        throw new Error(data.error || 'Gagal membuat tagihan pembayaran');
+      }
+
+      // Periksa apakah Snap JS sudah dimuat
+      const snapObj = (window as any).snap;
+      if (snapObj) {
+        snapObj.pay(data.snapToken, {
+          onSuccess: function (result: any) {
+            console.log('Payment success:', result);
+            setPaymentResult({
+              status: 'success',
+              message: 'Pembayaran berhasil diselesaikan!',
+              orderId: data.orderId,
+            });
+            clearCart();
+          },
+          onPending: function (result: any) {
+            console.log('Payment pending:', result);
+            setPaymentResult({
+              status: 'pending',
+              message: 'Menunggu pembayaran selesai. Silakan cek instruksi pembayaran.',
+              orderId: data.orderId,
+            });
+          },
+          onError: function (result: any) {
+            console.error('Payment error:', result);
+            setValidationError('Pembayaran gagal atau dibatalkan.');
+          },
+          onClose: function () {
+            console.log('Customer closed the popup without finishing the payment');
+          },
+        });
+      } else {
+        // Fallback jika Snap JS belum termuat sempurna
+        if (data.redirectUrl) {
+          window.open(data.redirectUrl, '_blank');
+        } else {
+          alert('Snap SDK belum termuat atau Token Simulasi: ' + data.snapToken);
+        }
+      }
+    } catch (err: any) {
+      console.error('Midtrans Checkout Error:', err);
+      setValidationError(err?.message || 'Terjadi kesalahan sistem pembayaran.');
+    } finally {
+      setIsProcessingPayment(false);
+    }
   };
 
   return (
@@ -608,7 +698,7 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
                       </div>
                     </div>
 
-                    {/* Form Identitas: Hanya Nama Pemesan (Nomor WA pengirim otomatis dari akun WhatsApp pembeli) */}
+                    {/* Form Identitas */}
                     <div className="pt-2">
                       <label className="block text-xs font-bold text-slate-700 mb-1">
                         Nama Pemesan <span className="text-red-500">*</span>
@@ -797,15 +887,63 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
                       </div>
                     </div>
 
-                    {/* Tombol Kirim WhatsApp Utama */}
-                    <div className="pt-3 border-t border-neutral-100 space-y-2">
-                      <button
-                        onClick={handleCheckoutWA}
-                        className="w-full py-4 px-6 rounded-xl bg-[#d4f952] hover:bg-[#c4ec3e] text-neutral-950 font-black text-sm border border-[#c4ec3e] shadow-xs flex items-center justify-center gap-2.5 transition active:scale-[0.99] cursor-pointer"
+                    {/* Notifikasi Hasil Pembayaran */}
+                    {paymentResult && (
+                      <div
+                        className={`p-4 rounded-2xl border text-xs space-y-1 ${
+                          paymentResult.status === 'success'
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                            : 'bg-amber-50 border-amber-200 text-amber-900'
+                        }`}
                       >
-                        <Send className="w-4 h-4" />
-                        <span>Kirim Pesanan ke WhatsApp Toko Wadira</span>
-                      </button>
+                        <div className="font-bold flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          <span>{paymentResult.message}</span>
+                        </div>
+                        {paymentResult.orderId && (
+                          <div className="text-[11px] opacity-80">
+                            ID Pesanan: <span className="font-mono font-bold">{paymentResult.orderId}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Tombol Pembayaran Utama */}
+                    <div className="pt-3 border-t border-neutral-100 space-y-3">
+                      {paymentMethod === 'qris' ? (
+                        <button
+                          type="button"
+                          disabled={isProcessingPayment}
+                          onClick={handlePayWithMidtrans}
+                          className="w-full py-4 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm shadow-md flex items-center justify-center gap-2.5 transition active:scale-[0.99] cursor-pointer disabled:opacity-50"
+                        >
+                          <CreditCard className="w-4 h-4" />
+                          <span>
+                            {isProcessingPayment ? 'Menyiapkan Pembayaran Midtrans...' : 'Bayar Sekarang via Midtrans (QRIS / VA / Bank)'}
+                          </span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleCheckoutWA}
+                          className="w-full py-4 px-6 rounded-xl bg-[#d4f952] hover:bg-[#c4ec3e] text-neutral-950 font-black text-sm border border-[#c4ec3e] shadow-xs flex items-center justify-center gap-2.5 transition active:scale-[0.99] cursor-pointer"
+                        >
+                          <Send className="w-4 h-4" />
+                          <span>Kirim Pesanan ke WhatsApp Toko Wadira</span>
+                        </button>
+                      )}
+
+                      {/* Tombol alternatif kirim WA jika pilih bayar online tapi ingin konfirmasi chat */}
+                      {paymentMethod === 'qris' && (
+                        <button
+                          type="button"
+                          onClick={handleCheckoutWA}
+                          className="w-full py-2.5 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center justify-center gap-2 transition"
+                        >
+                          <Send className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Atau Kirim Rincian Pesanan ke WhatsApp Toko</span>
+                        </button>
+                      )}
 
                       <div className="flex justify-between items-center pt-2">
                         <button

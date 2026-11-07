@@ -37,12 +37,22 @@ export interface TransactionItem {
 export interface Transaction {
   id: string;
   umkm_id?: string;
+  customer_id?: string | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
   created_at: string;
   transaction_date?: string;
   type: 'IN' | 'OUT';
   category?: string;
-  payment_method: 'CASH' | 'CREDIT';
+  payment_method: 'CASH' | 'CREDIT' | 'ONLINE' | 'QRIS' | 'TRANSFER';
+  payment_status?: 'PENDING' | 'SETTLEMENT' | 'EXPIRE' | 'CANCEL' | 'FAILED';
   total_amount: number;
+  shipping_cost?: number;
+  courier?: string | null;
+  courier_service?: string | null;
+  tracking_number?: string | null;
+  shipping_address?: string | null;
+  snap_token?: string | null;
   items: TransactionItem[];
   debt_id?: string | null;
 }
@@ -70,7 +80,9 @@ export interface Product {
   stock: number;
   min_stock: number;
   unit: string;
+  weight?: number; // dalam gram (default 500)
   image?: string;
+  image_url?: string;
   isLowStock?: boolean;
   created_at?: string;
   variants?: ProductVariant[];

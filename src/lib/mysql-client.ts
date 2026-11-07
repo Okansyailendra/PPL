@@ -11,6 +11,27 @@ const pool = mysql.createPool({
   connectionLimit: 10,
 });
 
+function formatValueForMysql(v: any): any {
+  if (v === null || v === undefined) return null;
+  if (typeof v === 'string') {
+    // Deteksi ISO 8601 date string, misal: 2026-11-07T14:12:34.640Z
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(v)) {
+      const d = new Date(v);
+      if (!isNaN(d.getTime())) {
+        return d.toISOString().slice(0, 19).replace('T', ' ');
+      }
+    }
+    return v;
+  }
+  if (v instanceof Date) {
+    return v.toISOString().slice(0, 19).replace('T', ' ');
+  }
+  if (typeof v === 'object') {
+    return JSON.stringify(v);
+  }
+  return v;
+}
+
 export class MysqlQueryBuilder {
   private table: string;
   private action: 'select' | 'insert' | 'update' | 'delete' = 'select';
@@ -196,13 +217,10 @@ export class MysqlQueryBuilder {
           if (!row.id) {
             row.id = crypto.randomUUID();
           }
-          if (row.items && typeof row.items === 'object') {
-            row.items = JSON.stringify(row.items);
-          }
           const keys = Object.keys(row);
           const cols = keys.map((k) => `\`${k}\``).join(', ');
           const placeholders = keys.map(() => '?').join(', ');
-          const vals = keys.map((k) => row[k]);
+          const vals = keys.map((k) => formatValueForMysql(row[k]));
 
           await pool.query(
             `INSERT INTO \`${this.table}\` (${cols}) VALUES (${placeholders})`,
@@ -219,11 +237,7 @@ export class MysqlQueryBuilder {
       if (this.action === 'update') {
         const keys = Object.keys(this.updateValues);
         const setClauses = keys.map((k) => `\`${k}\` = ?`).join(', ');
-        const vals: any[] = keys.map((k) => {
-          const v = this.updateValues[k];
-          if (k === 'items' && typeof v === 'object') return JSON.stringify(v);
-          return v;
-        });
+        const vals: any[] = keys.map((k) => formatValueForMysql(this.updateValues[k]));
 
         let sql = `UPDATE \`${this.table}\` SET ${setClauses}`;
         sql += this.buildWhere(vals);
