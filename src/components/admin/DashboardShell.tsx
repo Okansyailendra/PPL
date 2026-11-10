@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import Sidebar from '@/components/admin/Sidebar';
+import React from 'react';
 import Header from '@/components/admin/Header';
 import type { UserSession } from '@/types';
 
@@ -11,22 +10,12 @@ interface DashboardShellProps {
 }
 
 export default function DashboardShell({ user, children }: DashboardShellProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
   return (
-    <div className="min-h-screen bg-surface flex">
-      <Sidebar
-        user={user}
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
-      {/* Main content shifts right only on desktop */}
-      <div className="flex flex-col flex-1 w-full min-w-0 lg:pl-72">
-        <Header user={user} onMenuClick={() => setSidebarOpen(true)} />
-        <main className="w-full pt-16 px-4 sm:px-6 lg:px-8 py-6">
-          {children}
-        </main>
-      </div>
+    <div className="min-h-screen bg-[#f8faf6] text-neutral-900 flex flex-col font-sans antialiased">
+      <Header user={user} />
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {children}
+      </main>
     </div>
   );
 }

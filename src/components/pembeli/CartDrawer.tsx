@@ -13,7 +13,6 @@ import {
   Store, 
   CreditCard, 
   Banknote, 
-  BookOpen, 
   MapPin, 
   Phone, 
   User, 
@@ -39,7 +38,7 @@ export default function CartDrawer() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerNote, setCustomerNote] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris' | 'kasbon'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris'>('cash');
   const [validationError, setValidationError] = useState('');
 
   // Nomor WhatsApp Warung Tujuan (Nomor pemilik Toko Wadira)
@@ -114,9 +113,7 @@ export default function CartDrawer() {
     const paymentLabel =
       paymentMethod === 'cash'
         ? 'Bayar Tunai (Cash / COD saat barang diterima)'
-        : paymentMethod === 'qris'
-        ? 'Transfer / QRIS'
-        : 'Catat Kasbon (Pelanggan Langganan Warung)';
+        : 'Transfer / QRIS';
 
     // FORMAT TEMPLATE PESAN WHATSAPP (Bersih, rapi, bebas tanda tanya)
     const formattedMessage = `*PESANAN BELANJA BARU*
@@ -349,7 +346,7 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
                   <label className="block text-[11px] font-bold text-slate-600 mb-1">
                     Metode Pembayaran
                   </label>
-                  <div className="grid grid-cols-3 gap-1.5">
+                  <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('cash')}
@@ -373,19 +370,6 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
                     >
                       <CreditCard className="w-4 h-4 mb-0.5 text-neutral-900" />
                       <span>QRIS / TF</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('kasbon')}
-                      className={`flex flex-col items-center justify-center p-2 rounded-xl text-[11px] font-bold border transition text-center cursor-pointer ${
-                        paymentMethod === 'kasbon'
-                          ? 'bg-[#d4f952] border-[#c4ec3e] text-neutral-950 shadow-xs'
-                          : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
-                      }`}
-                      title="Khusus warga langganan tetap warung"
-                    >
-                      <BookOpen className="w-4 h-4 mb-0.5 text-neutral-900" />
-                      <span>Catat Bon</span>
                     </button>
                   </div>
                 </div>

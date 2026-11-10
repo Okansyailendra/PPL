@@ -92,7 +92,7 @@ CREATE POLICY "Allow all transactions" ON public.transactions FOR ALL USING (tru
 
 -- SEED DATA
 INSERT INTO public.users (id, email, password, store_name, owner_name, phone_number, created_at) VALUES
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'admin@warungberkah.com', 'password123', 'Warung Sembako Berkah', 'Hj. Siti Aminah', '081234567890', '2026-10-02 14:13:16+00'),
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'admin@warungberkah.com', 'password123', 'Warung Sembako Berkah', 'Helwiyah', '081234567890', '2026-10-02 14:13:16+00'),
 ('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'toko.madura@gmail.com', 'madura123', 'Toko Madura Barokah 24 Jam', 'H. Hasan Basri', '081987654321', '2026-10-12 14:13:16+00');
 
 INSERT INTO public.products (id, umkm_id, name, price, cost_price, stock, min_stock, unit, created_at) VALUES

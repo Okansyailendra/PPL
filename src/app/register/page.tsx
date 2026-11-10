@@ -17,7 +17,7 @@ export default function RegisterPage() {
       <header className="h-[80px] border-b border-outline/20 px-6 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 group">
           <Store className="w-8 h-8 text-primary group-hover:scale-105 transition-transform" />
-          <span className="font-display font-bold text-2xl text-primary tracking-tight">Toko Wadira</span>
+          <span className="font-display font-bold text-2xl text-primary tracking-tight">Wadira</span>
         </Link>
         <Link href="/kasir" className="text-sm font-bold text-primary hover:text-primary-container transition-colors">
           Masuk Kasir

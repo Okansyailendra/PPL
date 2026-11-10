@@ -9,8 +9,8 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Toko Wadira - Warung Madura Modern & Pembayaran Digital PPOB',
-  description: 'Belanja sembako, kebutuhan rumah tangga, dan bayar tagihan listrik PLN, PDAM, pulsa, serta e-wallet lengkap di Toko Wadira.',
+  title: 'Wadira',
+  description: 'Belanja sembako, kebutuhan rumah tangga, dan bayar tagihan listrik PLN, PDAM, pulsa, serta e-wallet lengkap di Wadira.',
 };
 
 export default function RootLayout({

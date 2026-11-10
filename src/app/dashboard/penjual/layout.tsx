@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import DashboardShell from '@/components/admin/DashboardShell';
+import { supabase } from '@/lib/supabase';
 import type { UserSession } from '@/types';
 
 export default async function PenjualLayout({
@@ -9,7 +10,22 @@ export default async function PenjualLayout({
 }) {
   const cookieStore = await cookies();
   const userSessionStr = cookieStore.get('userSession')?.value;
-  const user: UserSession | null = userSessionStr ? JSON.parse(userSessionStr) : null;
+  let user: UserSession | null = userSessionStr ? JSON.parse(userSessionStr) : null;
+
+  if (user?.id) {
+    try {
+      const { data: dbUser } = await supabase
+        .from('users')
+        .select('id, email, store_name, owner_name, phone_number')
+        .eq('id', user.id)
+        .single();
+      if (dbUser) {
+        user = dbUser;
+      }
+    } catch (e) {
+      console.error('Error fetching fresh user in PenjualLayout:', e);
+    }
+  }
 
   return (
     <DashboardShell user={user}>

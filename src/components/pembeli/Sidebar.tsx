@@ -6,8 +6,6 @@ import { usePathname } from 'next/navigation';
 import {
   Store,
   ShoppingCart,
-  BookOpen,
-  Receipt,
   Clock,
   MapPin,
   MessageCircle,
@@ -41,18 +39,6 @@ export default function Sidebar() {
       active: pathname === '/dashboard/pelanggan/keranjang',
       badge: totalItems > 0 ? `${totalItems}` : undefined,
     },
-    {
-      label: 'Kasbon saya',
-      href: '/dashboard/pelanggan/kasbon',
-      icon: BookOpen,
-      active: pathname === '/dashboard/pelanggan/kasbon',
-    },
-    {
-      label: 'Struk & pengingat',
-      href: '/dashboard/pelanggan/struk',
-      icon: Receipt,
-      active: pathname === '/dashboard/pelanggan/struk',
-    },
   ];
 
   return (
@@ -62,10 +48,6 @@ export default function Sidebar() {
         <Link href="/" className="flex items-center gap-2 px-2 py-1 group">
           <span className="font-sans text-2xl font-black tracking-tight text-neutral-950">
             Wadira
-          </span>
-          <span className="h-2 w-2 rounded-full bg-emerald-600 inline-block mb-0.5" />
-          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[#f2f7ec] text-emerald-800 border border-[#e2edd8] ml-auto">
-            Warung Madura
           </span>
         </Link>
 
@@ -172,21 +154,6 @@ export default function Sidebar() {
             <MessageCircle className="w-3.5 h-3.5 text-emerald-800" />
             <span>Tanya WA ke Kasir</span>
           </button>
-        </div>
-
-        {/* User Profile Info */}
-        <div className="flex items-center gap-2.5 px-2 py-1.5">
-          <div className="w-8 h-8 rounded-full bg-neutral-900 text-[#d4f952] font-black text-xs flex items-center justify-center shrink-0">
-            SH
-          </div>
-          <div className="min-w-0">
-            <div className="text-xs font-bold text-neutral-900 truncate">
-              Siti Rahma
-            </div>
-            <div className="text-[11px] text-neutral-400 truncate">
-              Pelanggan Toko Wadira
-            </div>
-          </div>
         </div>
       </div>
     </aside>

@@ -43,19 +43,10 @@ export default function TopHeader({ onToggleMobileSidebar }: TopHeaderProps) {
           <span className="font-sans text-xl sm:text-2xl font-black tracking-tight text-neutral-950">
             Wadira
           </span>
-          <span className="h-2 w-2 rounded-full bg-emerald-600 inline-block mb-0.5" />
-          <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-[#f2f7ec] text-emerald-800 border border-[#e2edd8] ml-1">
-            Etalase Pelanggan
-          </span>
         </Link>
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="hidden sm:flex flex-col text-right leading-tight">
-          <span className="text-xs font-bold text-neutral-900">Halo, Bu Siti</span>
-          <span className="text-[11px] text-neutral-500 font-medium">Melati • Blok B No. 7</span>
-        </div>
-
         <Link
           href="/dashboard/pelanggan/keranjang"
           className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#d4f952] hover:bg-[#c4ec3e] border border-[#c4ec3e] text-neutral-950 font-bold text-xs sm:text-sm transition shadow-xs group"

@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       contextData = `
 INFORMASI TOKO / UMKM:
 - Nama Toko: ${user.store_name || user.warung_name || 'Toko Anda'}
-- Pemilik: ${user.owner_name || 'Anda'}
+- Pemilik: ${user.owner_name || 'Helwiyah'}
 
 DATA STOK BARANG SAAT INI:
 ${products && products.length > 0 ? products.map(p => `- ${p.name}: ${p.stock} ${p.unit} (Harga: Rp${p.price})`).join('\n') : 'Belum ada data barang.'}

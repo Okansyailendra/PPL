@@ -167,26 +167,12 @@ const ORDER_STEPS = [
 function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
-  const [isOpen, setIsOpen] = useState(true);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 15);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  useEffect(() => {
-    const checkStoreStatus = () => {
-      const now = new Date();
-      const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-      const wib = new Date(utc + 3600000 * 7);
-      const hour = wib.getHours();
-      setIsOpen(hour >= 6 && hour < 24);
-    };
-    checkStoreStatus();
-    const interval = setInterval(checkStoreStatus, 60000);
-    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -198,25 +184,13 @@ function Navbar() {
       }`}
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 lg:px-8">
-        {/* Kiri: Logo Wadira. & Status Buka/Tutup Pojok Kiri Atas */}
+        {/* Kiri: Logo Wadira */}
         <div className="flex items-center gap-3">
           <Link href="/" className="flex items-baseline gap-1 group">
             <span className="font-sans text-2xl sm:text-[26px] font-black tracking-tight text-neutral-950">
               Wadira
             </span>
-            <span className="h-2 w-2 rounded-full bg-emerald-600 inline-block mb-0.5" />
           </Link>
-
-          {/* Status Toko: Tegas tanpa titik dot acak */}
-          <span
-            className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-              isOpen
-                ? "bg-emerald-50 text-emerald-700 border border-emerald-300"
-                : "bg-red-50 text-red-700 border border-red-300"
-            }`}
-          >
-            {isOpen ? "Buka" : "Tutup"}
-          </span>
         </div>
 
         {/* Tengah: Navigasi Desktop */}

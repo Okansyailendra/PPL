@@ -29,7 +29,6 @@ import {
   MapPin, 
   Banknote, 
   CreditCard, 
-  BookOpen, 
   FileText,
   X 
 } from 'lucide-react';
@@ -51,11 +50,11 @@ function KeranjangContent() {
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
   // Form data pemesan
-  const [customerName, setCustomerName] = useState('Bu Siti');
-  const [customerPhone, setCustomerPhone] = useState('089516201846');
-  const [customerAddress, setCustomerAddress] = useState('Melati • Blok B No. 7');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerAddress, setCustomerAddress] = useState('');
   const [customerNote, setCustomerNote] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris' | 'kasbon'>('qris');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris'>('cash');
   const [validationError, setValidationError] = useState('');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -136,9 +135,7 @@ function KeranjangContent() {
     const paymentLabel =
       paymentMethod === 'cash'
         ? 'Bayar Tunai (Cash / COD saat barang diterima)'
-        : paymentMethod === 'qris'
-        ? 'Transfer / QRIS'
-        : 'Catat Kasbon (Pelanggan Langganan Warung)';
+        : 'Transfer / QRIS';
 
     const formattedMessage = `*PESANAN BELANJA BARU*
 *Toko:* ${WARUNG_NAME}
@@ -442,7 +439,7 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
                       <div className="flex items-center gap-2.5">
                         <ShoppingBag className="w-5 h-5 text-emerald-800" />
                         <h2 className="font-extrabold text-slate-900 text-base">
-                          Barang pilihan Bu Siti
+                          Daftar Belanjaan Anda
                         </h2>
                       </div>
                       <span className="text-xs px-3 py-1 rounded-full font-bold bg-emerald-50 text-emerald-800 border border-emerald-200/60">
@@ -739,7 +736,7 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
                       <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                         Metode Pembayaran
                       </label>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         <button
                           type="button"
                           onClick={() => setPaymentMethod('cash')}
@@ -764,19 +761,6 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
                         >
                           <CreditCard className="w-4 h-4 text-emerald-700 shrink-0" />
                           <div className="text-xs">Transfer / QRIS</div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setPaymentMethod('kasbon')}
-                          className={`p-3 rounded-xl border text-left transition flex items-center gap-2.5 ${
-                            paymentMethod === 'kasbon'
-                              ? 'border-emerald-600 bg-emerald-50/25 font-bold text-slate-900 shadow-2xs'
-                              : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                          }`}
-                        >
-                          <BookOpen className="w-4 h-4 text-amber-600 shrink-0" />
-                          <div className="text-xs">Catat Kasbon</div>
                         </button>
                       </div>
                     </div>
@@ -861,7 +845,7 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
                       <div className="flex justify-between">
                         <span className="text-neutral-600">Pembayaran:</span>
                         <span className="font-bold text-neutral-950 capitalize">
-                          {paymentMethod === 'cash' ? 'Tunai / COD' : paymentMethod === 'qris' ? 'Transfer / QRIS' : 'Catat Kasbon'}
+                          {paymentMethod === 'cash' ? 'Tunai / COD' : 'Transfer / QRIS'}
                         </span>
                       </div>
                     </div>

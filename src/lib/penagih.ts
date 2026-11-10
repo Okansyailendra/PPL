@@ -9,6 +9,33 @@ export function hitungHariTelat(jatuhTempo: string, hariIni: Date = new Date()):
   return diffDays > 0 ? diffDays : 0;
 }
 
+export function formatSapaanPelanggan(nama: string): string {
+  if (!nama || !nama.trim()) return 'Bapak/Ibu Pelanggan';
+
+  // Format tiap kata menjadi Title Case: 'okan' -> 'Okan', 'budi santoso' -> 'Budi Santoso'
+  const formatted = nama
+    .trim()
+    .split(/\s+/)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+
+  const lower = formatted.toLowerCase();
+  // Cek apakah sudah mengandung sebutan kehormatan/panggilan
+  if (
+    lower.startsWith('pak ') ||
+    lower.startsWith('bapak ') ||
+    lower.startsWith('ibu ') ||
+    lower.startsWith('bu ') ||
+    lower.startsWith('mas ') ||
+    lower.startsWith('mbak ') ||
+    lower.startsWith('kak ')
+  ) {
+    return formatted;
+  }
+
+  return `Bapak/Ibu ${formatted}`;
+}
+
 export function buatPesanTagih({ 
   nama, 
   nominal, 
@@ -21,13 +48,33 @@ export function buatPesanTagih({
   toko: string 
 }): string {
   const rupiah = `Rp ${nominal.toLocaleString('id-ID')}`;
+  const namaFormatted = formatSapaanPelanggan(nama);
+  const tokoName = toko || 'Wadira';
   
   if (hariTelat <= 3) {
-    return `Halo Bapak/Ibu ${nama},\n\nSemoga kabarnya baik dan sehat selalu ya. 😊\n\nIni pesan otomatis dari ${toko} untuk mengingatkan bahwa ada catatan kasbon sebesar ${rupiah} yang sudah jatuh tempo.\n\nBila ada waktu luang, silakan mampir ke warung untuk penyelesaiannya. Terima kasih banyak dan sehat selalu! 🙏`;
+    return (
+      `Halo ${namaFormatted},\n\n` +
+      `Semoga sehat dan berkah selalu rezekinya ya.\n\n` +
+      `Sekadar mengingatkan dari ${tokoName}, ada catatan kasbon belanja sebesar *${rupiah}* yang sudah jatuh tempo.\n\n` +
+      `Bila sedang ada waktu luang atau lewat di depan warung, silakan mampir untuk penyelesaiannya ya.\n\n` +
+      `Terima kasih banyak atas perhatian dan kerja samanya!`
+    );
   } else if (hariTelat <= 14) {
-    return `Halo Bapak/Ibu ${nama},\n\nMohon maaf mengganggu waktunya. 🙏\n\nKami dari ${toko} ingin mengingatkan kembali mengenai kasbon sebesar ${rupiah} yang sudah lewat jatuh tempo selama ${hariTelat} hari.\n\nKami mohon pengertiannya agar dapat segera diselesaikan, karena modalnya akan kami putar kembali untuk belanja stok warung. Terima kasih atas pengertian dan kerja samanya. 😊`;
+    return (
+      `Halo ${namaFormatted},\n\n` +
+      `Mohon maaf mengganggu waktunya sebentar ya.\n\n` +
+      `Kami dari ${tokoName} ingin mengingatkan kembali perihal catatan kasbon sebesar *${rupiah}* yang sudah lewat jatuh tempo selama ${hariTelat} hari.\n\n` +
+      `Jika memungkinkan, mohon dibantu untuk penyelesaiannya dalam waktu dekat ya, agar perputaran modal belanja stok warung kami tetap lancar.\n\n` +
+      `Bila ada kendala atau ingin dicicil terlebih dahulu, silakan kabari kami ya. Terima kasih banyak atas pengertian dan kerja samanya!`
+    );
   } else {
-    return `Selamat siang Bapak/Ibu ${nama},\n\nIni pesan pengingat dari ${toko}.\n\nBerdasarkan catatan kami, terdapat tunggakan kasbon sebesar ${rupiah} yang sudah terlambat ${hariTelat} hari.\n\nMohon kebijaksanaannya untuk segera melunasi tagihan tersebut paling lambat hari ini atau besok. Kami sangat membutuhkan perputaran modal agar warung tetap bisa beroperasi. \n\nAtas perhatian dan niat baiknya, kami ucapkan terima kasih.`;
+    return (
+      `Halo ${namaFormatted},\n\n` +
+      `Semoga selalu dalam keadaan sehat.\n\n` +
+      `Kami dari pengelola ${tokoName} ingin mengonfirmasi kembali terkait tunggakan kasbon sebesar *${rupiah}* yang sudah melewati batas waktu selama ${hariTelat} hari.\n\n` +
+      `Mengingat perputaran modal warung sangat kami butuhkan untuk kulakan barang dagangan, kami mohon bantuannya agar dapat diselesaikan dalam minggu ini.\n\n` +
+      `Silakan mampir ke warung atau hubungi nomor ini bila ingin penyelesaian via transfer. Atas itikad baik dan perhatiannya, kami ucapkan terima kasih banyak.`
+    );
   }
 }
 
@@ -41,7 +88,7 @@ export function buatPesanOrder({
   items: { nama: string; jumlah: number; satuan: string }[] 
 }): string {
   const itemList = items.map(i => `- ${i.nama} (${i.jumlah} ${i.satuan})`).join('\n');
-  return `Halo ${agen},\n\nIni dari ${toko}. Saya mau pesan barang-barang berikut untuk restock warung:\n\n${itemList}\n\nMohon info ketersediaan stok, total harga, dan perkiraan waktu pengirimannya ya. Terima kasih! 🙏`;
+  return `Halo ${agen},\n\nIni dari ${toko}. Saya mau pesan barang-barang berikut untuk restock warung:\n\n${itemList}\n\nMohon info ketersediaan stok, total harga, dan perkiraan waktu pengirimannya ya. Terima kasih!`;
 }
 
 export function normalisasiNomor(noHp?: string | null): string | null {
@@ -71,5 +118,9 @@ export function normalisasiNomor(noHp?: string | null): string | null {
 export function linkWa(noHp: string, pesan: string): string {
   const norm = normalisasiNomor(noHp);
   if (!norm) return '#';
-  return `https://wa.me/${norm}?text=${encodeURIComponent(pesan)}`;
+  const encoded = encodeURIComponent(pesan);
+  const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  return isMobile
+    ? `https://wa.me/${norm}?text=${encoded}`
+    : `https://web.whatsapp.com/send?phone=${norm}&text=${encoded}`;
 }
