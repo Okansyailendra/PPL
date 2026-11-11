@@ -4,7 +4,8 @@ export interface Transaction {
   transaction_date?: string;
   type: 'IN' | 'OUT';
   category?: string;
-  payment_method: 'CASH' | 'CREDIT';
+  payment_method: 'CASH' | 'QRIS' | 'CREDIT' | 'ONLINE' | 'TRANSFER';
+  payment_status?: 'PENDING' | 'PAID' | 'SETTLEMENT' | 'UNPAID' | 'EXPIRE' | 'CANCEL' | 'FAILED';
   total_amount: number;
   items: any[];
   debt_id?: string | null;
@@ -58,12 +59,16 @@ export function filterByPeriode(
 }
 
 export function hitungRingkasan(transactions: Transaction[]) {
+  const isCashOrSettled = (t: Transaction) =>
+    t.payment_method === 'CASH' ||
+    (t.payment_method === 'QRIS' && t.payment_status !== 'PENDING' && t.payment_status !== 'CANCEL' && t.payment_status !== 'EXPIRE' && t.payment_status !== 'FAILED');
+
   const masuk = transactions
-    .filter(t => t.type === 'IN' && t.payment_method === 'CASH')
+    .filter(t => t.type === 'IN' && isCashOrSettled(t))
     .reduce((sum, t) => sum + t.total_amount, 0);
     
   const keluar = transactions
-    .filter(t => t.type === 'OUT' && t.payment_method === 'CASH')
+    .filter(t => t.type === 'OUT' && isCashOrSettled(t))
     .reduce((sum, t) => sum + t.total_amount, 0);
     
   return {
@@ -156,15 +161,22 @@ export function buatBukuBesar(transactions: Transaction[], saldoAwal: number = 0
   sorted.forEach(t => {
     let masuk = 0;
     let keluar = 0;
+    const isDirectPaid =
+      t.payment_method === 'CASH' ||
+      (t.payment_method === 'QRIS' &&
+        t.payment_status !== 'PENDING' &&
+        t.payment_status !== 'CANCEL' &&
+        t.payment_status !== 'EXPIRE' &&
+        t.payment_status !== 'FAILED');
     
     if (t.type === 'IN') {
       masuk = t.total_amount;
-      if (t.payment_method === 'CASH') {
+      if (isDirectPaid) {
         currentSaldo += masuk;
       }
     } else {
       keluar = t.total_amount;
-      if (t.payment_method === 'CASH') {
+      if (isDirectPaid) {
         currentSaldo -= keluar;
       }
     }
@@ -174,7 +186,7 @@ export function buatBukuBesar(transactions: Transaction[], saldoAwal: number = 0
       keterangan = t.category.replace(/_/g, ' ');
     } else {
       keterangan = t.type === 'IN' 
-        ? (t.payment_method === 'CREDIT' ? 'Penjualan (Kasbon)' : 'Penjualan')
+        ? (t.payment_method === 'CREDIT' ? 'Penjualan (Kasbon)' : t.payment_method === 'QRIS' ? 'Penjualan (QRIS)' : 'Penjualan')
         : (t.payment_method === 'CREDIT' ? 'Kulakan (Ngutang)' : 'Kulakan/Biaya');
     }
       
@@ -186,8 +198,8 @@ export function buatBukuBesar(transactions: Transaction[], saldoAwal: number = 0
     rows.push({
       tanggal: t.transaction_date || t.created_at,
       keterangan,
-      masuk: t.payment_method === 'CASH' ? masuk : 0, // Hanya uang tunai riil yang masuk saldo kas
-      keluar: t.payment_method === 'CASH' ? keluar : 0,
+      masuk: isDirectPaid ? masuk : 0, // Hanya pembayaran langsung (Tunai/QRIS lunas) yang masuk saldo kas
+      keluar: isDirectPaid ? keluar : 0,
       saldo: currentSaldo
     });
   });

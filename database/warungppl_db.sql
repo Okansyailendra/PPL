@@ -66,12 +66,40 @@ INSERT INTO `debts` (`id`, `umkm_id`, `customer_name`, `customer_phone`, `amount
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `categories`
+--
+
+CREATE TABLE `categories` (
+  `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `umkm_id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text COLLATE utf8mb4_unicode_ci,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `categories`
+--
+
+INSERT INTO `categories` (`id`, `umkm_id`, `name`, `description`, `created_at`) VALUES
+('cat-1111-1111-1111-111111111111', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Sembako & Dapur', 'Beras, minyak, gula, tepung, bumbu dapur', '2026-10-07 14:13:16'),
+('cat-2222-2222-2222-222222222222', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Makanan & Snack', 'Mi instan, biskuit, jajanan', '2026-10-07 14:13:16'),
+('cat-3333-3333-3333-333333333333', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Minuman', 'Kopi, teh, air mineral, susu', '2026-10-07 14:13:16'),
+('cat-4444-4444-4444-444444444444', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Sabun & Kebersihan', 'Sabun cuci piring, deterjen, perlengkapan mandi', '2026-10-07 14:13:16'),
+('cat-5555-5555-5555-555555555555', 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'Sembako & Gas', 'Beras, gas elpiji, kebutuhan pokok', '2026-10-17 14:13:16'),
+('cat-6666-6666-6666-666666666666', 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'Rokok & Korek', 'Rokok kemasan dan korek api', '2026-10-18 14:13:16');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `products`
 --
 
 CREATE TABLE `products` (
   `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
   `umkm_id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `category_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `category` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `price` int NOT NULL,
   `cost_price` int NOT NULL DEFAULT '0',
@@ -116,7 +144,8 @@ CREATE TABLE `transactions` (
   `transaction_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `type` enum('IN','OUT') COLLATE utf8mb4_unicode_ci NOT NULL,
   `category` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `payment_method` enum('CASH','CREDIT') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'CASH',
+  `payment_method` enum('CASH','QRIS','CREDIT','ONLINE','TRANSFER') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'CASH',
+  `payment_status` enum('PENDING','PAID','SETTLEMENT','UNPAID','EXPIRE','CANCEL','FAILED') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PAID',
   `total_amount` int NOT NULL,
   `items` json NOT NULL,
   `debt_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL
@@ -257,11 +286,19 @@ ALTER TABLE `debts`
   ADD KEY `fk_debts_trx` (`related_trx_id`);
 
 --
+-- Indexes for table `categories`
+--
+ALTER TABLE `categories`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_categories_umkm` (`umkm_id`);
+
+--
 -- Indexes for table `products`
 --
 ALTER TABLE `products`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_products_umkm` (`umkm_id`),
+  ADD KEY `idx_products_category` (`category_id`),
   ADD KEY `idx_products_stock` (`stock`);
 
 --
@@ -299,9 +336,16 @@ ALTER TABLE `debts`
   ADD CONSTRAINT `fk_debts_user` FOREIGN KEY (`umkm_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
+-- Constraints for table `categories`
+--
+ALTER TABLE `categories`
+  ADD CONSTRAINT `fk_categories_user` FOREIGN KEY (`umkm_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
 -- Constraints for table `products`
 --
 ALTER TABLE `products`
+  ADD CONSTRAINT `fk_products_category` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `fk_products_user` FOREIGN KEY (`umkm_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --

@@ -44,8 +44,8 @@ export interface Transaction {
   transaction_date?: string;
   type: 'IN' | 'OUT';
   category?: string;
-  payment_method: 'CASH' | 'CREDIT' | 'ONLINE' | 'QRIS' | 'TRANSFER';
-  payment_status?: 'PENDING' | 'SETTLEMENT' | 'EXPIRE' | 'CANCEL' | 'FAILED';
+  payment_method: 'CASH' | 'QRIS' | 'CREDIT' | 'ONLINE' | 'TRANSFER';
+  payment_status?: 'PENDING' | 'PAID' | 'SETTLEMENT' | 'UNPAID' | 'EXPIRE' | 'CANCEL' | 'FAILED';
   total_amount: number;
   shipping_cost?: number;
   courier?: string | null;
@@ -69,14 +69,17 @@ export interface ProductVariant {
 export interface Product {
   id: string;
   umkm_id?: string;
+  category_id?: string | null;
   name: string;
   brand?: string;
-  category?: string;
+  category?: string | null;
   categoryLabel?: string;
   description?: string;
   equivalentNote?: string;
   price: number;
+  harga_jual?: number;
   cost_price?: number;
+  modal?: number;
   stock: number;
   min_stock: number;
   unit: string;
@@ -90,9 +93,11 @@ export interface Product {
 
 export interface Category {
   id: string;
+  umkm_id?: string;
   name: string;
-  description: string;
-  iconName: string;
+  description?: string | null;
+  iconName?: string;
+  created_at?: string;
 }
 
 export interface CartItem {

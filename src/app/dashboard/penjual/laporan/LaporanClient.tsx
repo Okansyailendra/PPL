@@ -468,7 +468,30 @@ export default function LaporanClient({
 
                         {/* Pembayaran */}
                         <div className="col-span-2 text-neutral-700 font-medium">
-                          {trx.payment_method === 'CASH' ? 'Tunai' : 'Kasbon'}
+                          <span>
+                            {trx.payment_method === 'CASH'
+                              ? 'Tunai'
+                              : trx.payment_method === 'QRIS'
+                              ? 'QRIS'
+                              : trx.payment_method === 'ONLINE'
+                              ? 'Online'
+                              : trx.payment_method === 'TRANSFER'
+                              ? 'Transfer'
+                              : 'Kasbon'}
+                          </span>
+                          {trx.payment_status && (
+                            <span
+                              className={`block text-[10px] font-bold mt-0.5 ${
+                                trx.payment_status === 'PAID' || trx.payment_status === 'SETTLEMENT'
+                                  ? 'text-emerald-700'
+                                  : trx.payment_status === 'PENDING'
+                                  ? 'text-amber-700'
+                                  : 'text-red-600'
+                              }`}
+                            >
+                              {trx.payment_status}
+                            </span>
+                          )}
                         </div>
 
                         {/* Nilai */}

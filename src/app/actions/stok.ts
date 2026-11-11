@@ -3,6 +3,7 @@
 import { supabase } from '@/lib/supabase';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
+import { resolveCategoryForUmkm } from '@/lib/product-utils';
 import type { UserSession } from '@/types';
 
 async function getUser(): Promise<UserSession | null> {
@@ -55,12 +56,24 @@ export async function addProduct(formData: FormData) {
 
   const name = formData.get('name') as string;
   const price = parseInt((formData.get('price') as string) || '0', 10);
+  const cost_price = parseInt((formData.get('cost_price') as string) || '0', 10);
   const stock = parseInt((formData.get('stock') as string) || '0', 10);
   const min_stock = parseInt((formData.get('min_stock') as string) || '5', 10);
-  const unit = (formData.get('unit') as string) || 'Pcs';
+  const unit = (formData.get('unit') as string) || 'pcs';
+  const rawCategoryId = (formData.get('category_id') as string) || '';
+  const rawCategoryName = (formData.get('category') as string) || '';
 
   if (!name || isNaN(price) || isNaN(stock)) {
     return { error: 'Nama barang, harga jual, dan stok awal wajib diisi.' };
+  }
+
+  const catResolved = await resolveCategoryForUmkm(
+    user.id,
+    rawCategoryId.trim() || null,
+    rawCategoryName.trim() || null
+  );
+  if (catResolved.error) {
+    return { error: catResolved.error };
   }
 
   const { error } = await supabase
@@ -68,8 +81,11 @@ export async function addProduct(formData: FormData) {
     .insert([
       {
         umkm_id: user.id,
+        category_id: catResolved.category_id,
+        category: catResolved.category,
         name,
         price,
+        cost_price: isNaN(cost_price) ? 0 : Math.max(0, cost_price),
         stock,
         min_stock,
         unit,
@@ -100,19 +116,34 @@ export async function updateProduct(formData: FormData) {
   const id = formData.get('id') as string;
   const name = formData.get('name') as string;
   const price = parseInt((formData.get('price') as string) || '0', 10);
+  const cost_price = parseInt((formData.get('cost_price') as string) || '0', 10);
   const stock = parseInt((formData.get('stock') as string) || '0', 10);
   const min_stock = parseInt((formData.get('min_stock') as string) || '5', 10);
-  const unit = (formData.get('unit') as string) || 'Pcs';
+  const unit = (formData.get('unit') as string) || 'pcs';
+  const rawCategoryId = (formData.get('category_id') as string) || '';
+  const rawCategoryName = (formData.get('category') as string) || '';
 
   if (!id || !name) {
     return { error: 'ID dan nama barang wajib diisi.' };
   }
 
+  const catResolved = await resolveCategoryForUmkm(
+    user.id,
+    rawCategoryId.trim() || null,
+    rawCategoryName.trim() || null
+  );
+  if (catResolved.error) {
+    return { error: catResolved.error };
+  }
+
   const { error } = await supabase
     .from('products')
     .update({
+      category_id: catResolved.category_id,
+      category: catResolved.category,
       name,
       price,
+      cost_price: isNaN(cost_price) ? 0 : Math.max(0, cost_price),
       stock,
       min_stock,
       unit,

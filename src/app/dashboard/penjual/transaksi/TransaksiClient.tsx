@@ -55,7 +55,8 @@ export default function TransaksiClient({
 
   // Cart State
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CREDIT'>('CASH');
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'QRIS' | 'CREDIT'>('CASH');
+  const [qrisStatus, setQrisStatus] = useState<'PAID' | 'PENDING'>('PAID');
 
   // Cash payment details
   const [cashReceived, setCashReceived] = useState<string>('');
@@ -77,7 +78,8 @@ export default function TransaksiClient({
     transactionId: string;
     totalAmount: number;
     items: { name: string; quantity: number; price: number; unit?: string }[];
-    paymentMethod: 'CASH' | 'CREDIT';
+    paymentMethod: 'CASH' | 'QRIS' | 'CREDIT';
+    paymentStatus: 'PAID' | 'PENDING' | 'UNPAID';
     customerName?: string;
     customerPhone?: string;
     cashReceived?: number;
@@ -337,6 +339,13 @@ export default function TransaksiClient({
 
     try {
       if (mode === 'SALE') {
+        const resolvedStatus: 'PAID' | 'PENDING' | 'UNPAID' =
+          paymentMethod === 'CREDIT'
+            ? 'UNPAID'
+            : paymentMethod === 'QRIS'
+            ? qrisStatus
+            : 'PAID';
+
         const payload = {
           items: cart.map((c) => ({
             productId: c.product.id,
@@ -346,6 +355,7 @@ export default function TransaksiClient({
             unit: c.product.unit,
           })),
           paymentMethod,
+          paymentStatus: resolvedStatus,
           customerName: customerName.trim(),
           customerPhone: customerPhone.trim(),
           dueDate,
@@ -384,6 +394,7 @@ export default function TransaksiClient({
             unit: c.product.unit,
           })),
           paymentMethod,
+          paymentStatus: resolvedStatus,
           customerName: customerName.trim() || undefined,
           customerPhone: customerPhone.trim() || undefined,
           cashReceived: paymentMethod === 'CASH' && numCashReceived > 0 ? numCashReceived : totalAmount,
@@ -397,6 +408,7 @@ export default function TransaksiClient({
           type: 'IN',
           category: 'PENJUALAN',
           payment_method: paymentMethod,
+          payment_status: resolvedStatus,
           total_amount: totalAmount,
           items: cart.map((c) => ({
             productId: c.product.id,
@@ -452,6 +464,7 @@ export default function TransaksiClient({
             unit: c.product.unit,
           })),
           paymentMethod: 'CASH',
+          paymentStatus: 'PAID',
         });
 
         clearCart();
@@ -493,7 +506,13 @@ export default function TransaksiClient({
       `${itemsText}\n` +
       `--------------------------------\n` +
       `*Total: Rp ${successData.totalAmount.toLocaleString('id-ID')}*\n` +
-      `Pembayaran: ${successData.paymentMethod === 'CASH' ? 'TUNAI' : 'KASBON / UTANG'}\n` +
+      `Pembayaran: ${
+        successData.paymentMethod === 'CASH'
+          ? 'TUNAI'
+          : successData.paymentMethod === 'QRIS'
+          ? 'QRIS'
+          : 'KASBON / UTANG'
+      } (${successData.paymentStatus})\n` +
       (successData.paymentMethod === 'CASH'
         ? `Bayar: Rp ${(successData.cashReceived || successData.totalAmount).toLocaleString('id-ID')}\nKembali: Rp ${(successData.change || 0).toLocaleString('id-ID')}\n`
         : '') +
@@ -930,7 +949,7 @@ export default function TransaksiClient({
                   <label className="block text-[10px] font-extrabold tracking-wider text-neutral-500 uppercase mb-2">
                     METODE PEMBAYARAN
                   </label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('CASH')}
@@ -944,6 +963,17 @@ export default function TransaksiClient({
                     </button>
                     <button
                       type="button"
+                      onClick={() => setPaymentMethod('QRIS')}
+                      className={`py-2 rounded-xl text-xs font-bold text-center transition-all cursor-pointer ${
+                        paymentMethod === 'QRIS'
+                          ? 'bg-[#cbf14e] text-[#1c240d] shadow-xs'
+                          : 'bg-white hover:bg-neutral-50 text-neutral-600 font-medium border border-neutral-200'
+                      }`}
+                    >
+                      QRIS
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setPaymentMethod('CREDIT')}
                       className={`py-2 rounded-xl text-xs font-bold text-center transition-all cursor-pointer ${
                         paymentMethod === 'CREDIT'
@@ -951,7 +981,45 @@ export default function TransaksiClient({
                           : 'bg-white hover:bg-neutral-50 text-neutral-600 font-medium border border-neutral-200'
                       }`}
                     >
-                      Kasbon / Utang
+                      Kasbon
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* QRIS Payment Status Selector */}
+              {mode === 'SALE' && paymentMethod === 'QRIS' && (
+                <div className="bg-[#fbfcfa] border border-neutral-200 rounded-xl p-3.5 space-y-2 shadow-2xs animate-fadeIn">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-neutral-700">
+                      Status Pembayaran QRIS
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#eef5db] text-[#465427]">
+                      Non-Tunai
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setQrisStatus('PAID')}
+                      className={`py-1.5 px-2.5 rounded-lg text-[11px] font-bold border transition cursor-pointer ${
+                        qrisStatus === 'PAID'
+                          ? 'bg-[#eef5db] border-[#8fa843] text-[#344415]'
+                          : 'bg-white border-neutral-200 text-neutral-600'
+                      }`}
+                    >
+                      Lunas (PAID)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setQrisStatus('PENDING')}
+                      className={`py-1.5 px-2.5 rounded-lg text-[11px] font-bold border transition cursor-pointer ${
+                        qrisStatus === 'PENDING'
+                          ? 'bg-amber-50 border-amber-300 text-amber-800'
+                          : 'bg-white border-neutral-200 text-neutral-600'
+                      }`}
+                    >
+                      Menunggu (PENDING)
                     </button>
                   </div>
                 </div>
@@ -1231,8 +1299,25 @@ export default function TransaksiClient({
                     </td>
                     <td className="py-2.5">
                       <span className="text-[11px] font-medium text-neutral-600">
-                        {trx.payment_method === 'CASH' ? 'Tunai' : 'Kasbon'}
+                        {trx.payment_method === 'CASH'
+                          ? 'Tunai'
+                          : trx.payment_method === 'QRIS'
+                          ? 'QRIS'
+                          : 'Kasbon'}
                       </span>
+                      {trx.payment_status && (
+                        <span
+                          className={`ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                            trx.payment_status === 'PAID' || trx.payment_status === 'SETTLEMENT'
+                              ? 'bg-[#eef5db] text-[#465427]'
+                              : trx.payment_status === 'PENDING'
+                              ? 'bg-amber-50 text-amber-700'
+                              : 'bg-red-50 text-red-700'
+                          }`}
+                        >
+                          {trx.payment_status}
+                        </span>
+                      )}
                     </td>
                     <td className="py-2.5 text-right font-bold text-neutral-900">
                       Rp {trx.total_amount.toLocaleString('id-ID')}
@@ -1514,7 +1599,23 @@ export default function TransaksiClient({
                   <span className="font-bold text-neutral-800">
                     {successData.paymentMethod === 'CASH'
                       ? 'Tunai (CASH)'
+                      : successData.paymentMethod === 'QRIS'
+                      ? 'QRIS'
                       : `Kasbon (${successData.customerName || 'Pelanggan'})`}
+                  </span>
+                </div>
+                <div className="flex justify-between text-neutral-500">
+                  <span>Status Pembayaran:</span>
+                  <span
+                    className={`font-bold ${
+                      successData.paymentStatus === 'PAID'
+                        ? 'text-emerald-700'
+                        : successData.paymentStatus === 'PENDING'
+                        ? 'text-amber-700'
+                        : 'text-red-600'
+                    }`}
+                  >
+                    {successData.paymentStatus}
                   </span>
                 </div>
                 {successData.paymentMethod === 'CASH' && (

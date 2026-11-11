@@ -18,16 +18,27 @@ CREATE TABLE IF NOT EXISTS public.users (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- 1b. categories (Kategori Produk)
+CREATE TABLE IF NOT EXISTS public.categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  umkm_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- 2. products (Inventaris Stok)
 CREATE TABLE IF NOT EXISTS public.products (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   umkm_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  category_id UUID REFERENCES public.categories(id) ON DELETE SET NULL,
+  category TEXT,
   name TEXT NOT NULL,
   price INTEGER NOT NULL,
   cost_price INTEGER NOT NULL DEFAULT 0,
   stock INTEGER NOT NULL,
   min_stock INTEGER NOT NULL,
-  unit TEXT NOT NULL,
+  unit TEXT NOT NULL DEFAULT 'pcs',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -52,7 +63,8 @@ CREATE TABLE IF NOT EXISTS public.transactions (
   transaction_date TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   type TEXT CHECK (type IN ('IN', 'OUT')),
   category TEXT,
-  payment_method TEXT CHECK (payment_method IN ('CASH', 'CREDIT')),
+  payment_method TEXT CHECK (payment_method IN ('CASH', 'QRIS', 'CREDIT', 'ONLINE', 'TRANSFER')),
+  payment_status TEXT NOT NULL DEFAULT 'PAID' CHECK (payment_status IN ('PENDING', 'PAID', 'SETTLEMENT', 'UNPAID', 'EXPIRE', 'CANCEL', 'FAILED')),
   total_amount INTEGER NOT NULL,
   items JSONB NOT NULL,
   debt_id UUID REFERENCES public.debts(id) ON DELETE SET NULL
@@ -73,6 +85,7 @@ END $$;
 -- MENGAKTIFKAN ROW LEVEL SECURITY (RLS)
 -- =========================================================================
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.debts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
@@ -87,6 +100,7 @@ ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 -- =========================================================================
 
 CREATE POLICY "Allow all for users" ON public.users FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for categories" ON public.categories FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for products" ON public.products FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for debts" ON public.debts FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for transactions" ON public.transactions FOR ALL USING (true) WITH CHECK (true);

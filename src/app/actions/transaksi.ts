@@ -56,7 +56,8 @@ export interface CartItemInput {
 
 export interface CreateSaleInput {
   items: CartItemInput[];
-  paymentMethod: 'CASH' | 'CREDIT';
+  paymentMethod: 'CASH' | 'QRIS' | 'CREDIT';
+  paymentStatus?: 'PENDING' | 'PAID' | 'SETTLEMENT' | 'UNPAID';
   customerName?: string;
   customerPhone?: string;
   dueDate?: string;
@@ -78,7 +79,7 @@ export async function createSaleTransaction(input: CreateSaleInput) {
     return { error: 'Sesi akun tidak ditemukan. Silakan login kembali.' };
   }
 
-  const { items, paymentMethod, customerName, customerPhone, dueDate, notes, transactionDate } = input;
+  const { items, paymentMethod, paymentStatus, customerName, customerPhone, dueDate, transactionDate } = input;
 
   if (!items || items.length === 0) {
     return { error: 'Keranjang belanja kosong. Pilih minimal 1 barang.' };
@@ -178,14 +179,25 @@ export async function createSaleTransaction(input: CreateSaleInput) {
   }
 
   // 4. Catat transaksi ke tabel transactions (Masuk Buku Besar & Pembukuan)
-  const trxItems = items.map(item => ({
-    productId: item.productId,
-    name: item.name,
-    quantity: item.quantity,
-    price: item.price,
-    unit: item.unit || 'Pcs',
-    subtotal: item.quantity * item.price
-  }));
+  const trxItems = items.map(item => {
+    const prod = productMap.get(item.productId);
+    return {
+      productId: item.productId,
+      name: item.name,
+      quantity: item.quantity,
+      price: item.price,
+      costPrice: item.costPrice ?? prod?.cost_price ?? 0,
+      unit: item.unit || prod?.unit || 'pcs',
+      subtotal: item.quantity * item.price,
+    };
+  });
+
+  const finalPaymentStatus: 'PENDING' | 'PAID' | 'SETTLEMENT' | 'UNPAID' =
+    paymentMethod === 'CREDIT'
+      ? 'UNPAID'
+      : paymentMethod === 'QRIS' && paymentStatus === 'PENDING'
+      ? 'PENDING'
+      : 'PAID';
 
   const nowIso = new Date().toISOString();
   const trxDate = transactionDate ? new Date(transactionDate).toISOString() : nowIso;
@@ -196,10 +208,13 @@ export async function createSaleTransaction(input: CreateSaleInput) {
       {
         umkm_id: user.id,
         type: 'IN',
+        category: 'PENJUALAN',
         payment_method: paymentMethod,
+        payment_status: finalPaymentStatus,
         total_amount: totalAmount,
         items: trxItems,
         debt_id: createdDebtId,
+        transaction_date: trxDate,
         created_at: nowIso,
       }
     ])
@@ -308,9 +323,12 @@ export async function createRestockTransaction(input: {
       {
         umkm_id: user.id,
         type: 'OUT',
+        category: 'KULAKAN',
         payment_method: 'CASH',
+        payment_status: 'PAID',
         total_amount: totalAmount,
         items: trxItems,
+        transaction_date: trxDate,
         created_at: nowIso,
       }
     ])

@@ -23,16 +23,26 @@ import {
 } from 'lucide-react';
 import { addProduct, updateProduct, adjustProductStock, deleteProduct } from '@/app/actions/stok';
 import { buatPesanOrder, linkWa, normalisasiNomor } from '@/lib/penagih';
-import type { Product } from '@/types';
+import type { Category, Product } from '@/types';
 
 interface StokClientProps {
   initialProducts: Product[];
+  initialCategories?: Category[];
 }
 
-export default function StokClient({ initialProducts = [] }: StokClientProps) {
+export default function StokClient({ initialProducts = [], initialCategories = [] }: StokClientProps) {
   const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'ALL' | 'LOW'>('ALL');
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+
+  // Category modal states
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryDesc, setNewCategoryDesc] = useState('');
+  const [categoryLoading, setCategoryLoading] = useState(false);
+  const [categoryError, setCategoryError] = useState('');
   
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -58,19 +68,78 @@ export default function StokClient({ initialProducts = [] }: StokClientProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Sync products if initialProducts changes
+  // Sync products & categories if initial props change
   useEffect(() => {
     setProducts(initialProducts);
   }, [initialProducts]);
+
+  useEffect(() => {
+    setCategories(initialCategories);
+  }, [initialCategories]);
 
   const lowStockProducts = products.filter(p => p.stock <= p.min_stock);
 
   const filteredProducts = products.filter(p => {
     const matchSearch = p.name?.toLowerCase().includes(search.toLowerCase());
     const isLow = p.stock <= p.min_stock;
-    if (filter === 'LOW') return matchSearch && isLow;
-    return matchSearch;
+    const matchStock = filter === 'LOW' ? isLow : true;
+    const matchCategory =
+      selectedCategory === 'ALL' ||
+      p.category_id === selectedCategory ||
+      (selectedCategory === 'UNCATEGORIZED' && !p.category_id && !p.category);
+    return matchSearch && matchStock && matchCategory;
   });
+
+  // Category CRUD via /api/categories
+  const handleAddCategory = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!newCategoryName.trim()) return;
+    setCategoryLoading(true);
+    setCategoryError('');
+
+    try {
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newCategoryName.trim(),
+          description: newCategoryDesc.trim() || null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setCategoryError(json?.error || 'Gagal menambah kategori.');
+      } else if (json?.data) {
+        setCategories(prev => [...prev, json.data].sort((a, b) => a.name.localeCompare(b.name)));
+        setNewCategoryName('');
+        setNewCategoryDesc('');
+        setSuccessMessage(`Kategori "${json.data.name}" ditambahkan.`);
+      }
+    } catch {
+      setCategoryError('Terjadi kesalahan jaringan saat menambah kategori.');
+    } finally {
+      setCategoryLoading(false);
+    }
+  };
+
+  const handleDeleteCategory = async (cat: Category) => {
+    if (!confirm(`Hapus kategori "${cat.name}"? Produk terkait tidak ikut terhapus.`)) return;
+    try {
+      const res = await fetch(`/api/categories/${cat.id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (!res.ok) {
+        setCategoryError(json?.error || 'Gagal menghapus kategori.');
+        return;
+      }
+      setCategories(prev => prev.filter(c => c.id !== cat.id));
+      setProducts(prev =>
+        prev.map(p => (p.category_id === cat.id ? { ...p, category_id: null, category: null } : p))
+      );
+      if (selectedCategory === cat.id) setSelectedCategory('ALL');
+    } catch {
+      setCategoryError('Gagal menghapus kategori.');
+    }
+  };
 
   // Sound beep on barcode detection
   const playBeep = () => {
@@ -367,7 +436,7 @@ export default function StokClient({ initialProducts = [] }: StokClientProps) {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           <Link
             href="/dashboard/penjual/transaksi"
             className="inline-flex items-center gap-2 bg-white hover:bg-neutral-50 text-neutral-700 text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl border border-neutral-300 transition shadow-xs"
@@ -375,6 +444,17 @@ export default function StokClient({ initialProducts = [] }: StokClientProps) {
             <ShoppingCart className="w-4 h-4 text-neutral-500" />
             <span>Input Penjualan (Kasir)</span>
           </Link>
+
+          <button
+            type="button"
+            onClick={() => {
+              setCategoryError('');
+              setIsCategoryModalOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 bg-white hover:bg-neutral-50 text-neutral-700 text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl border border-neutral-300 transition shadow-xs"
+          >
+            <span>Kelola Kategori ({categories.length})</span>
+          </button>
 
           <button
             onClick={() => {
@@ -491,6 +571,48 @@ export default function StokClient({ initialProducts = [] }: StokClientProps) {
         </button>
       </div>
 
+      {/* Category Filter Pills */}
+      {categories.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('ALL')}
+            className={`px-3 py-1.5 rounded-full text-xs font-bold transition border ${
+              selectedCategory === 'ALL'
+                ? 'bg-[#1c240d] text-[#cbf14e] border-[#1c240d]'
+                : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
+            }`}
+          >
+            Semua Kategori
+          </button>
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => setSelectedCategory(cat.id)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition border ${
+                selectedCategory === cat.id
+                  ? 'bg-[#1c240d] text-[#cbf14e] border-[#1c240d]'
+                  : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
+              }`}
+            >
+              {cat.name}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('UNCATEGORIZED')}
+            className={`px-3 py-1.5 rounded-full text-xs font-bold transition border ${
+              selectedCategory === 'UNCATEGORIZED'
+                ? 'bg-[#1c240d] text-[#cbf14e] border-[#1c240d]'
+                : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
+            }`}
+          >
+            Tanpa Kategori
+          </button>
+        </div>
+      )}
+
       {/* Main Table Card */}
       <div className="bg-white rounded-2xl border border-neutral-200/90 shadow-xs overflow-hidden">
         {/* Table Header Row with pale sage `#eef3e2` */}
@@ -559,11 +681,18 @@ export default function StokClient({ initialProducts = [] }: StokClientProps) {
                   {/* Nama Barang */}
                   <div className="col-span-5 sm:col-span-4 pr-3">
                     <p className="font-bold text-neutral-900 line-clamp-1">{cleanName}</p>
-                    {barcode && (
-                      <span className="inline-block mt-0.5 text-[10px] font-mono text-neutral-500 bg-neutral-100 px-1.5 py-0.5 rounded border border-neutral-200">
-                        {barcode}
-                      </span>
-                    )}
+                    <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                      {product.category && (
+                        <span className="inline-block text-[10px] font-bold text-[#465427] bg-[#eef5db] px-1.5 py-0.5 rounded border border-[#d6e5b4]">
+                          {product.category}
+                        </span>
+                      )}
+                      {barcode && (
+                        <span className="inline-block text-[10px] font-mono text-neutral-500 bg-neutral-100 px-1.5 py-0.5 rounded border border-neutral-200">
+                          {barcode}
+                        </span>
+                      )}
+                    </div>
                     {/* Mobile only sub-info */}
                     <div className="sm:hidden text-[11px] text-neutral-500 mt-1">
                       Stok: <span className="font-semibold text-neutral-800">{product.stock} {product.unit}</span> (Min: {product.min_stock})
@@ -758,8 +887,65 @@ export default function StokClient({ initialProducts = [] }: StokClientProps) {
                   )}
                 </div>
 
-                {/* 2 Cols: Harga Jual & Satuan Barang */}
+                {/* 2 Cols: Kategori & Satuan Barang */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-800 mb-1.5">
+                      Kategori produk
+                    </label>
+                    <select
+                      name="category_id"
+                      defaultValue=""
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#cbf14e] focus:border-transparent transition"
+                    >
+                      <option value="">-- Pilih Kategori --</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-800 mb-1.5">
+                      Satuan barang *
+                    </label>
+                    <select
+                      name="unit"
+                      defaultValue="pcs"
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#cbf14e] focus:border-transparent transition"
+                    >
+                      <option value="pcs">Pcs</option>
+                      <option value="renceng">Renceng</option>
+                      <option value="pack">Pack</option>
+                      <option value="Kg">Kg</option>
+                      <option value="Liter">Liter</option>
+                      <option value="Bungkus">Bungkus</option>
+                      <option value="Dus">Dus</option>
+                      <option value="Botol">Botol</option>
+                      <option value="Sachet">Sachet</option>
+                      <option value="Kaleng">Kaleng</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 2 Cols: Harga Modal & Harga Jual */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-800 mb-1.5">
+                      Harga modal (Rp)
+                    </label>
+                    <input
+                      type="number"
+                      name="cost_price"
+                      min="0"
+                      defaultValue="0"
+                      placeholder="Masukkan harga modal"
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#cbf14e] focus:border-transparent transition"
+                    />
+                  </div>
+
                   <div>
                     <label className="block text-xs font-bold text-neutral-800 mb-1.5">
                       Harga jual (Rp) *
@@ -772,28 +958,6 @@ export default function StokClient({ initialProducts = [] }: StokClientProps) {
                       placeholder="Masukkan harga jual"
                       className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#cbf14e] focus:border-transparent transition"
                     />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-neutral-800 mb-1.5">
-                      Satuan barang *
-                    </label>
-                    <select
-                      name="unit"
-                      defaultValue="Pcs"
-                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#cbf14e] focus:border-transparent transition"
-                    >
-                      <option value="Pcs">Pcs</option>
-                      <option value="Kg">Kg</option>
-                      <option value="Liter">Liter</option>
-                      <option value="Bungkus">Bungkus</option>
-                      <option value="Dus">Dus</option>
-                      <option value="Botol">Botol</option>
-                      <option value="Sachet">Sachet</option>
-                      <option value="Pak">Pak</option>
-                      <option value="Renceng">Renceng</option>
-                      <option value="Kaleng">Kaleng</option>
-                    </select>
                   </div>
                 </div>
 
@@ -921,8 +1085,64 @@ export default function StokClient({ initialProducts = [] }: StokClientProps) {
                   />
                 </div>
 
-                {/* 2 Cols: Harga Jual & Satuan Barang */}
+                {/* 2 Cols: Kategori & Satuan Barang */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-800 mb-1.5">
+                      Kategori produk
+                    </label>
+                    <select
+                      name="category_id"
+                      defaultValue={selectedProduct.category_id || ''}
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#cbf14e] focus:border-transparent transition"
+                    >
+                      <option value="">-- Tanpa Kategori --</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-800 mb-1.5">
+                      Satuan barang *
+                    </label>
+                    <select
+                      name="unit"
+                      defaultValue={selectedProduct.unit || 'pcs'}
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#cbf14e] focus:border-transparent transition"
+                    >
+                      <option value="pcs">Pcs</option>
+                      <option value="renceng">Renceng</option>
+                      <option value="pack">Pack</option>
+                      <option value="Kg">Kg</option>
+                      <option value="Liter">Liter</option>
+                      <option value="Bungkus">Bungkus</option>
+                      <option value="Dus">Dus</option>
+                      <option value="Botol">Botol</option>
+                      <option value="Sachet">Sachet</option>
+                      <option value="Kaleng">Kaleng</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 2 Cols: Harga Modal & Harga Jual */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-800 mb-1.5">
+                      Harga modal (Rp)
+                    </label>
+                    <input
+                      type="number"
+                      name="cost_price"
+                      min="0"
+                      defaultValue={selectedProduct.cost_price ?? 0}
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#cbf14e] focus:border-transparent transition"
+                    />
+                  </div>
+
                   <div>
                     <label className="block text-xs font-bold text-neutral-800 mb-1.5">
                       Harga jual (Rp) *
@@ -935,28 +1155,6 @@ export default function StokClient({ initialProducts = [] }: StokClientProps) {
                       defaultValue={selectedProduct.price}
                       className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#cbf14e] focus:border-transparent transition"
                     />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-neutral-800 mb-1.5">
-                      Satuan barang *
-                    </label>
-                    <select
-                      name="unit"
-                      defaultValue={selectedProduct.unit || 'Pcs'}
-                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#cbf14e] focus:border-transparent transition"
-                    >
-                      <option value="Pcs">Pcs</option>
-                      <option value="Kg">Kg</option>
-                      <option value="Liter">Liter</option>
-                      <option value="Bungkus">Bungkus</option>
-                      <option value="Dus">Dus</option>
-                      <option value="Botol">Botol</option>
-                      <option value="Sachet">Sachet</option>
-                      <option value="Pak">Pak</option>
-                      <option value="Renceng">Renceng</option>
-                      <option value="Kaleng">Kaleng</option>
-                    </select>
                   </div>
                 </div>
 
@@ -1228,6 +1426,108 @@ export default function StokClient({ initialProducts = [] }: StokClientProps) {
                   <MessageCircle className="w-3.5 h-3.5" />
                   <span>Buka di WhatsApp</span>
                 </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 5: Kelola Kategori Produk */}
+      {/* ========================================================================= */}
+      {isCategoryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="bg-[#cbf14e] px-6 py-4 border-b border-[#bde343] flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#1c240d]/70">
+                  PENGELOMPOKAN PRODUK
+                </p>
+                <h3 className="text-lg font-black text-[#1c240d]">
+                  Kelola Kategori Produk
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCategoryModalOpen(false)}
+                className="p-1.5 rounded-lg bg-white/80 hover:bg-white text-neutral-800 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {categoryError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-medium">
+                  {categoryError}
+                </div>
+              )}
+
+              <form onSubmit={handleAddCategory} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-neutral-800 mb-1">
+                    Nama kategori baru *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="Contoh: Sembako, Minuman, Snack..."
+                    className="w-full px-3.5 py-2 text-xs sm:text-sm bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#cbf14e]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-neutral-800 mb-1">
+                    Deskripsi singkat (opsional)
+                  </label>
+                  <input
+                    type="text"
+                    value={newCategoryDesc}
+                    onChange={(e) => setNewCategoryDesc(e.target.value)}
+                    placeholder="Keterangan jenis barang dalam kategori"
+                    className="w-full px-3.5 py-2 text-xs sm:text-sm bg-white border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#cbf14e]"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={categoryLoading}
+                  className="w-full py-2.5 bg-[#cbf14e] hover:bg-[#bde343] text-[#1c240d] font-bold text-xs rounded-xl transition shadow-xs disabled:opacity-50"
+                >
+                  {categoryLoading ? 'Menyimpan...' : '+ Tambah Kategori'}
+                </button>
+              </form>
+
+              <div className="border-t border-neutral-100 pt-4">
+                <p className="text-xs font-bold text-neutral-700 mb-2">
+                  Daftar Kategori ({categories.length})
+                </p>
+                {categories.length === 0 ? (
+                  <p className="text-xs text-neutral-400 italic">
+                    Belum ada kategori terdaftar.
+                  </p>
+                ) : (
+                  <div className="max-h-56 overflow-y-auto divide-y divide-neutral-100 border border-neutral-200 rounded-xl">
+                    {categories.map((cat) => (
+                      <div key={cat.id} className="px-3.5 py-2.5 flex items-center justify-between gap-2 text-xs">
+                        <div>
+                          <p className="font-bold text-neutral-900">{cat.name}</p>
+                          {cat.description && (
+                            <p className="text-[11px] text-neutral-500">{cat.description}</p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCategory(cat)}
+                          className="p-1.5 text-neutral-400 hover:text-red-600 transition"
+                          title="Hapus kategori"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
