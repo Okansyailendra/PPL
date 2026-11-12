@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, FormEvent, ChangeEvent } from 'react';
+import { useState, useRef, useEffect, FormEvent, ChangeEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import {
   Package,
@@ -23,11 +23,20 @@ import {
 } from 'lucide-react';
 import { addProduct, updateProduct, adjustProductStock, deleteProduct } from '@/app/actions/stok';
 import { buatPesanOrder, linkWa, normalisasiNomor } from '@/lib/penagih';
+import ConfirmDialog, { type ConfirmTone } from '@/components/ui/ConfirmDialog';
 import type { Category, Product } from '@/types';
 
 interface StokClientProps {
   initialProducts: Product[];
   initialCategories?: Category[];
+}
+
+interface ConfirmState {
+  title: string;
+  description: ReactNode;
+  confirmLabel: string;
+  tone: ConfirmTone;
+  onConfirm: () => void | Promise<void>;
 }
 
 export default function StokClient({ initialProducts = [], initialCategories = [] }: StokClientProps) {
@@ -54,6 +63,7 @@ export default function StokClient({ initialProducts = [], initialCategories = [
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmState | null>(null);
 
   // Supplier WA order states
   const [agenPhone, setAgenPhone] = useState('');
@@ -122,23 +132,37 @@ export default function StokClient({ initialProducts = [], initialCategories = [
     }
   };
 
-  const handleDeleteCategory = async (cat: Category) => {
-    if (!confirm(`Hapus kategori "${cat.name}"? Produk terkait tidak ikut terhapus.`)) return;
-    try {
-      const res = await fetch(`/api/categories/${cat.id}`, { method: 'DELETE' });
-      const json = await res.json();
-      if (!res.ok) {
-        setCategoryError(json?.error || 'Gagal menghapus kategori.');
-        return;
-      }
-      setCategories(prev => prev.filter(c => c.id !== cat.id));
-      setProducts(prev =>
-        prev.map(p => (p.category_id === cat.id ? { ...p, category_id: null, category: null } : p))
-      );
-      if (selectedCategory === cat.id) setSelectedCategory('ALL');
-    } catch {
-      setCategoryError('Gagal menghapus kategori.');
-    }
+  const handleDeleteCategory = (cat: Category) => {
+    setCategoryError('');
+    setConfirmDialog({
+      title: 'Hapus kategori ini?',
+      description: (
+        <>
+          Kategori <span className="font-bold text-neutral-800">&ldquo;{cat.name}&rdquo;</span> akan
+          dihapus dari daftar. Produk di dalamnya tetap tersimpan, hanya kehilangan kategorinya.
+        </>
+      ),
+      confirmLabel: 'Hapus kategori',
+      tone: 'danger',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          const res = await fetch(`/api/categories/${cat.id}`, { method: 'DELETE' });
+          const json = await res.json();
+          if (!res.ok) {
+            setCategoryError(json?.error || 'Gagal menghapus kategori.');
+            return;
+          }
+          setCategories(prev => prev.filter(c => c.id !== cat.id));
+          setProducts(prev =>
+            prev.map(p => (p.category_id === cat.id ? { ...p, category_id: null, category: null } : p))
+          );
+          if (selectedCategory === cat.id) setSelectedCategory('ALL');
+        } catch {
+          setCategoryError('Gagal menghapus kategori.');
+        }
+      },
+    });
   };
 
   // Sound beep on barcode detection
@@ -372,17 +396,31 @@ export default function StokClient({ initialProducts = [], initialCategories = [
   };
 
   // Delete product
-  const handleDelete = async (product: Product) => {
-    if (!confirm(`Yakin ingin menghapus "${product.name}" dari inventaris warung?`)) return;
+  const handleDelete = (product: Product) => {
+    const cleanName = product.name.replace(/\s*\[.*?\]/g, '').trim();
+    setConfirmDialog({
+      title: 'Hapus barang ini?',
+      description: (
+        <>
+          Barang <span className="font-bold text-neutral-800">&ldquo;{cleanName}&rdquo;</span> akan
+          dihapus dari inventaris warung. Riwayat transaksi yang sudah tercatat tetap aman.
+        </>
+      ),
+      confirmLabel: 'Hapus barang',
+      tone: 'danger',
+      onConfirm: async () => {
+        setConfirmDialog(null);
 
-    const res = await deleteProduct(product.id);
-    if (res?.success) {
-      setProducts(prev => prev.filter(p => p.id !== product.id));
-      setSuccessMessage(`Barang "${product.name}" telah dihapus.`);
-      setTimeout(() => setSuccessMessage(''), 3000);
-    } else if (res?.error) {
-      alert(res.error);
-    }
+        const res = await deleteProduct(product.id);
+        if (res?.success) {
+          setProducts(prev => prev.filter(p => p.id !== product.id));
+          setSuccessMessage(`Barang "${cleanName}" telah dihapus.`);
+          setTimeout(() => setSuccessMessage(''), 3000);
+        } else if (res?.error) {
+          alert(res.error);
+        }
+      },
+    });
   };
 
   // Open Edit Modal helper
@@ -1533,6 +1571,19 @@ export default function StokClient({ initialProducts = [], initialCategories = [
           </div>
         </div>
       )}
+
+      {/* Dialog konfirmasi bertema (pengganti window.confirm) */}
+      <ConfirmDialog
+        open={confirmDialog !== null}
+        title={confirmDialog?.title ?? ''}
+        description={confirmDialog?.description}
+        confirmLabel={confirmDialog?.confirmLabel}
+        tone={confirmDialog?.tone}
+        onCancel={() => setConfirmDialog(null)}
+        onConfirm={() => {
+          void confirmDialog?.onConfirm();
+        }}
+      />
     </div>
   );
 }

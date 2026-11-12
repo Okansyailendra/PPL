@@ -22,6 +22,9 @@ import {
   BookOpen,
   Trash2,
   ChevronDown,
+  Banknote,
+  QrCode,
+  CreditCard,
 } from 'lucide-react';
 
 interface LaporanClientProps {
@@ -45,15 +48,17 @@ export default function LaporanClient({
   // Tab View: Riwayat Transaksi Lengkap vs Buku Besar / Jurnal Kas Manual
   const [viewTab, setViewTab] = useState<'RIWAYAT' | 'JURNAL'>('RIWAYAT');
   const [filterType, setFilterType] = useState<'ALL' | 'IN' | 'OUT'>('ALL');
+  const [filterPayment, setFilterPayment] = useState<'ALL' | 'CASH' | 'QRIS' | 'CREDIT'>('ALL');
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Filter transactions
   const filteredTrx = filterByPeriode(transactions, periode, customStart, customEnd);
 
-  // Specific Type Filter for Riwayat view
+  // Specific Type & Payment Method Filter for Riwayat view
   const displayTrx = filteredTrx.filter((t) => {
-    if (filterType === 'IN') return t.type === 'IN';
-    if (filterType === 'OUT') return t.type === 'OUT';
+    if (filterType === 'IN' && t.type !== 'IN') return false;
+    if (filterType === 'OUT' && t.type !== 'OUT') return false;
+    if (filterPayment !== 'ALL' && t.payment_method !== filterPayment) return false;
     return true;
   });
 
@@ -63,6 +68,20 @@ export default function LaporanClient({
   const piutang = hitungPiutang(debts);
   const persediaan = hitungNilaiPersediaan(products);
   const bukuBesar = buatBukuBesar(filteredTrx, 0);
+
+  // Ringkasan per Metode Pembayaran Penjualan
+  const penjualanTrx = filteredTrx.filter((t) => t.type === 'IN');
+  const totalTunaiMasuk = penjualanTrx
+    .filter((t) => t.payment_method === 'CASH')
+    .reduce((sum, t) => sum + t.total_amount, 0);
+
+  const totalQrisMasuk = penjualanTrx
+    .filter((t) => t.payment_method === 'QRIS' && t.payment_status !== 'FAILED' && t.payment_status !== 'CANCEL')
+    .reduce((sum, t) => sum + t.total_amount, 0);
+
+  const totalKasbon = penjualanTrx
+    .filter((t) => t.payment_method === 'CREDIT')
+    .reduce((sum, t) => sum + t.total_amount, 0);
 
   const handlePrint = () => {
     window.print();
@@ -259,6 +278,63 @@ export default function LaporanClient({
         </div>
       </div>
 
+      {/* 2b. Ringkasan Metode Pembayaran Penjualan (Tunai, QRIS, Kasbon) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4 print:grid-cols-3">
+        {/* Card 1: Total Tunai */}
+        <div className="bg-white rounded-2xl border border-neutral-200/90 p-4 sm:p-5 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] sm:text-[11px] font-extrabold tracking-wider text-neutral-500 uppercase block mb-1">
+              TOTAL TUNAI MASUK
+            </span>
+            <div className="text-xl sm:text-2xl font-black text-neutral-900 tracking-tight">
+              Rp {totalTunaiMasuk.toLocaleString('id-ID')}
+            </div>
+            <span className="text-[11px] text-neutral-400 mt-0.5 block">
+              Pembayaran langsung tunai
+            </span>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+            <Banknote className="w-5 h-5" />
+          </div>
+        </div>
+
+        {/* Card 2: Total QRIS */}
+        <div className="bg-white rounded-2xl border border-neutral-200/90 p-4 sm:p-5 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] sm:text-[11px] font-extrabold tracking-wider text-[#465427] uppercase block mb-1">
+              TOTAL QRIS MASUK
+            </span>
+            <div className="text-xl sm:text-2xl font-black text-[#344415] tracking-tight">
+              Rp {totalQrisMasuk.toLocaleString('id-ID')}
+            </div>
+            <span className="text-[11px] text-neutral-400 mt-0.5 block">
+              Pembayaran digital / non-tunai
+            </span>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-[#eef5db] text-[#465427] flex items-center justify-center shrink-0">
+            <QrCode className="w-5 h-5" />
+          </div>
+        </div>
+
+        {/* Card 3: Total Kasbon */}
+        <div className="bg-white rounded-2xl border border-neutral-200/90 p-4 sm:p-5 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] sm:text-[11px] font-extrabold tracking-wider text-amber-700 uppercase block mb-1">
+              TOTAL KASBON (PIUTANG)
+            </span>
+            <div className="text-xl sm:text-2xl font-black text-amber-800 tracking-tight">
+              Rp {totalKasbon.toLocaleString('id-ID')}
+            </div>
+            <span className="text-[11px] text-neutral-400 mt-0.5 block">
+              Penjualan kasbon dicatat
+            </span>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+            <CreditCard className="w-5 h-5" />
+          </div>
+        </div>
+      </div>
+
       {/* 3. Middle Section: 2 White Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
         {/* Card 1: Laporan Laba Rugi */}
@@ -356,7 +432,7 @@ export default function LaporanClient({
                   : 'bg-transparent hover:bg-neutral-50 text-neutral-600 font-medium'
               }`}
             >
-              Riwayat Transaksi Lengkap ({filteredTrx.length})
+              Riwayat Transaksi Lengkap ({displayTrx.length})
             </button>
             <button
               type="button"
@@ -371,42 +447,93 @@ export default function LaporanClient({
             </button>
           </div>
 
-          {/* Sub-filter chips for Tab 1 (Image 0) */}
+          {/* Sub-filter chips for Tab 1 (Tipe & Metode Pembayaran) */}
           {viewTab === 'RIWAYAT' && (
-            <div className="flex items-center gap-1.5 print:hidden">
-              <button
-                type="button"
-                onClick={() => setFilterType('ALL')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  filterType === 'ALL'
-                    ? 'bg-[#cbf14e] text-[#1c240d] font-bold shadow-2xs'
-                    : 'bg-transparent hover:bg-neutral-50 text-neutral-600 font-medium'
-                }`}
-              >
-                Semua
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterType('IN')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  filterType === 'IN'
-                    ? 'bg-[#cbf14e] text-[#1c240d] font-bold shadow-2xs'
-                    : 'bg-transparent hover:bg-neutral-50 text-neutral-600 font-medium'
-                }`}
-              >
-                Penjualan
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterType('OUT')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  filterType === 'OUT'
-                    ? 'bg-[#cbf14e] text-[#1c240d] font-bold shadow-2xs'
-                    : 'bg-transparent hover:bg-neutral-50 text-neutral-600 font-medium'
-                }`}
-              >
-                Kulakan
-              </button>
+            <div className="flex flex-wrap items-center gap-2 print:hidden">
+              {/* Tipe Transaksi */}
+              <div className="flex items-center bg-white border border-neutral-200/90 rounded-xl p-1 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setFilterType('ALL')}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    filterType === 'ALL'
+                      ? 'bg-[#cbf14e] text-[#1c240d] font-bold shadow-2xs'
+                      : 'hover:bg-neutral-50 text-neutral-600 font-medium'
+                  }`}
+                >
+                  Semua
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterType('IN')}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    filterType === 'IN'
+                      ? 'bg-[#cbf14e] text-[#1c240d] font-bold shadow-2xs'
+                      : 'hover:bg-neutral-50 text-neutral-600 font-medium'
+                  }`}
+                >
+                  Penjualan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterType('OUT')}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    filterType === 'OUT'
+                      ? 'bg-[#cbf14e] text-[#1c240d] font-bold shadow-2xs'
+                      : 'hover:bg-neutral-50 text-neutral-600 font-medium'
+                  }`}
+                >
+                  Kulakan
+                </button>
+              </div>
+
+              {/* Metode Pembayaran */}
+              <div className="flex items-center bg-white border border-neutral-200/90 rounded-xl p-1 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setFilterPayment('ALL')}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    filterPayment === 'ALL'
+                      ? 'bg-[#1c240d] text-white font-bold shadow-2xs'
+                      : 'hover:bg-neutral-50 text-neutral-600 font-medium'
+                  }`}
+                >
+                  Semua Cara Bayar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterPayment('CASH')}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+                    filterPayment === 'CASH'
+                      ? 'bg-[#1c240d] text-white font-bold shadow-2xs'
+                      : 'hover:bg-neutral-50 text-neutral-600 font-medium'
+                  }`}
+                >
+                  <span>Tunai</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterPayment('QRIS')}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+                    filterPayment === 'QRIS'
+                      ? 'bg-[#1c240d] text-white font-bold shadow-2xs'
+                      : 'hover:bg-neutral-50 text-neutral-600 font-medium'
+                  }`}
+                >
+                  <span>QRIS</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterPayment('CREDIT')}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+                    filterPayment === 'CREDIT'
+                      ? 'bg-[#1c240d] text-white font-bold shadow-2xs'
+                      : 'hover:bg-neutral-50 text-neutral-600 font-medium'
+                  }`}
+                >
+                  <span>Kasbon</span>
+                </button>
+              </div>
             </div>
           )}
         </div>

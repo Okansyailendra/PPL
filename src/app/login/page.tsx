@@ -155,9 +155,17 @@ export default function LoginPage() {
 
             {/* Password Field */}
             <div>
-              <label className="block text-xs font-bold text-neutral-800 mb-1.5">
-                Kata sandi
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-neutral-800">
+                  Kata sandi
+                </label>
+                <Link
+                  href="/forgot-password"
+                  className="text-[11px] font-bold text-[#54652d] hover:text-[#3d4a20] hover:underline transition"
+                >
+                  Lupa kata sandi?
+                </Link>
+              </div>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
                 <input

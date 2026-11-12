@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import type { UserSession, Product, Transaction } from '@/types';
+import type { UserSession, Product, Transaction, Category } from '@/types';
 import { createSaleTransaction, createRestockTransaction } from '@/app/actions/transaksi';
 import { linkWa, normalisasiNomor } from '@/lib/penagih';
 import {
@@ -29,6 +29,7 @@ import {
 interface TransaksiClientProps {
   user: UserSession | null;
   initialProducts: Product[];
+  initialCategories?: Category[];
   initialRecentTransactions: Transaction[];
 }
 
@@ -40,10 +41,20 @@ interface CartItem {
 export default function TransaksiClient({
   user,
   initialProducts,
+  initialCategories = [],
   initialRecentTransactions,
 }: TransaksiClientProps) {
   const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [categoriesList, setCategoriesList] = useState<Category[]>(initialCategories);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>(initialRecentTransactions);
+
+  useEffect(() => {
+    setProducts(initialProducts);
+  }, [initialProducts]);
+
+  useEffect(() => {
+    setCategoriesList(initialCategories);
+  }, [initialCategories]);
 
   // Mode: Penjualan (Stok Berkurang) vs Kulakan (Stok Bertambah)
   const [mode, setMode] = useState<'SALE' | 'RESTOCK'>('SALE');
@@ -98,14 +109,34 @@ export default function TransaksiClient({
   const lastScanTimeRef = useRef<number>(0);
   const lastScannedCodeRef = useRef<string>('');
 
-  // Unique categories list
-  const categories = useMemo(() => {
-    const set = new Set<string>();
-    products.forEach((p) => {
-      if (p.category) set.add(p.category);
+  // Gabungan kategori master dari database + kategori produk yang ada
+  const allCategoryOptions = useMemo(() => {
+    const list: { id: string; name: string; count: number }[] = [];
+    const nameMap = new Map<string, { id: string; name: string; count: number }>();
+
+    // 1. Kategori resmi dari database
+    categoriesList.forEach((c) => {
+      const entry = { id: c.id, name: c.name, count: 0 };
+      nameMap.set(c.name.toLowerCase(), entry);
+      list.push(entry);
     });
-    return Array.from(set);
-  }, [products]);
+
+    // 2. Hitung jumlah produk per kategori & tampung jika ada nama kategori manual
+    products.forEach((p) => {
+      if (p.category) {
+        const lower = p.category.toLowerCase();
+        if (nameMap.has(lower)) {
+          nameMap.get(lower)!.count += 1;
+        } else {
+          const entry = { id: p.category_id || p.category, name: p.category, count: 1 };
+          nameMap.set(lower, entry);
+          list.push(entry);
+        }
+      }
+    });
+
+    return list;
+  }, [categoriesList, products]);
 
   // Audio Beep Feedback
   const playBeep = () => {
@@ -266,7 +297,10 @@ export default function TransaksiClient({
       const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
       const isLow = p.stock <= p.min_stock;
       const isReady = p.stock > 0;
-      const matchCategory = selectedCategory === 'ALL' || p.category === selectedCategory;
+      const matchCategory =
+        selectedCategory === 'ALL' ||
+        p.category === selectedCategory ||
+        p.category_id === selectedCategory;
 
       if (!matchCategory) return false;
       if (filterStock === 'READY') return matchSearch && isReady;
@@ -676,7 +710,7 @@ export default function TransaksiClient({
               </button>
             </div>
 
-            {/* Category Filter */}
+            {/* Category Filter Dropdown */}
             <div className="relative">
               <select
                 value={selectedCategory}
@@ -684,9 +718,9 @@ export default function TransaksiClient({
                 className="appearance-none bg-white hover:bg-neutral-50 border border-neutral-200 rounded-lg pl-3 pr-7 py-1.5 text-xs text-neutral-700 font-medium cursor-pointer focus:outline-none shadow-xs"
               >
                 <option value="ALL">Kategori: Semua barang</option>
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
+                {allCategoryOptions.map((cat) => (
+                  <option key={cat.id} value={cat.name}>
+                    {cat.name} ({cat.count})
                   </option>
                 ))}
               </select>
@@ -695,6 +729,46 @@ export default function TransaksiClient({
               </span>
             </div>
           </div>
+
+          {/* Quick Category Chips Bar (Tombol Cepat Kasir) */}
+          {allCategoryOptions.length > 0 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none pt-0.5">
+              <button
+                type="button"
+                onClick={() => setSelectedCategory('ALL')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  selectedCategory === 'ALL'
+                    ? 'bg-[#1c240d] text-white shadow-xs font-bold'
+                    : 'bg-white hover:bg-neutral-50 border border-neutral-200 text-neutral-600 font-medium'
+                }`}
+              >
+                Semua ({products.length})
+              </button>
+              {allCategoryOptions.map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat.name)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    selectedCategory === cat.name || selectedCategory === cat.id
+                      ? 'bg-[#1c240d] text-white shadow-xs font-bold'
+                      : 'bg-white hover:bg-neutral-50 border border-neutral-200 text-neutral-600 font-medium'
+                  }`}
+                >
+                  {cat.name}
+                  <span
+                    className={`text-[10px] ml-1.5 px-1.5 py-0.5 rounded-full ${
+                      selectedCategory === cat.name || selectedCategory === cat.id
+                        ? 'bg-white/20 text-white'
+                        : 'bg-neutral-100 text-neutral-500'
+                    }`}
+                  >
+                    {cat.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Product Header Row */}
           <div className="flex items-center justify-between mt-1">
