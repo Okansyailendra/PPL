@@ -1,16 +1,15 @@
 'use client';
 
-import React, { useState, useMemo, use } from 'react';
+import React, { useState, useMemo, useEffect, use } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { CartProvider, useCart } from '@/context/CartContext';
+import { useCart } from '@/context/CartContext';
 import Sidebar from '@/components/pembeli/Sidebar';
 import TopHeader from '@/components/pembeli/TopHeader';
 import CartDrawer from '@/components/pembeli/CartDrawer';
 import Footer from '@/components/pembeli/Footer';
-import { PRODUCTS } from '@/data/mockProducts';
-import { ProductVariant } from '@/types';
+import { PRODUCTS as FALLBACK_PRODUCTS } from '@/data/mockProducts';
+import { Product, ProductVariant } from '@/types';
 import { 
   ChevronRight, 
   ArrowLeft, 
@@ -24,7 +23,10 @@ import {
   Truck, 
   MessageCircle, 
   HelpCircle,
-  X 
+  X,
+  AlertTriangle,
+  Ban,
+  RefreshCw
 } from 'lucide-react';
 
 interface PageProps {
@@ -36,55 +38,93 @@ function ProductDetailContent({ productId }: { productId: string }) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
 
-  // Find product from PRODUCTS mock list
-  const product = useMemo(() => {
-    return PRODUCTS.find((p) => p.id === productId) || PRODUCTS[2]; // Default to Indomie Mi Goreng if not found
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch product data dari database via API catalog
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchDetail() {
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/catalog/${productId}`);
+        const json = await res.json();
+        if (json?.success && json?.data && isMounted) {
+          setProduct(json.data);
+          return;
+        }
+      } catch (err) {
+        console.warn('Gagal memuat detail produk dari database, fallback ke mock:', err);
+      }
+      if (isMounted) {
+        const fallback = FALLBACK_PRODUCTS.find((p) => p.id === productId) || FALLBACK_PRODUCTS[0];
+        setProduct(fallback);
+      }
+      setLoading(false);
+    }
+    fetchDetail();
+    return () => {
+      isMounted = false;
+    };
   }, [productId]);
+
+  const activeProduct = product || FALLBACK_PRODUCTS[0];
+  const stock = typeof activeProduct.stock === 'number' ? activeProduct.stock : 0;
+  const isOutOfStock = stock <= 0;
+  const isLowStock = !isOutOfStock && (activeProduct.isLowStock || stock <= (activeProduct.min_stock || 5));
 
   // Default variants if product doesn't define custom variants
   const variants: ProductVariant[] = useMemo(() => {
-    if (product.variants && product.variants.length > 0) {
-      return product.variants;
+    if (activeProduct.variants && activeProduct.variants.length > 0) {
+      return activeProduct.variants;
     }
-    // Fallback dynamic variants
     return [
       {
         id: 'var-1',
         name: 'Satuan',
-        sublabel: `1 ${product.unit}`,
-        price: product.price,
+        sublabel: `1 ${activeProduct.unit || 'pcs'}`,
+        price: activeProduct.price,
         multiplier: 1,
       },
       {
         id: 'var-2',
         name: 'Paket 5x',
-        sublabel: `5 ${product.unit}`,
-        price: Math.round(product.price * 5 * 0.95),
+        sublabel: `5 ${activeProduct.unit || 'pcs'}`,
+        price: Math.round(activeProduct.price * 5 * 0.95),
         savingsNote: 'Paket 5x lebih hemat 5%',
         multiplier: 5,
       },
       {
         id: 'var-3',
         name: 'Dus / Grosir',
-        sublabel: `1 kardus besar`,
-        price: Math.round(product.price * 20 * 0.9),
+        sublabel: `Kemasan grosir`,
+        price: Math.round(activeProduct.price * 20 * 0.9),
         multiplier: 20,
       },
     ];
-  }, [product]);
+  }, [activeProduct]);
 
-  // Selected variant state (default to second variant like Renteng in Figma, or first if only 1)
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant>(
-    variants[1] || variants[0]
-  );
+  // Selected variant state
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant>(variants[0]);
+
+  useEffect(() => {
+    if (variants.length > 0) {
+      setSelectedVariant(variants[0]);
+    }
+  }, [variants]);
 
   // Quantity state
   const [quantity, setQuantity] = useState(1);
 
-  const subtotal = (selectedVariant?.price || product.price) * quantity;
+  const subtotal = (selectedVariant?.price || activeProduct.price) * quantity;
+
+  // Cek apakah quantity * multiplier melebihi stok
+  const totalItemCount = quantity * (selectedVariant?.multiplier || 1);
+  const exceedsStock = totalItemCount > stock;
 
   const handleAddToCart = () => {
-    addToCart(product, selectedVariant, quantity);
+    if (isOutOfStock || exceedsStock) return;
+    addToCart(activeProduct, selectedVariant, quantity);
     setJustAdded(true);
     setTimeout(() => {
       setJustAdded(false);
@@ -138,18 +178,18 @@ function ProductDetailContent({ productId }: { productId: string }) {
               </Link>
               <ChevronRight className="w-3 h-3 text-slate-400" />
               <span className="text-slate-600">
-                {product.categoryLabel || 'Sembako & Dapur'}
+                {activeProduct.categoryLabel || activeProduct.category || 'Katalog'}
               </span>
               <ChevronRight className="w-3 h-3 text-slate-400" />
               <span className="text-slate-900 font-semibold truncate">
-                {product.name}
+                {activeProduct.name}
               </span>
             </nav>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
               <div>
                 <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-widest block mb-1">
-                  DETAIL PRODUK
+                  DETAIL PRODUK &amp; STOK REAL-TIME
                 </span>
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                   Pilih satuan sesuai kebutuhan.
@@ -177,37 +217,57 @@ function ProductDetailContent({ productId }: { productId: string }) {
                 <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4 sm:p-6 flex flex-col justify-between overflow-hidden relative group">
                   <div className="relative w-full aspect-square max-h-[340px] flex items-center justify-center mx-auto">
                     <Image
-                      src={product.image || '/assets/logo.png'}
-                      alt={product.name}
+                      src={activeProduct.image || '/assets/logo.png'}
+                      alt={activeProduct.name}
                       fill
                       priority
-                      className="object-contain p-4 group-hover:scale-105 transition-transform duration-300"
+                      className={`object-contain p-4 transition-transform duration-300 ${
+                        isOutOfStock ? 'grayscale' : 'group-hover:scale-105'
+                      }`}
                     />
                   </div>
 
                   {/* Stock Information Overlay Bar */}
-                  <div className="mt-4 p-3 rounded-xl bg-white/90 backdrop-blur-xs border border-slate-200/80 flex items-center justify-between shadow-2xs">
+                  <div className={`mt-4 p-3 rounded-xl border flex items-center justify-between shadow-2xs ${
+                    isOutOfStock 
+                      ? 'bg-rose-50 border-rose-200 text-rose-900' 
+                      : isLowStock 
+                        ? 'bg-amber-50 border-amber-200 text-amber-900'
+                        : 'bg-white/90 backdrop-blur-xs border-slate-200/80'
+                  }`}>
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
-                        <Package className="w-4 h-4" />
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                        isOutOfStock
+                          ? 'bg-rose-100 text-rose-700'
+                          : isLowStock
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-emerald-50 text-emerald-700'
+                      }`}>
+                        {isOutOfStock ? <Ban className="w-4 h-4" /> : <Package className="w-4 h-4" />}
                       </div>
                       <div className="min-w-0">
-                        <div className="text-xs font-bold text-slate-800">
-                          {product.stock} {product.unit} tersedia
+                        <div className="text-xs font-bold">
+                          {isOutOfStock
+                            ? 'Stok fisik saat ini habis'
+                            : `${stock} ${activeProduct.unit || 'pcs'} tersedia di warung`}
                         </div>
-                        <div className="text-[11px] text-slate-400 truncate">
-                          {product.equivalentNote || `Stok warung siap dikirim / diambil`}
+                        <div className="text-[11px] opacity-75 truncate">
+                          {isOutOfStock 
+                            ? 'Sedang dalam proses kulakan ulang'
+                            : isLowStock 
+                              ? 'Stok menipis, segera pesan' 
+                              : 'Stok warung siap dikirim / diambil'}
                         </div>
                       </div>
                     </div>
-                    <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">
-                      09.41 WIB
+                    <span className="text-[10px] font-semibold bg-white/80 border border-slate-200/60 px-2 py-0.5 rounded-full shrink-0">
+                      Sinkron Riil
                     </span>
                   </div>
                 </div>
 
                 <p className="text-[11px] text-slate-400 text-center sm:text-left">
-                  Foto sebagai referensi. Kemasan dapat berubah mengikuti stok warung.
+                  Foto sebagai referensi kemasan. Stok barang tersinkronisasi langsung dengan sistem kasir fisik Toko Wadira.
                 </p>
               </div>
 
@@ -215,13 +275,13 @@ function ProductDetailContent({ productId }: { productId: string }) {
               <div className="lg:col-span-7 space-y-6">
                 <div>
                   <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/60 mb-2.5">
-                    {product.categoryLabel || 'Sembako & Dapur'}
+                    {activeProduct.categoryLabel || activeProduct.category || 'Kebutuhan Harian'}
                   </span>
                   <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                    {product.name}
+                    {activeProduct.name}
                   </h2>
                   <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">
-                    {product.description || 'Pilihan tepat untuk kebutuhan harian keluarga dan dapur Anda.'}
+                    {activeProduct.description || 'Pilihan tepat untuk kebutuhan harian keluarga dan dapur Anda.'}
                   </p>
                 </div>
 
@@ -231,7 +291,6 @@ function ProductDetailContent({ productId }: { productId: string }) {
                     Pilih satuan belanja
                   </div>
 
-                  {/* 3 Variant Cards Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {variants.map((v) => {
                       const isSelected = selectedVariant?.id === v.id;
@@ -270,7 +329,6 @@ function ProductDetailContent({ productId }: { productId: string }) {
                     })}
                   </div>
 
-                  {/* Savings / Helper Note */}
                   {selectedVariant?.savingsNote && (
                     <p className="text-xs font-semibold text-emerald-700">
                       {selectedVariant.savingsNote}
@@ -288,7 +346,7 @@ function ProductDetailContent({ productId }: { productId: string }) {
                       <button
                         type="button"
                         onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
-                        disabled={quantity <= 1}
+                        disabled={quantity <= 1 || isOutOfStock}
                         className="w-8 h-8 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <Minus className="w-3.5 h-3.5" />
@@ -299,7 +357,8 @@ function ProductDetailContent({ productId }: { productId: string }) {
                       <button
                         type="button"
                         onClick={() => setQuantity((prev) => prev + 1)}
-                        className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center justify-center hover:bg-emerald-100 active:scale-95 transition"
+                        disabled={isOutOfStock || exceedsStock}
+                        className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center justify-center hover:bg-emerald-100 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </button>
@@ -316,18 +375,38 @@ function ProductDetailContent({ productId }: { productId: string }) {
                   </div>
                 </div>
 
+                {exceedsStock && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-xs text-rose-800 font-semibold">
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>Jumlah yang dipilih ({totalItemCount} {activeProduct.unit || 'pcs'}) melebihi sisa stok yang tersedia ({stock} {activeProduct.unit || 'pcs'}).</span>
+                  </div>
+                )}
+
                 {/* Action CTA Button */}
                 <div className="space-y-2 pt-1">
                   <button
                     onClick={handleAddToCart}
                     type="button"
-                    className={`w-full py-4 px-6 rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.99] cursor-pointer ${
-                      justAdded
-                        ? 'bg-[#d4f952] text-neutral-950 border border-[#c4ec3e]'
-                        : 'bg-[#d4f952] hover:bg-[#c4ec3e] text-neutral-950 border border-[#c4ec3e]'
+                    disabled={isOutOfStock || exceedsStock}
+                    className={`w-full py-4 px-6 rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-xs transition active:scale-[0.99] ${
+                      isOutOfStock || exceedsStock
+                        ? 'bg-neutral-200 text-neutral-400 border border-neutral-300 cursor-not-allowed'
+                        : justAdded
+                          ? 'bg-[#d4f952] text-neutral-950 border border-[#c4ec3e] cursor-pointer'
+                          : 'bg-[#d4f952] hover:bg-[#c4ec3e] text-neutral-950 border border-[#c4ec3e] cursor-pointer'
                     }`}
                   >
-                    {justAdded ? (
+                    {isOutOfStock ? (
+                      <>
+                        <Ban className="w-4 h-4 text-neutral-400" />
+                        <span>Stok Barang Sedang Habis</span>
+                      </>
+                    ) : exceedsStock ? (
+                      <>
+                        <AlertTriangle className="w-4 h-4 text-neutral-400" />
+                        <span>Melebihi Stok Tersedia</span>
+                      </>
+                    ) : justAdded ? (
                       <>
                         <Check className="w-4 h-4 stroke-[3]" />
                         <span>Pilihan berhasil ditambahkan!</span>
@@ -341,91 +420,19 @@ function ProductDetailContent({ productId }: { productId: string }) {
                   </button>
 
                   <p className="text-[11px] text-slate-500 text-center">
-                    Pilihan saat ini: {quantity} {selectedVariant?.name.toLowerCase()} ({selectedVariant?.sublabel}) di keranjang. Stok belum berkurang sebelum dikonfirmasi kasir.
+                    {isOutOfStock 
+                      ? 'Barang ini sedang kosong di kasir fisik Toko Wadira.'
+                      : `Stok fisik terverifikasi: ${stock} ${activeProduct.unit || 'pcs'}.`}
                   </p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Bottom Information Cards Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Card 1: Dua cara menerima belanjaan */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-2xs space-y-3">
-              <h3 className="font-bold text-slate-900 text-sm">
-                Dua cara menerima belanjaan
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                <div className="flex items-start gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center shrink-0">
-                    <Store className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-800">
-                      Ambil sendiri • Gratis
-                    </div>
-                    <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
-                      Kasir menyiapkan pesanan. Ambil setelah mendapat konfirmasi dari Toko Wadira.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center shrink-0">
-                    <Truck className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-800">
-                      Antar rumah • Rp5.000
-                    </div>
-                    <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
-                      Diantar pihak warung dalam radius 1 km. Estimasi 30–60 menit.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Column 2: Pesanan diteruskan ke WA & Butuh satuan lain */}
-            <div className="space-y-3">
-              {/* Card 2: Pesanan diteruskan ke WhatsApp */}
-              <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center shrink-0 mt-0.5">
-                  <MessageCircle className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-800">
-                    Pesanan diteruskan ke WhatsApp Toko Wadira
-                  </div>
-                  <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
-                    Cek lagi belanjaan, isi identitas, lalu buka WhatsApp dengan rekap yang sudah disiapkan. Kasir akan memastikan stok dan waktu layanan.
-                  </p>
-                </div>
-              </div>
-
-              {/* Card 3: Butuh satuan lain? */}
-              <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 mt-0.5">
-                  <Package className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-800">
-                    Butuh satuan lain?
-                  </div>
-                  <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
-                    Tuliskan kebutuhan khusus di catatan pesanan. Untuk rokok tersedia pilihan batang, bungkus, dan slop: hanya untuk pelanggan usia 21 tahun ke atas.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer */}
           <Footer />
         </main>
       </div>
 
-      {/* Slide-over Cart Drawer */}
       <CartDrawer />
     </div>
   );
@@ -433,6 +440,5 @@ function ProductDetailContent({ productId }: { productId: string }) {
 
 export default function ProductDetailPage({ params }: PageProps) {
   const resolvedParams = use(params);
-
   return <ProductDetailContent productId={resolvedParams.id} />;
 }

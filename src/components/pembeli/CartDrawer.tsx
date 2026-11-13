@@ -40,6 +40,7 @@ export default function CartDrawer() {
   const [customerNote, setCustomerNote] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris'>('cash');
   const [validationError, setValidationError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Nomor WhatsApp Warung Tujuan (Nomor pemilik Toko Wadira)
   const WARUNG_WA_NUMBER = '6289516201846';
@@ -62,8 +63,8 @@ export default function CartDrawer() {
 
   if (!isCartOpen) return null;
 
-  const handleCheckoutWA = () => {
-    if (cart.length === 0) return;
+  const handleCheckoutWA = async () => {
+    if (cart.length === 0 || isSubmitting) return;
 
     if (!customerName.trim()) {
       setValidationError('Silakan isi Nama Pemesan terlebih dahulu.');
@@ -71,8 +72,9 @@ export default function CartDrawer() {
     }
 
     setValidationError('');
+    setIsSubmitting(true);
 
-    // Simpan profil pemesan ke LocalStorage untuk kenyamanan belanja berikutnya
+    // 1. Catat profil pemesan ke LocalStorage untuk kenyamanan belanja berikutnya
     try {
       localStorage.setItem(
         'warung_customer_profile',
@@ -86,13 +88,51 @@ export default function CartDrawer() {
       // ignore
     }
 
-    // Tanggal dan waktu pesanan
+    let generatedOrderId = '';
+
+    // 2. Kirim pesanan ke database penjual secara real-time
+    try {
+      const orderPayload = {
+        customer: {
+          name: customerName.trim(),
+          phone: customerPhone.trim(),
+          address: customerAddress.trim(),
+          notes: customerNote.trim(),
+        },
+        items: cart.map((item) => ({
+          productId: item.product.id,
+          name: item.product.name + (item.selectedVariant ? ` (${item.selectedVariant.name})` : ''),
+          quantity: item.quantity,
+          price: item.selectedVariant ? item.selectedVariant.price : item.product.price,
+          unit: item.selectedVariant ? item.selectedVariant.name : (item.product.unit || 'pcs'),
+        })),
+        fulfillmentType,
+        paymentMethod,
+      };
+
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderPayload),
+      });
+
+      const resJson = await res.json();
+      if (!res.ok) {
+        throw new Error(resJson.error || 'Gagal menyimpan pesanan');
+      }
+
+      generatedOrderId = resJson.orderId || '';
+    } catch (err: any) {
+      console.warn('Pencatatan order ke database gagal, tetap membuka WhatsApp:', err);
+    }
+
+    // 3. Susun Tanggal dan waktu pesanan
     const now = new Date();
     const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
     const formattedDate = `${days[now.getDay()]}, ${String(now.getDate()).padStart(2, '0')} ${months[now.getMonth()]} ${now.getFullYear()} - ${String(now.getHours()).padStart(2, '0')}.${String(now.getMinutes()).padStart(2, '0')} WIB`;
 
-    // Susun Rincian Belanja (Gunakan teks standar tanpa simbol aneh agar tidak jadi tanda tanya)
+    // Susun Rincian Belanja
     const orderItemsText = cart
       .map((item, index) => {
         const itemPrice = item.selectedVariant ? item.selectedVariant.price : item.product.price;
@@ -115,10 +155,10 @@ export default function CartDrawer() {
         ? 'Bayar Tunai (Cash / COD saat barang diterima)'
         : 'Transfer / QRIS';
 
-    // FORMAT TEMPLATE PESAN WHATSAPP (Bersih, rapi, bebas tanda tanya)
+    // 4. FORMAT TEMPLATE PESAN WHATSAPP
     const formattedMessage = `*PESANAN BELANJA BARU*
 *Toko:* ${WARUNG_NAME}
-----------------------------------------
+${generatedOrderId ? `*No. Pesanan:* \`#${generatedOrderId}\`\n` : ''}----------------------------------------
 _${formattedDate}_
 
 *DATA PEMESAN:*
@@ -132,17 +172,19 @@ ${orderItemsText}
 *TOTAL ESTIMASI: Rp ${totalPrice.toLocaleString('id-ID')}*
 (${totalItems} barang)
 
-_Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon dicek ketersediaan stoknya. Terima kasih!_`;
+${generatedOrderId ? `✅ _Pesanan sudah tercatat di sistem kasir Toko Wadira (\`#${generatedOrderId}\`)._\n` : ''}_Halo Kasir ${WARUNG_NAME}, saya mau pesan barang di atas ya. Mohon segera diproses. Terima kasih!_`;
 
     const encodedMessage = encodeURIComponent(formattedMessage);
 
-    // Deteksi perangkat: Jika di HP buka aplikasi WA (wa.me), jika di Laptop/Desktop langsung buka WhatsApp Web (web.whatsapp.com) agar tidak muncul pop-up 'Choose Application' di Linux
     const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     const waUrl = isMobile
       ? `https://wa.me/${WARUNG_WA_NUMBER}?text=${encodedMessage}`
       : `https://web.whatsapp.com/send?phone=${WARUNG_WA_NUMBER}&text=${encodedMessage}`;
 
-    // Buka WhatsApp di tab baru
+    setIsSubmitting(false);
+    clearCart();
+    setIsCartOpen(false);
+
     window.open(waUrl, '_blank');
   };
 
@@ -413,10 +455,11 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
             <button
               onClick={handleCheckoutWA}
               type="button"
-              className="w-full py-4 px-4 bg-[#d4f952] hover:bg-[#c4ec3e] border border-[#c4ec3e] text-neutral-950 font-black text-sm rounded-xl flex items-center justify-center gap-2.5 shadow-xs active:scale-[0.99] transition cursor-pointer"
+              disabled={isSubmitting}
+              className="w-full py-4 px-4 bg-[#d4f952] hover:bg-[#c4ec3e] border border-[#c4ec3e] text-neutral-950 font-black text-sm rounded-xl flex items-center justify-center gap-2.5 shadow-xs active:scale-[0.99] transition cursor-pointer disabled:opacity-60"
             >
-              <Send className="w-4 h-4" />
-              <span>Kirim Pesanan ke WhatsApp Toko Wadira</span>
+              <Send className={`w-4 h-4 ${isSubmitting ? 'animate-pulse' : ''}`} />
+              <span>{isSubmitting ? 'Mencatat Pesanan & Menyiapkan WhatsApp...' : 'Kirim Pesanan ke WhatsApp Toko Wadira'}</span>
             </button>
             <p className="text-[11px] text-center text-neutral-400">
               Format rincian belanja otomatis disiapkan untuk dikirim ke chat WhatsApp kasir Wadira.

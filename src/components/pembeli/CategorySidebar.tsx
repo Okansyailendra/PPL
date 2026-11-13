@@ -10,8 +10,10 @@ import {
   Sparkles,
   Zap,
   HeartPulse,
+  Tag,
 } from 'lucide-react';
-import { CATEGORIES } from '../../data/mockProducts';
+import { CATEGORIES as DEFAULT_CATEGORIES } from '../../data/mockProducts';
+import type { Category } from '@/types';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   LayoutGrid,
@@ -22,17 +24,39 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Sparkles,
   Zap,
   HeartPulse,
+  Tag,
 };
 
 interface CategorySidebarProps {
   selectedCategory: string;
   onSelectCategory: (id: string) => void;
+  categories?: Category[];
 }
 
 export default function CategorySidebar({
   selectedCategory,
   onSelectCategory,
+  categories,
 }: CategorySidebarProps) {
+  // Gabungkan kategori dari props atau fallback ke default
+  const activeCategories: Category[] = React.useMemo(() => {
+    if (categories && categories.length > 0) {
+      // Pastikan ada opsi "all" di awal
+      const hasAll = categories.some((c) => c.id === 'all');
+      if (hasAll) return categories;
+      return [
+        {
+          id: 'all',
+          name: 'Semua kategori',
+          description: 'Semua produk warung',
+          iconName: 'LayoutGrid',
+        },
+        ...categories,
+      ];
+    }
+    return DEFAULT_CATEGORIES;
+  }, [categories]);
+
   return (
     <div className="w-full lg:w-72 shrink-0 space-y-4">
       <div className="flex items-center justify-between px-1">
@@ -42,8 +66,8 @@ export default function CategorySidebar({
       </div>
 
       <div className="bg-white rounded-2xl border border-neutral-200/80 p-2 space-y-1 shadow-2xs">
-        {CATEGORIES.map((cat) => {
-          const Icon = ICON_MAP[cat.iconName] || LayoutGrid;
+        {activeCategories.map((cat) => {
+          const Icon = (cat.iconName && ICON_MAP[cat.iconName]) || Tag;
           const isActive = selectedCategory === cat.id;
 
           return (
@@ -79,7 +103,7 @@ export default function CategorySidebar({
                     isActive ? 'text-neutral-800 font-medium' : 'text-neutral-400'
                   }`}
                 >
-                  {cat.description}
+                  {cat.description || 'Koleksi produk'}
                 </div>
               </div>
             </button>
@@ -88,7 +112,7 @@ export default function CategorySidebar({
       </div>
 
       <div className="p-3.5 bg-[#f2f7ec] rounded-xl border border-[#e2edd8] text-[11px] text-neutral-700 leading-relaxed font-medium">
-        <span className="font-bold text-emerald-800">Catatan:</span> Gambar sebagai referensi kemasan. Ketersediaan barang dan harga merupakan stok fisik riil di Toko Wadira.
+        <span className="font-bold text-emerald-800">Catatan:</span> Data stok barang dan harga tersinkronisasi langsung dengan stok fisik riil di kasir Toko Wadira.
       </div>
     </div>
   );

@@ -1,16 +1,11 @@
--- phpMyAdmin SQL Dump
--- version 5.2.0
--- https://www.phpmyadmin.net/
---
--- Host: localhost:3306
--- Generation Time: Nov 01, 2026 at 02:21 PM
--- Server version: 8.0.30
--- PHP Version: 8.2.12
+-- =========================================================================
+-- WarungPPL Database Script (MySQL / MariaDB Edition)
+-- Database Name: `warungppl_db`
+-- =========================================================================
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
 SET time_zone = "+00:00";
-
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -18,82 +13,64 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `warungcopilot_db`
+-- Database: `warungppl_db`
 --
 
 -- --------------------------------------------------------
-
---
--- Table structure for table `customers`
---
-
-CREATE TABLE `customers` (
-  `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `umkm_id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `phone_number` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `address` text COLLATE utf8mb4_unicode_ci,
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
+-- 1. Tabel users (Pemilik Warung / Kasir)
 -- --------------------------------------------------------
 
---
--- Table structure for table `debts`
---
+DROP TABLE IF EXISTS `payment_logs`;
+DROP TABLE IF EXISTS `transactions`;
+DROP TABLE IF EXISTS `debts`;
+DROP TABLE IF EXISTS `products`;
+DROP TABLE IF EXISTS `categories`;
+DROP TABLE IF EXISTS `customers`;
+DROP TABLE IF EXISTS `users`;
 
-CREATE TABLE `debts` (
+CREATE TABLE `users` (
   `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `umkm_id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customer_name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customer_phone` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `amount` int NOT NULL,
+  `email` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `store_name` varchar(191) NOT NULL,
+  `owner_name` varchar(191) NOT NULL,
+  `phone_number` varchar(50) NOT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `due_date` datetime NOT NULL,
-  `status` enum('UNPAID','PAID') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'UNPAID',
-  `related_trx_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `users_email_unique` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `debts`
---
-
-INSERT INTO `debts` (`id`, `umkm_id`, `customer_name`, `customer_phone`, `amount`, `created_at`, `due_date`, `status`, `related_trx_id`) VALUES
-('d1111111-1111-1111-1111-111111111111', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Pak RT Bambang', '081211112222', 111000, '2026-10-27 14:13:16', '2026-11-06 14:13:16', 'UNPAID', 'e2222222-2222-2222-2222-222222222222'),
-('d2222222-2222-2222-2222-222222222222', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Bu Dewi Sri', '081233334444', 45000, '2026-10-17 14:13:16', '2026-10-27 14:13:16', 'PAID', NULL),
-('d3333333-3333-3333-3333-333333333333', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Mas Rian (Driver Ojol)', '081255556666', 35000, '2026-10-24 14:13:16', '2026-10-31 14:13:16', 'UNPAID', 'e5555555-5555-5555-5555-555555555555');
+INSERT INTO `users` (`id`, `email`, `password`, `store_name`, `owner_name`, `phone_number`, `created_at`) VALUES
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'admin@warungberkah.com', 'password123', 'Warung Sembako Berkah', 'Helwiyah', '081234567890', '2026-10-02 14:13:16'),
+('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'toko.madura@gmail.com', 'madura123', 'Toko Madura Barokah 24 Jam', 'H. Hasan Basri', '081987654321', '2026-10-12 14:13:16');
 
 -- --------------------------------------------------------
-
---
--- Table structure for table `categories`
---
+-- 2. Tabel categories (Kategori Produk)
+-- --------------------------------------------------------
 
 CREATE TABLE `categories` (
   `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
   `umkm_id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `description` text COLLATE utf8mb4_unicode_ci,
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
+  `description` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_categories_umkm` (`umkm_id`),
+  CONSTRAINT `fk_categories_user` FOREIGN KEY (`umkm_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `categories`
---
-
 INSERT INTO `categories` (`id`, `umkm_id`, `name`, `description`, `created_at`) VALUES
-('cat-1111-1111-1111-111111111111', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Sembako & Dapur', 'Beras, minyak, gula, tepung, bumbu dapur', '2026-10-07 14:13:16'),
-('cat-2222-2222-2222-222222222222', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Makanan & Snack', 'Mi instan, biskuit, jajanan', '2026-10-07 14:13:16'),
-('cat-3333-3333-3333-333333333333', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Minuman', 'Kopi, teh, air mineral, susu', '2026-10-07 14:13:16'),
-('cat-4444-4444-4444-444444444444', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Sabun & Kebersihan', 'Sabun cuci piring, deterjen, perlengkapan mandi', '2026-10-07 14:13:16'),
-('cat-5555-5555-5555-555555555555', 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'Sembako & Gas', 'Beras, gas elpiji, kebutuhan pokok', '2026-10-17 14:13:16'),
-('cat-6666-6666-6666-666666666666', 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'Rokok & Korek', 'Rokok kemasan dan korek api', '2026-10-18 14:13:16');
+('cat-01', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Mi & Makanan Instan', 'Mi instan dan makanan siap saji cepat saji', '2026-10-07 14:13:16'),
+('cat-02', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Bumbu & Dapur', 'Saus, kecap, merica, dan penyedap masakan', '2026-10-07 14:13:16'),
+('cat-03', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Makanan Ringan & Biskuit', 'Cokelat, pilus, wafer, camilan, brownies, biskuit', '2026-10-07 14:13:16'),
+('cat-04', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Minuman', 'Minuman gelas, jus, isotonik, air mineral, susu, dan teh', '2026-10-07 14:13:16'),
+('cat-05', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Sabun & Kebutuhan Rumah Tangga', 'Pewangi pakaian, sabun mandi, deterjen, sabun cuci piring', '2026-10-07 14:13:16'),
+('cat-06', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Obat & Kesehatan', 'Jamu saset, obat masuk angin, obat diare anak, madu', '2026-10-07 14:13:16'),
+('cat-07', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Perlengkapan & Korek Api', 'Selotip, lakban, dan korek api', '2026-10-07 14:13:16');
 
 -- --------------------------------------------------------
-
---
--- Table structure for table `products`
---
+-- 3. Tabel products (Inventaris Produk & Stok)
+-- --------------------------------------------------------
 
 CREATE TABLE `products` (
   `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -106,40 +83,122 @@ CREATE TABLE `products` (
   `stock` int NOT NULL DEFAULT '0',
   `min_stock` int NOT NULL DEFAULT '5',
   `unit` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pcs',
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_products_umkm` (`umkm_id`),
+  KEY `idx_products_category` (`category_id`),
+  KEY `idx_products_stock` (`stock`),
+  CONSTRAINT `fk_products_category` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_products_user` FOREIGN KEY (`umkm_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `products`
---
+INSERT INTO `products` (`id`, `umkm_id`, `category_id`, `category`, `name`, `price`, `cost_price`, `stock`, `min_stock`, `unit`, `created_at`) VALUES
+-- 1. Mi instan & makanan instan
+('p01', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-01', 'Mi & Makanan Instan', 'Intermi Rasa Kaldu Ayam', 2000, 1500, 60, 12, 'bungkus', '2026-10-07 14:13:16'),
+('p02', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-01', 'Mi & Makanan Instan', 'Mie Sedaap Goreng 90g', 3500, 2900, 80, 15, 'bungkus', '2026-10-07 14:13:16'),
+('p03', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-01', 'Mi & Makanan Instan', 'Indomie Goreng Spesial 85g', 3500, 2900, 120, 20, 'bungkus', '2026-10-07 14:13:16'),
+('p04', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-01', 'Mi & Makanan Instan', 'Wow Spageti Meaty Bolognese', 5000, 4200, 30, 8, 'bungkus', '2026-10-07 14:13:16'),
 
-INSERT INTO `products` (`id`, `umkm_id`, `name`, `price`, `cost_price`, `stock`, `min_stock`, `unit`, `created_at`) VALUES
-('c1111111-1111-1111-1111-111111111111', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Beras Ramos Super 5kg', 72000, 65000, 25, 5, 'karung', '2026-10-07 14:13:16'),
-('c2222222-2222-2222-2222-222222222222', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Minyak Goreng Bimoli 2L', 38000, 34000, 18, 6, 'pouch', '2026-10-07 14:13:16'),
-('c3333333-3333-3333-3333-333333333333', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Telur Ayam Ras 1kg', 28000, 25000, 40, 10, 'kg', '2026-10-08 14:13:16'),
-('c4444444-4444-4444-4444-444444444444', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Indomie Goreng Spesial', 3500, 2900, 120, 20, 'pcs', '2026-10-08 14:13:16'),
-('c5555555-5555-5555-5555-555555555555', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Gula Pasir Gulaku 1kg', 18500, 16500, 30, 8, 'bungkus', '2026-10-09 14:13:16'),
-('c6666666-6666-6666-6666-666666666666', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Tepung Terigu Segitiga Biru 1kg', 12500, 10500, 15, 5, 'kg', '2026-10-10 14:13:16'),
-('c7777777-7777-7777-7777-777777777777', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Kopi Kapal Api Special Mix (1 Renceng)', 15000, 13000, 12, 4, 'renceng', '2026-10-12 14:13:16'),
-('c8888888-8888-8888-8888-888888888888', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Susu Kental Manis Frisian Flag 370g', 12000, 10200, 3, 5, 'kaleng', '2026-10-14 14:13:16'),
-('c9999999-9999-9999-9999-999999999999', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Sunlight Pencuci Piring 700ml', 14500, 12500, 2, 5, 'pouch', '2026-10-17 14:13:16'),
-('caaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Aqua Air Mineral Galon 19L', 20000, 16000, 10, 3, 'galon', '2026-10-20 14:13:16'),
-('cbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Teh Celup Sosro Kotak (Isi 30)', 7500, 6000, 22, 5, 'kotak', '2026-10-22 14:13:16'),
-('cccccccc-cccc-cccc-cccc-cccccccccccc', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Kecap Manis Bango 520ml', 24000, 21000, 8, 4, 'pouch', '2026-10-22 14:13:16'),
-('cddddddd-dddd-dddd-dddd-dddddddddddd', 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'Beras Ramos 5kg', 73000, 66000, 15, 4, 'karung', '2026-10-17 14:13:16'),
-('ceeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'Gas Elpiji 3kg (Melon)', 22000, 19000, 20, 5, 'tabung', '2026-10-17 14:13:16'),
-('cfffffff-ffff-ffff-ffff-ffffffffffff', 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'Rokok Sampoerna Mild 16', 33000, 30500, 50, 10, 'bungkus', '2026-10-18 14:13:16');
+-- 2. Bumbu & Dapur
+('p05', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-02', 'Bumbu & Dapur', 'Del Monte Saus Tomat & Sambal Sachet', 1000, 700, 50, 10, 'sachet', '2026-10-07 14:13:16'),
+('p06', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-02', 'Bumbu & Dapur', 'Ladaku Merica Bubuk Sachet', 1500, 1100, 60, 10, 'sachet', '2026-10-07 14:13:16'),
+
+-- 3. Makanan Ringan & Biskuit
+('p07', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-03', 'Makanan Ringan & Biskuit', 'Choki Choki Chococashew', 1500, 1000, 40, 10, 'pcs', '2026-10-07 14:13:16'),
+('p08', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-03', 'Makanan Ringan & Biskuit', 'Garuda Pilus Rasa Sapi Panggang 95g', 6500, 5200, 25, 5, 'bungkus', '2026-10-07 14:13:16'),
+('p09', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-03', 'Makanan Ringan & Biskuit', 'Gery Salut Malkist Cokelat 110g', 7500, 6200, 24, 6, 'bungkus', '2026-10-07 14:13:16'),
+('p10', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-03', 'Makanan Ringan & Biskuit', 'Nabati Siip Keju Stick', 2000, 1500, 45, 10, 'bungkus', '2026-10-07 14:13:16'),
+('p11', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-03', 'Makanan Ringan & Biskuit', 'Nextar Brownies Choco Delight 8x12g', 7000, 5800, 20, 5, 'kotak', '2026-10-07 14:13:16'),
+('p12', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-03', 'Makanan Ringan & Biskuit', 'Ring Snack Rasa Keju 20g', 2000, 1500, 30, 5, 'bungkus', '2026-10-07 14:13:16'),
+('p13', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-03', 'Makanan Ringan & Biskuit', 'Slai O\'lai Strawberry 128g', 6000, 4900, 25, 5, 'bungkus', '2026-10-07 14:13:16'),
+
+-- 4. Minuman
+('p14', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-04', 'Minuman', 'Ale-Ale Minuman Gelas Rasa Jeruk 200ml', 1500, 1000, 48, 12, 'cup', '2026-10-07 14:13:16'),
+('p15', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-04', 'Minuman', 'Floridina Orange Juice 350ml', 3500, 2800, 24, 6, 'botol', '2026-10-07 14:13:16'),
+('p16', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-04', 'Minuman', 'Isoplus Isotonik 350ml', 3500, 2800, 24, 6, 'botol', '2026-10-07 14:13:16'),
+('p17', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-04', 'Minuman', 'Le Minerale Air Mineral 600ml', 3500, 2600, 48, 12, 'botol', '2026-10-07 14:13:16'),
+('p18', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-04', 'Minuman', 'Milk Life Susu UHT Cokelat 200ml', 4500, 3700, 20, 5, 'botol', '2026-10-07 14:13:16'),
+('p19', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-04', 'Minuman', 'Teh Javana Gula Batu 350ml', 3500, 2700, 30, 6, 'botol', '2026-10-07 14:13:16'),
+
+-- 5. Sabun & Kebutuhan Rumah Tangga
+('p20', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-05', 'Sabun & Kebutuhan Rumah Tangga', 'Downy Pewangi Mystique Sachet', 1000, 750, 36, 8, 'sachet', '2026-10-07 14:13:16'),
+('p21', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-05', 'Sabun & Kebutuhan Rumah Tangga', 'Giv Sabun Mandi Batang White 76g', 3500, 2800, 24, 6, 'pcs', '2026-10-07 14:13:16'),
+('p22', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-05', 'Sabun & Kebutuhan Rumah Tangga', 'Molto Pewangi All-in-1 Sachet', 1000, 750, 40, 8, 'sachet', '2026-10-07 14:13:16'),
+('p23', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-05', 'Sabun & Kebutuhan Rumah Tangga', 'Rinso Anti Noda Bubuk 770g', 21000, 18500, 15, 4, 'bungkus', '2026-10-07 14:13:16'),
+('p24', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-05', 'Sabun & Kebutuhan Rumah Tangga', 'So Klin Liquid Deterjen Sachet', 1000, 750, 48, 10, 'sachet', '2026-10-07 14:13:16'),
+('p25', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-05', 'Sabun & Kebutuhan Rumah Tangga', 'Sunlight Jeruk Nipis 210ml', 5000, 4200, 25, 5, 'pouch', '2026-10-07 14:13:16'),
+
+-- 6. Obat & Kesehatan
+('p26', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-06', 'Obat & Kesehatan', 'Antangin JRG Herbal Sachet', 4000, 3200, 30, 6, 'sachet', '2026-10-07 14:13:16'),
+('p27', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-06', 'Obat & Kesehatan', 'Entrostop Anak Sachet', 3500, 2800, 20, 4, 'sachet', '2026-10-07 14:13:16'),
+('p28', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-06', 'Obat & Kesehatan', 'KukuBima Ener-G! Anggur Sachet', 1500, 1100, 50, 10, 'sachet', '2026-10-07 14:13:16'),
+('p29', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-06', 'Obat & Kesehatan', 'Madu TJ Murni Sachet 20g', 2500, 1900, 35, 6, 'sachet', '2026-10-07 14:13:16'),
+
+-- 7. Perlengkapan & Korek Api
+('p30', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-07', 'Perlengkapan & Korek Api', '3M Scotch Lakban Bening 48mm', 14000, 11500, 12, 3, 'pcs', '2026-10-07 14:13:16'),
+('p31', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-07', 'Perlengkapan & Korek Api', 'Korek Api Gas Tokai Original', 3500, 2600, 40, 8, 'pcs', '2026-10-07 14:13:16'),
+('p32', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-07', 'Perlengkapan & Korek Api', 'Korek Api Zippo Model Klasik', 35000, 26000, 5, 2, 'pcs', '2026-10-07 14:13:16');
 
 -- --------------------------------------------------------
+-- 4. Tabel debts (Buku Bon / Piutang)
+-- --------------------------------------------------------
 
---
--- Table structure for table `transactions`
---
+CREATE TABLE `debts` (
+  `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `umkm_id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `customer_name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `customer_phone` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `amount` int NOT NULL,
+  `paid_amount` int NOT NULL DEFAULT '0',
+  `remaining_amount` int NOT NULL DEFAULT '0',
+  `type` enum('BARANG','PINJAMAN_TUNAI') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'BARANG',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `due_date` datetime NOT NULL,
+  `status` enum('UNPAID','PARTIAL','PAID') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'UNPAID',
+  `notes` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `related_trx_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_debts_umkm` (`umkm_id`),
+  KEY `idx_debts_status` (`status`),
+  CONSTRAINT `fk_debts_user` FOREIGN KEY (`umkm_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `debts` (`id`, `umkm_id`, `customer_name`, `customer_phone`, `amount`, `paid_amount`, `remaining_amount`, `type`, `created_at`, `due_date`, `status`, `notes`, `related_trx_id`) VALUES
+('d1111111-1111-1111-1111-111111111111', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Pak RT Bambang', '081211112222', 75000, 0, 75000, 'BARANG', '2026-10-27 14:13:16', '2026-11-20 14:13:16', 'UNPAID', 'Kasbon sembako & sabun', NULL),
+('d2222222-2222-2222-2222-222222222222', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Bu Dewi Sri', '081233334444', 50000, 20000, 30000, 'PINJAMAN_TUNAI', '2026-10-17 14:13:16', '2026-11-15 14:13:16', 'PARTIAL', 'Pinjaman tunai keperluan dapur', NULL);
+
+-- --------------------------------------------------------
+-- 5. Tabel payment_logs (Riwayat Pembayaran & Cicilan Kasbon)
+-- --------------------------------------------------------
+
+CREATE TABLE `payment_logs` (
+  `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `debt_id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `umkm_id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `amount_paid` int NOT NULL,
+  `payment_method` enum('CASH','QRIS','TRANSFER') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'CASH',
+  `notes` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `payment_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_paylog_debt` (`debt_id`),
+  KEY `idx_paylog_umkm` (`umkm_id`),
+  CONSTRAINT `fk_paylog_debt` FOREIGN KEY (`debt_id`) REFERENCES `debts` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_paylog_user` FOREIGN KEY (`umkm_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `payment_logs` (`id`, `debt_id`, `umkm_id`, `amount_paid`, `payment_method`, `notes`, `payment_date`, `created_at`) VALUES
+('log-001', 'd2222222-2222-2222-2222-222222222222', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 20000, 'CASH', 'Cicilan pertama diserahkan tunai', '2026-10-25 10:00:00', '2026-10-25 10:00:00');
+
+-- --------------------------------------------------------
+-- 6. Tabel transactions (Mutasi Transaksi Penjualan & Kulakan)
+-- --------------------------------------------------------
 
 CREATE TABLE `transactions` (
   `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
   `umkm_id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customer_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `customer_name` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `customer_phone` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `transaction_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `type` enum('IN','OUT') COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -147,214 +206,91 @@ CREATE TABLE `transactions` (
   `payment_method` enum('CASH','QRIS','CREDIT','ONLINE','TRANSFER') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'CASH',
   `payment_status` enum('PENDING','PAID','SETTLEMENT','UNPAID','EXPIRE','CANCEL','FAILED') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PAID',
   `total_amount` int NOT NULL,
+  `shipping_cost` int DEFAULT '0',
+  `courier` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `courier_service` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `shipping_address` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `snap_token` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `items` json NOT NULL,
-  `debt_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+  `debt_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_transactions_umkm` (`umkm_id`),
+  KEY `idx_transactions_date` (`transaction_date`),
+  KEY `idx_transactions_debt` (`debt_id`),
+  CONSTRAINT `fk_transactions_debt` FOREIGN KEY (`debt_id`) REFERENCES `debts` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_transactions_user` FOREIGN KEY (`umkm_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `transactions`
---
-
-INSERT INTO `transactions` (`id`, `umkm_id`, `customer_id`, `created_at`, `transaction_date`, `type`, `category`, `payment_method`, `total_amount`, `items`, `debt_id`) VALUES
-('e1111111-1111-1111-1111-111111111111', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', NULL, '2026-10-26 14:13:16', '2026-10-26 14:13:16', 'IN', 'Penjualan Kasir', 'CASH', 100000, '[{\"name\": \"Beras Ramos Super 5kg\", \"unit\": \"karung\", \"price\": 72000, \"quantity\": 1, \"subtotal\": 72000, \"costPrice\": 65000, \"productId\": \"c1111111-1111-1111-1111-111111111111\"}, {\"name\": \"Telur Ayam Ras 1kg\", \"unit\": \"kg\", \"price\": 28000, \"quantity\": 1, \"subtotal\": 28000, \"costPrice\": 25000, \"productId\": \"c3333333-3333-3333-3333-333333333333\"}]', NULL),
-('e2222222-2222-2222-2222-222222222222', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', NULL, '2026-10-27 14:13:16', '2026-10-27 14:13:16', 'IN', 'Kasbon Pelanggan', 'CREDIT', 111000, '[{\"name\": \"Minyak Goreng Bimoli 2L\", \"unit\": \"pouch\", \"price\": 38000, \"quantity\": 2, \"subtotal\": 76000, \"costPrice\": 34000, \"productId\": \"c2222222-2222-2222-2222-222222222222\"}, {\"name\": \"Indomie Goreng Spesial\", \"unit\": \"pcs\", \"price\": 3500, \"quantity\": 10, \"subtotal\": 35000, \"costPrice\": 2900, \"productId\": \"c4444444-4444-4444-4444-444444444444\"}]', 'd1111111-1111-1111-1111-111111111111'),
-('e3333333-3333-3333-3333-333333333333', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', NULL, '2026-10-29 14:13:16', '2026-10-29 14:13:16', 'IN', 'Penjualan Kasir', 'CASH', 49500, '[{\"name\": \"Gula Pasir Gulaku 1kg\", \"unit\": \"bungkus\", \"price\": 18500, \"quantity\": 2, \"subtotal\": 37000, \"costPrice\": 16500, \"productId\": \"c5555555-5555-5555-5555-555555555555\"}, {\"name\": \"Tepung Terigu Segitiga Biru 1kg\", \"unit\": \"kg\", \"price\": 12500, \"quantity\": 1, \"subtotal\": 12500, \"costPrice\": 10500, \"productId\": \"c6666666-6666-6666-6666-666666666666\"}]', NULL),
-('e4444444-4444-4444-4444-444444444444', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', NULL, '2026-10-30 14:13:16', '2026-10-30 14:13:16', 'OUT', 'Kulakan & Restock', 'CASH', 500000, '[{\"name\": \"Kulakan Beras & Minyak Goreng Agen Pasar Induk\", \"price\": 500000, \"quantity\": 1, \"subtotal\": 500000, \"costPrice\": 500000}]', NULL),
-('e5555555-5555-5555-5555-555555555555', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', NULL, '2026-10-24 14:13:16', '2026-10-24 14:13:16', 'IN', 'Kasbon Pelanggan', 'CREDIT', 35000, '[{\"name\": \"Aqua Air Mineral Galon 19L\", \"unit\": \"galon\", \"price\": 20000, \"quantity\": 1, \"subtotal\": 20000, \"costPrice\": 16000, \"productId\": \"caaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\"}, {\"name\": \"Kopi Kapal Api Special Mix (1 Renceng)\", \"unit\": \"renceng\", \"price\": 15000, \"quantity\": 1, \"subtotal\": 15000, \"costPrice\": 13000, \"productId\": \"c7777777-7777-7777-7777-777777777777\"}]', 'd3333333-3333-3333-3333-333333333333');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `users`
---
-
-CREATE TABLE `users` (
-  `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `email` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `store_name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `owner_name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `phone_number` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `users`
---
-
-INSERT INTO `users` (`id`, `email`, `password`, `store_name`, `owner_name`, `phone_number`, `created_at`) VALUES
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'admin@warungberkah.com', 'password123', 'Warung Sembako Berkah', 'Helwiyah', '081234567890', '2026-10-02 14:13:16'),
-('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'toko.madura@gmail.com', 'madura123', 'Toko Madura Barokah 24 Jam', 'H. Hasan Basri', '081987654321', '2026-10-12 14:13:16');
-
--- --------------------------------------------------------
-
---
--- Stand-in structure for view `view_piutang_jatuh_tempo`
--- (See below for the actual view)
---
-CREATE TABLE `view_piutang_jatuh_tempo` (
-`amount` int
-,`customer_name` varchar(191)
-,`customer_phone` varchar(50)
-,`debt_id` varchar(36)
-,`due_date` datetime
-,`status` enum('UNPAID','PAID')
-,`status_tempo` varchar(11)
-,`store_name` varchar(191)
-,`umkm_id` varchar(36)
-);
-
--- --------------------------------------------------------
-
---
--- Stand-in structure for view `view_produk_kritis`
--- (See below for the actual view)
---
-CREATE TABLE `view_produk_kritis` (
-`kekurangan_stok` bigint
-,`min_stock` int
-,`product_id` varchar(36)
-,`product_name` varchar(255)
-,`status_stok` varchar(23)
-,`stock` int
-,`store_name` varchar(191)
-,`umkm_id` varchar(36)
-,`unit` varchar(50)
-);
-
--- --------------------------------------------------------
-
---
--- Stand-in structure for view `view_ringkasan_umkm`
--- (See below for the actual view)
---
-CREATE TABLE `view_ringkasan_umkm` (
-`owner_name` varchar(191)
-,`store_name` varchar(191)
-,`total_pemasukan` decimal(32,0)
-,`total_pengeluaran` decimal(32,0)
-,`total_piutang_aktif` decimal(32,0)
-,`total_produk` bigint
-,`umkm_id` varchar(36)
-);
-
--- --------------------------------------------------------
-
---
--- Structure for view `view_piutang_jatuh_tempo`
---
-DROP TABLE IF EXISTS `view_piutang_jatuh_tempo`;
-
-CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_piutang_jatuh_tempo`  AS SELECT `d`.`id` AS `debt_id`, `d`.`umkm_id` AS `umkm_id`, `u`.`store_name` AS `store_name`, `d`.`customer_name` AS `customer_name`, `d`.`customer_phone` AS `customer_phone`, `d`.`amount` AS `amount`, `d`.`due_date` AS `due_date`, `d`.`status` AS `status`, (case when ((`d`.`due_date` < now()) and (`d`.`status` = 'UNPAID')) then 'JATUH TEMPO' when (`d`.`status` = 'PAID') then 'LUNAS' else 'AKTIF' end) AS `status_tempo` FROM (`debts` `d` join `users` `u` on((`d`.`umkm_id` = `u`.`id`)))  ;
-
--- --------------------------------------------------------
-
---
--- Structure for view `view_produk_kritis`
---
-DROP TABLE IF EXISTS `view_produk_kritis`;
-
-CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_produk_kritis`  AS SELECT `p`.`id` AS `product_id`, `p`.`umkm_id` AS `umkm_id`, `u`.`store_name` AS `store_name`, `p`.`name` AS `product_name`, `p`.`stock` AS `stock`, `p`.`min_stock` AS `min_stock`, `p`.`unit` AS `unit`, (`p`.`min_stock` - `p`.`stock`) AS `kekurangan_stok`, (case when (`p`.`stock` = 0) then 'HABIS (Segera Kulakan)' when (`p`.`stock` <= `p`.`min_stock`) then 'MENIPIS (Perlu Restock)' else 'AMAN' end) AS `status_stok` FROM (`products` `p` join `users` `u` on((`p`.`umkm_id` = `u`.`id`))) WHERE (`p`.`stock` <= `p`.`min_stock`)  ;
-
--- --------------------------------------------------------
-
---
--- Structure for view `view_ringkasan_umkm`
---
-DROP TABLE IF EXISTS `view_ringkasan_umkm`;
-
-CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_ringkasan_umkm`  AS SELECT `u`.`id` AS `umkm_id`, `u`.`store_name` AS `store_name`, `u`.`owner_name` AS `owner_name`, count(distinct `p`.`id`) AS `total_produk`, coalesce(sum((case when (`t`.`type` = 'IN') then `t`.`total_amount` else 0 end)),0) AS `total_pemasukan`, coalesce(sum((case when (`t`.`type` = 'OUT') then `t`.`total_amount` else 0 end)),0) AS `total_pengeluaran`, coalesce((select sum(`d`.`amount`) from `debts` `d` where ((`d`.`umkm_id` = `u`.`id`) and (`d`.`status` = 'UNPAID'))),0) AS `total_piutang_aktif` FROM ((`users` `u` left join `products` `p` on((`u`.`id` = `p`.`umkm_id`))) left join `transactions` `t` on((`u`.`id` = `t`.`umkm_id`))) GROUP BY `u`.`id`, `u`.`store_name`, `u`.`owner_name`;
-
---
--- Indexes for dumped tables
---
-
---
--- Indexes for table `customers`
---
-ALTER TABLE `customers`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `fk_customers_umkm` (`umkm_id`);
-
---
--- Indexes for table `debts`
---
+-- Relasi foreign key debts -> transactions (optional link balik)
 ALTER TABLE `debts`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_debts_umkm` (`umkm_id`),
-  ADD KEY `idx_debts_status` (`status`),
-  ADD KEY `fk_debts_trx` (`related_trx_id`);
+  ADD CONSTRAINT `fk_debts_trx` FOREIGN KEY (`related_trx_id`) REFERENCES `transactions` (`id`) ON DELETE SET NULL;
 
---
--- Indexes for table `categories`
---
-ALTER TABLE `categories`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_categories_umkm` (`umkm_id`);
+INSERT INTO `transactions` (`id`, `umkm_id`, `customer_name`, `customer_phone`, `created_at`, `transaction_date`, `type`, `category`, `payment_method`, `payment_status`, `total_amount`, `items`, `debt_id`) VALUES
+('e1111111-1111-1111-1111-111111111111', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Budi Santoso', '081234567891', '2026-10-26 14:13:16', '2026-10-26 14:13:16', 'IN', 'PENJUALAN', 'CASH', 'PAID', 14000, '[{"name": "Indomie Goreng Spesial 85g", "unit": "bungkus", "price": 3500, "quantity": 2, "subtotal": 7000, "costPrice": 2900, "productId": "p03"}, {"name": "Floridina Orange Juice 350ml", "unit": "botol", "price": 3500, "quantity": 2, "subtotal": 7000, "costPrice": 2800, "productId": "p15"}]', NULL),
+('e2222222-2222-2222-2222-222222222222', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Pak RT Bambang', '081211112222', '2026-10-27 14:13:16', '2026-10-27 14:13:16', 'IN', 'PENJUALAN', 'CREDIT', 'UNPAID', 75000, '[{"name": "Rinso Anti Noda Bubuk 770g", "unit": "bungkus", "price": 21000, "quantity": 1, "subtotal": 21000, "costPrice": 18500, "productId": "p23"}, {"name": "Zippo Korek Api Klasik", "unit": "pcs", "price": 35000, "quantity": 1, "subtotal": 35000, "costPrice": 26000, "productId": "p32"}]', 'd1111111-1111-1111-1111-111111111111'),
+('e3333333-3333-3333-3333-333333333333', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Siti Rahma', '081987654320', '2026-10-29 14:13:16', '2026-10-29 14:13:16', 'IN', 'PENJUALAN', 'QRIS', 'PAID', 28000, '[{"name": "Sunlight Jeruk Nipis 210ml", "unit": "pouch", "price": 5000, "quantity": 2, "subtotal": 10000, "costPrice": 4200, "productId": "p25"}, {"name": "3M Scotch Lakban Bening 48mm", "unit": "pcs", "price": 14000, "quantity": 1, "subtotal": 14000, "costPrice": 11500, "productId": "p30"}, {"name": "Antangin JRG Herbal Sachet", "unit": "sachet", "price": 4000, "quantity": 1, "subtotal": 4000, "costPrice": 3200, "productId": "p26"}]', NULL),
+('e4444444-4444-4444-4444-444444444444', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Agen Grosir Pasar', NULL, '2026-10-30 14:13:16', '2026-10-30 14:13:16', 'OUT', 'KULAKAN', 'CASH', 'PAID', 250000, '[{"name": "Kulakan Mi Instan, Sabun, dan Minuman Dingin", "price": 250000, "quantity": 1, "subtotal": 250000, "costPrice": 250000}]', NULL);
 
---
--- Indexes for table `products`
---
-ALTER TABLE `products`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_products_umkm` (`umkm_id`),
-  ADD KEY `idx_products_category` (`category_id`),
-  ADD KEY `idx_products_stock` (`stock`);
+-- --------------------------------------------------------
+-- 7. Views Penunjang
+-- --------------------------------------------------------
 
---
--- Indexes for table `transactions`
---
-ALTER TABLE `transactions`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_transactions_umkm` (`umkm_id`),
-  ADD KEY `idx_transactions_date` (`transaction_date`),
-  ADD KEY `idx_transactions_debt` (`debt_id`),
-  ADD KEY `fk_transactions_customer` (`customer_id`);
+DROP VIEW IF EXISTS `view_piutang_jatuh_tempo`;
+CREATE VIEW `view_piutang_jatuh_tempo` AS
+SELECT
+  `d`.`id` AS `debt_id`,
+  `d`.`umkm_id` AS `umkm_id`,
+  `u`.`store_name` AS `store_name`,
+  `d`.`customer_name` AS `customer_name`,
+  `d`.`customer_phone` AS `customer_phone`,
+  `d`.`amount` AS `amount`,
+  `d`.`paid_amount` AS `paid_amount`,
+  `d`.`remaining_amount` AS `remaining_amount`,
+  `d`.`type` AS `debt_type`,
+  `d`.`due_date` AS `due_date`,
+  `d`.`status` AS `status`,
+  (CASE
+    WHEN (`d`.`due_date` < NOW() AND `d`.`status` != 'PAID') THEN 'JATUH TEMPO'
+    WHEN `d`.`status` = 'PAID' THEN 'LUNAS'
+    WHEN `d`.`status` = 'PARTIAL' THEN 'DICICIL'
+    ELSE 'AKTIF'
+  END) AS `status_tempo`
+FROM (`debts` `d` JOIN `users` `u` ON (`d`.`umkm_id` = `u`.`id`));
 
---
--- Indexes for table `users`
---
-ALTER TABLE `users`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `users_email_unique` (`email`);
+DROP VIEW IF EXISTS `view_produk_kritis`;
+CREATE VIEW `view_produk_kritis` AS
+SELECT
+  `p`.`id` AS `product_id`,
+  `p`.`umkm_id` AS `umkm_id`,
+  `u`.`store_name` AS `store_name`,
+  `p`.`name` AS `product_name`,
+  `p`.`stock` AS `stock`,
+  `p`.`min_stock` AS `min_stock`,
+  `p`.`unit` AS `unit`,
+  (`p`.`min_stock` - `p`.`stock`) AS `kekurangan_stok`,
+  (CASE
+    WHEN `p`.`stock` = 0 THEN 'HABIS (Segera Kulakan)'
+    WHEN `p`.`stock` <= `p`.`min_stock` THEN 'MENIPIS (Perlu Restock)'
+    ELSE 'AMAN'
+  END) AS `status_stok`
+FROM (`products` `p` JOIN `users` `u` ON (`p`.`umkm_id` = `u`.`id`))
+WHERE `p`.`stock` <= `p`.`min_stock`;
 
---
--- Constraints for dumped tables
---
+DROP VIEW IF EXISTS `view_ringkasan_umkm`;
+CREATE VIEW `view_ringkasan_umkm` AS
+SELECT
+  `u`.`id` AS `umkm_id`,
+  `u`.`store_name` AS `store_name`,
+  `u`.`owner_name` AS `owner_name`,
+  COUNT(DISTINCT `p`.`id`) AS `total_produk`,
+  COALESCE(SUM(CASE WHEN `t`.`type` = 'IN' THEN `t`.`total_amount` ELSE 0 END), 0) AS `total_pemasukan`,
+  COALESCE(SUM(CASE WHEN `t`.`type` = 'OUT' THEN `t`.`total_amount` ELSE 0 END), 0) AS `total_pengeluaran`,
+  COALESCE((SELECT SUM(`d`.`remaining_amount`) FROM `debts` `d` WHERE `d`.`umkm_id` = `u`.`id` AND `d`.`status` != 'PAID'), 0) AS `total_piutang_aktif`
+FROM ((`users` `u`
+  LEFT JOIN `products` `p` ON (`u`.`id` = `p`.`umkm_id`))
+  LEFT JOIN `transactions` `t` ON (`u`.`id` = `t`.`umkm_id`))
+GROUP BY `u`.`id`, `u`.`store_name`, `u`.`owner_name`;
 
---
--- Constraints for table `customers`
---
-ALTER TABLE `customers`
-  ADD CONSTRAINT `fk_customers_umkm` FOREIGN KEY (`umkm_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
-
---
--- Constraints for table `debts`
---
-ALTER TABLE `debts`
-  ADD CONSTRAINT `fk_debts_trx` FOREIGN KEY (`related_trx_id`) REFERENCES `transactions` (`id`) ON DELETE SET NULL,
-  ADD CONSTRAINT `fk_debts_user` FOREIGN KEY (`umkm_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
-
---
--- Constraints for table `categories`
---
-ALTER TABLE `categories`
-  ADD CONSTRAINT `fk_categories_user` FOREIGN KEY (`umkm_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
-
---
--- Constraints for table `products`
---
-ALTER TABLE `products`
-  ADD CONSTRAINT `fk_products_category` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE SET NULL,
-  ADD CONSTRAINT `fk_products_user` FOREIGN KEY (`umkm_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
-
---
--- Constraints for table `transactions`
---
-ALTER TABLE `transactions`
-  ADD CONSTRAINT `fk_transactions_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL,
-  ADD CONSTRAINT `fk_transactions_debt` FOREIGN KEY (`debt_id`) REFERENCES `debts` (`id`) ON DELETE SET NULL,
-  ADD CONSTRAINT `fk_transactions_user` FOREIGN KEY (`umkm_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

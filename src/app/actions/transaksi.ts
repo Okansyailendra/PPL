@@ -155,6 +155,8 @@ export async function createSaleTransaction(input: CreateSaleInput) {
       ? new Date(dueDate).toISOString() 
       : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // Default 7 hari
 
+    const itemsSummary = items.map(i => `${i.name} (${i.quantity})`).join(', ');
+
     const { data: newDebt, error: debtErr } = await supabase
       .from('debts')
       .insert([
@@ -163,8 +165,14 @@ export async function createSaleTransaction(input: CreateSaleInput) {
           customer_name: customerName.trim(),
           customer_phone: customerPhone?.trim() || null,
           amount: totalAmount,
+          paid_amount: 0,
+          remaining_amount: totalAmount,
+          type: 'BARANG',
           due_date: finalDueDate,
           status: 'UNPAID',
+          notes: `Kasbon checkout kasir POS: ${itemsSummary}`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         }
       ])
       .select('id')

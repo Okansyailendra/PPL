@@ -13,10 +13,26 @@ export interface Debt {
   customer_name: string;
   customer_phone?: string | null;
   amount: number;
+  paid_amount?: number;
+  remaining_amount?: number;
   due_date: string;
-  status: 'UNPAID' | 'PAID';
+  type?: 'BARANG' | 'PINJAMAN_TUNAI';
+  status: 'UNPAID' | 'PARTIAL' | 'PAID';
+  notes?: string | null;
   created_at?: string;
+  updated_at?: string;
   related_trx_id?: string | null;
+}
+
+export interface PaymentLog {
+  id: string;
+  debt_id: string;
+  umkm_id: string;
+  amount_paid: number;
+  payment_method?: 'CASH' | 'QRIS' | 'TRANSFER';
+  notes?: string | null;
+  payment_date?: string;
+  created_at?: string;
 }
 
 export interface ChatMessage {

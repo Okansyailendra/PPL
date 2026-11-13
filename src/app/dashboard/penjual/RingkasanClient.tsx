@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import type { Debt, Product, UserSession } from '@/types';
+import WidgetStokMenipis from '@/components/penjual/WidgetStokMenipis';
 import {
   ShoppingCart,
   FileText,
@@ -194,7 +195,10 @@ export default function RingkasanClient({
         </Link>
       </div>
 
-      {/* 4. Two-Column Lower Section: Mulai dari Inventaris & Rekomendasi Copilot AI */}
+      {/* 4. Widget Pengawasan Stok & Notifikasi Menipis */}
+      <WidgetStokMenipis products={products} storeName={storeName} />
+
+      {/* 5. Two-Column Lower Section: Mulai dari Inventaris & Rekomendasi Copilot AI */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* Left Column: MULAI DARI INVENTARIS */}
         <div className="col-span-12 lg:col-span-5 bg-[#e5eccc] border border-[#d2dcb6] rounded-2xl p-6 sm:p-7 flex flex-col justify-between shadow-2xs">
