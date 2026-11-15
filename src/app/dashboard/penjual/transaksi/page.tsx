@@ -3,6 +3,8 @@ import { cookies } from 'next/headers';
 import type { UserSession, Product, Transaction, Category } from '@/types';
 import TransaksiClient from './TransaksiClient';
 
+export const dynamic = 'force-dynamic';
+
 export default async function TransaksiPage() {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get('userSession')?.value;

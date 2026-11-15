@@ -83,7 +83,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const debtId = 'debt-' + crypto.randomUUID();
+    const debtId = crypto.randomUUID();
     const now = new Date().toISOString();
 
     const { error: debtErr } = await supabase
@@ -102,7 +102,6 @@ export async function POST(req: Request) {
           status: 'UNPAID',
           notes,
           created_at: now,
-          updated_at: now,
         }
       ]);
 

@@ -172,7 +172,6 @@ export async function createSaleTransaction(input: CreateSaleInput) {
           status: 'UNPAID',
           notes: `Kasbon checkout kasir POS: ${itemsSummary}`,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
         }
       ])
       .select('id')

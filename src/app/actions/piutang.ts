@@ -75,7 +75,7 @@ export async function addDebt(formData: FormData) {
     return { error: 'Nama pelanggan, nominal utang valid (>0), dan tanggal jatuh tempo wajib diisi.' };
   }
 
-  const debtId = 'debt-' + crypto.randomUUID();
+  const debtId = crypto.randomUUID();
   const now = new Date().toISOString();
 
   const { error } = await supabase
@@ -94,7 +94,6 @@ export async function addDebt(formData: FormData) {
         status: 'UNPAID',
         notes: notes.trim() || null,
         created_at: now,
-        updated_at: now,
       }
     ]);
 
@@ -190,7 +189,6 @@ export async function recordDebtPayment(input: PayDebtInput) {
       paid_amount: newPaidAmount,
       remaining_amount: newRemaining,
       status: newStatus,
-      updated_at: now,
     })
     .eq('id', debtId)
     .eq('umkm_id', user.id);
@@ -201,7 +199,7 @@ export async function recordDebtPayment(input: PayDebtInput) {
   }
 
   // 3. Catat riwayat di payment_logs
-  const logId = 'log-' + crypto.randomUUID();
+  const logId = crypto.randomUUID();
   const { error: logErr } = await supabase
     .from('payment_logs')
     .insert([
@@ -309,7 +307,6 @@ export async function toggleDebtStatus(debtId: string, currentStatus: 'UNPAID' |
       status: newStatus,
       paid_amount: newPaidAmount,
       remaining_amount: newRemaining,
-      updated_at: now,
     })
     .eq('id', debtId)
     .eq('umkm_id', user.id);
@@ -323,7 +320,7 @@ export async function toggleDebtStatus(debtId: string, currentStatus: 'UNPAID' |
     // Buat log pembayaran penuh
     await supabase.from('payment_logs').insert([
       {
-        id: 'log-' + crypto.randomUUID(),
+        id: crypto.randomUUID(),
         debt_id: debtId,
         umkm_id: user.id,
         amount_paid: Number(debt.remaining_amount) || totalAmount,
@@ -449,7 +446,6 @@ export async function updateDebt(formData: FormData) {
       type,
       notes: notes.trim() || null,
       due_date: new Date(due_date).toISOString(),
-      updated_at: new Date().toISOString(),
     })
     .eq('id', id)
     .eq('umkm_id', user.id);

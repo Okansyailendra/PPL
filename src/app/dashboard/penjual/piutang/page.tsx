@@ -3,6 +3,8 @@ import { cookies } from 'next/headers';
 import PiutangClient from './PiutangClient';
 import type { Debt, UserSession } from '@/types';
 
+export const dynamic = 'force-dynamic';
+
 export default async function PiutangPage() {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get('userSession')?.value;

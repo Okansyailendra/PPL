@@ -76,7 +76,6 @@ export async function POST(
         paid_amount: newPaidAmount,
         remaining_amount: newRemaining,
         status: newStatus,
-        updated_at: now,
       })
       .eq('id', debtId)
       .eq('umkm_id', user.id);
@@ -86,7 +85,7 @@ export async function POST(
     }
 
     // 3. Catat ke payment_logs
-    const logId = 'log-' + crypto.randomUUID();
+    const logId = crypto.randomUUID();
     await supabase.from('payment_logs').insert([
       {
         id: logId,

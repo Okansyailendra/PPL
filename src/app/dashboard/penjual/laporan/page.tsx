@@ -3,6 +3,8 @@ import { cookies } from 'next/headers';
 import type { UserSession, Product, Debt } from '@/types';
 import LaporanClient from './LaporanClient';
 
+export const dynamic = 'force-dynamic';
+
 export default async function LaporanPage() {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get('userSession')?.value;
