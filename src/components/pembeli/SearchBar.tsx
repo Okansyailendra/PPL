@@ -41,7 +41,7 @@ export default function SearchBar({
         <button
           onClick={() => setStockFilter('all')}
           type="button"
-          className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
             stockFilter === 'all'
               ? 'bg-neutral-950 text-white shadow-xs'
               : 'text-neutral-600 hover:text-neutral-950 hover:bg-neutral-100'
@@ -53,9 +53,9 @@ export default function SearchBar({
         <button
           onClick={() => setStockFilter('in_stock')}
           type="button"
-          className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
             stockFilter === 'in_stock'
-              ? 'bg-[#d4f952] text-neutral-950 border border-[#c4ec3e] shadow-xs'
+              ? 'bg-neutral-950 text-white shadow-xs'
               : 'text-neutral-600 hover:text-neutral-950 hover:bg-neutral-100'
           }`}
         >
@@ -65,13 +65,13 @@ export default function SearchBar({
         <button
           onClick={() => setStockFilter('low_stock')}
           type="button"
-          className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
             stockFilter === 'low_stock'
-              ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-xs'
+              ? 'bg-neutral-950 text-white shadow-xs'
               : 'text-neutral-600 hover:text-neutral-950 hover:bg-neutral-100'
           }`}
         >
-          Menipis
+          Stok Menipis
         </button>
       </div>
     </div>

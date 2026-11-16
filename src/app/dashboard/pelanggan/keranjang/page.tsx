@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { CartProvider, useCart } from '@/context/CartContext';
-import Sidebar from '@/components/pembeli/Sidebar';
 import TopHeader from '@/components/pembeli/TopHeader';
 import Footer from '@/components/pembeli/Footer';
 import CartDrawer from '@/components/pembeli/CartDrawer';
@@ -56,7 +55,6 @@ function KeranjangContent() {
   const [customerNote, setCustomerNote] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris'>('cash');
   const [validationError, setValidationError] = useState('');
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentResult, setPaymentResult] = useState<{ status: 'success' | 'pending' | 'error'; message: string; orderId?: string } | null>(null);
 
@@ -256,40 +254,11 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
   };
 
   return (
-    <div className="min-h-screen flex bg-[#F8FAFC]">
-      {/* Desktop Sidebar */}
-      <div className="hidden md:block">
-        <Sidebar />
-      </div>
+    <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
+      {/* Top Navbar */}
+      <TopHeader />
 
-      {/* Mobile Sidebar Backdrop & Drawer */}
-      {isMobileSidebarOpen && (
-        <div className="fixed inset-0 z-50 md:hidden flex">
-          <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-xs"
-            onClick={() => setIsMobileSidebarOpen(false)}
-          />
-          <div className="relative z-10 w-72 bg-white h-full shadow-2xl flex flex-col">
-            <div className="p-3 flex justify-end">
-              <button
-                onClick={() => setIsMobileSidebarOpen(false)}
-                className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <Sidebar />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <TopHeader onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)} />
-
-        <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
+      <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-[1600px] w-full mx-auto space-y-6">
           {/* Page Heading & Action Button */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
@@ -1061,7 +1030,6 @@ _Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas ya. Mohon d
           {/* Footer */}
           <Footer />
         </main>
-      </div>
 
       {/* Slide-over Cart Drawer */}
       <CartDrawer />

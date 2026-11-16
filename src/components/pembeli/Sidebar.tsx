@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import {
   Store,
   ShoppingCart,
-  Clock,
   MapPin,
   MessageCircle,
 } from 'lucide-react';
@@ -50,21 +49,6 @@ export default function Sidebar() {
             Wadira
           </span>
         </Link>
-
-        {/* Store Branch Box */}
-        <div className="bg-neutral-50 hover:bg-neutral-100/80 border border-neutral-200/80 rounded-xl p-3 flex items-center gap-3 transition">
-          <div className="w-8 h-8 rounded-lg bg-[#d4f952] text-neutral-950 flex items-center justify-center text-sm font-black shadow-xs">
-            🏬
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="font-bold text-neutral-900 text-sm leading-tight truncate">
-              Toko Wadira
-            </div>
-            <div className="text-[11px] text-neutral-500 font-medium">
-              Toko Utama • Buka Tiap Hari
-            </div>
-          </div>
-        </div>
 
         {/* Navigation List */}
         <nav className="space-y-1 pt-1">
@@ -118,25 +102,29 @@ export default function Sidebar() {
         </nav>
       </div>
 
-      <div className="p-4 space-y-3 border-t border-neutral-100">
-        {/* Warung Info Card (Sesuai Gaya Landing Page) */}
-        <div className="bg-[#f2f7ec] border border-[#e2edd8] rounded-2xl p-3.5 space-y-2.5">
+      <div className="p-4 border-t border-neutral-100">
+        {/* Warung Info & WhatsApp Contact Card */}
+        <div className="bg-white border border-neutral-200/90 rounded-2xl p-4 space-y-3.5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider bg-white/80 border border-[#e2edd8] px-2 py-0.5 rounded-md">
-              Buka Setiap Hari
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="text-[11px] font-bold text-neutral-900 uppercase tracking-wide">
+                Buka Setiap Hari
+              </span>
+            </div>
+            <span className="text-[11px] font-medium text-neutral-500">
+              06.00 – 24.00
             </span>
-            <span className="text-[10px] font-bold text-emerald-700">06.00 – 24.00</span>
           </div>
 
-          <div className="space-y-1 text-xs text-neutral-600 pt-0.5">
-            <div className="flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-              <span className="font-medium">06.00 – 24.00 WIB</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-              <span className="truncate">Jl. Lingkungan Warga No. 12</span>
-            </div>
+          <div className="flex items-center gap-2 text-xs text-neutral-500">
+            <MapPin className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+            <span className="truncate text-neutral-600 font-medium">
+              Jl. Lingkungan Warga No. 12
+            </span>
           </div>
 
           <button
@@ -149,9 +137,9 @@ export default function Sidebar() {
               window.open(url, '_blank');
             }}
             type="button"
-            className="w-full mt-1 py-2 px-2.5 bg-[#d4f952] hover:bg-[#c4ec3e] border border-[#c4ec3e] text-neutral-950 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition cursor-pointer"
+            className="w-full py-2.5 px-3 bg-[#25D366] hover:bg-[#20ba5a] text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
           >
-            <MessageCircle className="w-3.5 h-3.5 text-emerald-800" />
+            <MessageCircle className="w-4 h-4 fill-white/20" />
             <span>Tanya WA ke Kasir</span>
           </button>
         </div>

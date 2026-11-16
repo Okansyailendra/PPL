@@ -4,7 +4,6 @@ import React, { useState, useMemo, useEffect, use } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
-import Sidebar from '@/components/pembeli/Sidebar';
 import TopHeader from '@/components/pembeli/TopHeader';
 import CartDrawer from '@/components/pembeli/CartDrawer';
 import Footer from '@/components/pembeli/Footer';
@@ -35,7 +34,6 @@ interface PageProps {
 
 function ProductDetailContent({ productId }: { productId: string }) {
   const { addToCart, setIsCartOpen } = useCart();
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
 
   const [product, setProduct] = useState<Product | null>(null);
@@ -133,40 +131,11 @@ function ProductDetailContent({ productId }: { productId: string }) {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#F8FAFC]">
-      {/* Desktop Sidebar */}
-      <div className="hidden md:block">
-        <Sidebar />
-      </div>
+    <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
+      {/* Top Navbar */}
+      <TopHeader />
 
-      {/* Mobile Sidebar Backdrop & Drawer */}
-      {isMobileSidebarOpen && (
-        <div className="fixed inset-0 z-50 md:hidden flex">
-          <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-xs"
-            onClick={() => setIsMobileSidebarOpen(false)}
-          />
-          <div className="relative z-10 w-72 bg-white h-full shadow-2xl flex flex-col">
-            <div className="p-3 flex justify-end">
-              <button
-                onClick={() => setIsMobileSidebarOpen(false)}
-                className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <Sidebar />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <TopHeader onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)} />
-
-        <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
+      <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-[1600px] w-full mx-auto space-y-6">
           {/* Breadcrumb & Action Header */}
           <div className="space-y-2">
             <nav className="flex items-center gap-2 text-xs font-medium text-slate-500">
@@ -431,7 +400,6 @@ function ProductDetailContent({ productId }: { productId: string }) {
 
           <Footer />
         </main>
-      </div>
 
       <CartDrawer />
     </div>

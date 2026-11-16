@@ -303,7 +303,7 @@ function Hero() {
             {/* Status Jam Buka di bawah tombol */}
             <div className="flex items-center gap-2 text-xs font-medium text-neutral-500">
               <Clock className="h-3.5 w-3.5 text-emerald-600" />
-              <span>Buka setiap hari • 06.00 – 24.00 WIB</span>
+              <span>Buka setiap hari • 08.30 – 21.00 WIB</span>
             </div>
           </div>
 
@@ -599,10 +599,10 @@ function StoreStorySection() {
                 </div>
                 <div>
                   <h3 className="font-sans text-base font-bold text-neutral-950">
-                    Buka lebih pagi & larut malam
+                    Buka setiap hari
                   </h3>
                   <p className="text-xs sm:text-sm text-neutral-600 mt-0.5">
-                    Melayani setiap hari dari pukul 06.00 hingga 24.00 malam.
+                    Melayani setiap hari dari pukul 08.30 hingga 21.00 malam.
                   </p>
                 </div>
               </div>
@@ -696,10 +696,10 @@ function StoreLocationSection() {
                 Alamat Toko
               </span>
               <p className="font-sans text-sm font-bold text-neutral-950 mt-1">
-                Jl. Lingkungan Pemukiman Warga No. 12 (Toko Madura Wadira)
+                Jl. Mangga Raya No. 28, Perumnas Kamal, Banyuajuh, Kamal
               </p>
               <p className="text-xs text-neutral-500 mt-1">
-                Patokan: Depan pos RT / gapura hijau, plang Wadira
+                Toko Wadira (Warung Madura)
               </p>
             </div>
           </div>
@@ -714,10 +714,10 @@ function StoreLocationSection() {
                 Jam Operasional
               </span>
               <p className="font-sans text-base font-black text-neutral-950 mt-1">
-                06.00 – 24.00 WIB
+                08.30 – 21.00 WIB
               </p>
               <p className="text-xs text-neutral-500 mt-1">
-                Senin – Minggu, tanpa libur (Tetap melayani saat tanggal merah)
+                Senin – Minggu (Melayani belanja setiap hari)
               </p>
             </div>
           </div>

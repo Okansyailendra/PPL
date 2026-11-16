@@ -111,8 +111,8 @@ export default function CategorySidebar({
         })}
       </div>
 
-      <div className="p-3.5 bg-[#f2f7ec] rounded-xl border border-[#e2edd8] text-[11px] text-neutral-700 leading-relaxed font-medium">
-        <span className="font-bold text-emerald-800">Catatan:</span> Data stok barang dan harga tersinkronisasi langsung dengan stok fisik riil di kasir Toko Wadira.
+      <div className="p-3.5 bg-neutral-50 rounded-xl border border-neutral-200/80 text-[11px] text-neutral-600 leading-relaxed">
+        <span className="font-bold text-neutral-900">Catatan:</span> Data stok barang dan harga tersinkronisasi langsung dengan stok fisik riil di kasir Toko Wadira.
       </div>
     </div>
   );
