@@ -1,43 +1,68 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getCurrentUser } from '@/lib/auth';
 import { startChatWithFallback } from '@/lib/gemini';
+import { applyRateLimit } from '@/lib/rate-limit';
 import type { ChatMessage } from '@/types';
 
 export async function POST(req: NextRequest) {
   try {
+    // 1. Rate Limiting Protection (Maksimal 25 request per menit)
+    const rateLimitCheck = applyRateLimit(req, {
+      limit: 25,
+      windowMs: 60 * 1000,
+      prefix: 'chat',
+    });
+    if (rateLimitCheck.response) {
+      return rateLimitCheck.response;
+    }
+
+    // 2. Autentikasi Pengguna: Hanya merchant/penjual yang berhak mengakses asisten AI toko
+    const user = await getCurrentUser();
+    if (!user?.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized: Sesi telah berakhir atau Anda belum login' },
+        { status: 401 }
+      );
+    }
+
     if (!process.env.GEMINI_API_KEY) {
-      return new Response(JSON.stringify({ error: 'GEMINI_API_KEY is not configured in .env.local' }), { status: 500 });
+      return NextResponse.json(
+        { error: 'GEMINI_API_KEY is not configured in .env.local' },
+        { status: 500 }
+      );
     }
 
     const { messages }: { messages: ChatMessage[] } = await req.json();
     
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return NextResponse.json(
+        { error: 'Format pesan obrolan tidak valid' },
+        { status: 400 }
+      );
+    }
+
     // Get the latest message
     const prompt = messages[messages.length - 1].content;
     
     // ======== MULAI IMPLEMENTASI RAG ========
-    const user = await getCurrentUser();
-    let contextData = '';
-    let userId = null;
+    const userId = user.id;
 
-    if (user?.id) {
-      userId = user.id;
+    // Ambil data stok barang dari database
+    const { data: products } = await supabase
+      .from('products')
+      .select('name, stock, price, unit')
+      .eq('umkm_id', userId);
 
-      // Ambil data stok barang dari Supabase
-      const { data: products } = await supabase
-        .from('products')
-        .select('name, stock, price, unit')
-        .eq('umkm_id', userId);
+    // Ambil data pelanggan yang kasbon dari database
+    const { data: debts } = await supabase
+      .from('debts')
+      .select('customer_name, amount, status, due_date')
+      .eq('umkm_id', userId)
+      .eq('status', 'UNPAID');
 
-      // Ambil data pelanggan yang kasbon dari Supabase
-      const { data: debts } = await supabase
-        .from('debts')
-        .select('customer_name, amount, status, due_date')
-        .eq('umkm_id', userId)
-        .eq('status', 'UNPAID');
-
-      // Susun Konteks (Prompt Engineering / RAG System Instructions)
-      contextData = `
+    // Susun Konteks (Prompt Engineering / RAG System Instructions)
+    const contextData = `
 INFORMASI TOKO / UMKM:
 - Nama Toko: ${user.store_name || user.warung_name || 'Toko Anda'}
 - Pemilik: ${user.owner_name || 'Helwiyah'}
@@ -54,9 +79,6 @@ Selalu gunakan data "INFORMASI TOKO", "DATA STOK BARANG", dan "DATA PIUTANG" di 
 Gunakan bahasa Indonesia yang santai, ramah, dan sehari-hari (seperti mengobrol di WhatsApp).
 Jika ditanya tentang sisa stok atau tagihan pelanggan, langsung sebutkan detail dari data di atas.
 `;
-    } else {
-      contextData = 'Kamu adalah asisten pintar bernama Jarvis untuk Toko Wadira. Jawab pertanyaan pengguna dengan ramah dalam bahasa Indonesia yang santai.';
-    }
     // ======== MULAI IMPLEMENTASI TOOLS RAG ========
     const tools = [{
       functionDeclarations: [

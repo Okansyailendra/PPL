@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { supabase } from '@/lib/supabase';
+import { applyRateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,16 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(req: Request) {
   try {
+    // 0. Rate limiting protection (Maksimal 20 pesanan per menit per IP)
+    const rateLimitCheck = applyRateLimit(req, {
+      limit: 20,
+      windowMs: 60 * 1000,
+      prefix: 'orders',
+    });
+    if (rateLimitCheck.response) {
+      return rateLimitCheck.response;
+    }
+
     const body = await req.json();
     const { items, customer, fulfillmentType, paymentMethod } = body;
 

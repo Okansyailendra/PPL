@@ -1,10 +1,21 @@
 import { NextResponse } from 'next/server';
 import { snap } from '@/lib/midtrans';
 import { supabase } from '@/lib/supabase';
+import { applyRateLimit } from '@/lib/rate-limit';
 import crypto from 'crypto';
 
 export async function POST(req: Request) {
   try {
+    // 0. Rate limiting protection (Maksimal 25 request checkout per menit per IP)
+    const rateLimitCheck = applyRateLimit(req, {
+      limit: 25,
+      windowMs: 60 * 1000,
+      prefix: 'checkout',
+    });
+    if (rateLimitCheck.response) {
+      return rateLimitCheck.response;
+    }
+
     const body = await req.json();
     const { items, customer, shipping, umkmId } = body;
 
