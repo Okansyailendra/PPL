@@ -18,7 +18,7 @@ DROP TABLE IF EXISTS public.users CASCADE;
 
 -- 2. Tabel users
 CREATE TABLE public.users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   email TEXT UNIQUE NOT NULL,
   password TEXT NOT NULL,
   store_name TEXT NOT NULL,
@@ -29,8 +29,8 @@ CREATE TABLE public.users (
 
 -- 3. Tabel categories
 CREATE TABLE public.categories (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  umkm_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  umkm_id TEXT NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   description TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -38,9 +38,9 @@ CREATE TABLE public.categories (
 
 -- 4. Tabel products
 CREATE TABLE public.products (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  umkm_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-  category_id UUID REFERENCES public.categories(id) ON DELETE SET NULL,
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  umkm_id TEXT NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  category_id TEXT REFERENCES public.categories(id) ON DELETE SET NULL,
   category TEXT,
   name TEXT NOT NULL,
   price INTEGER NOT NULL,
@@ -53,8 +53,8 @@ CREATE TABLE public.products (
 
 -- 5. Tabel debts (Buku Bon / Piutang)
 CREATE TABLE public.debts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  umkm_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  umkm_id TEXT NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   customer_name TEXT NOT NULL,
   customer_phone TEXT,
   amount INTEGER NOT NULL,
@@ -65,14 +65,14 @@ CREATE TABLE public.debts (
   due_date TIMESTAMP WITH TIME ZONE NOT NULL,
   status TEXT NOT NULL DEFAULT 'UNPAID' CHECK (status IN ('UNPAID', 'PARTIAL', 'PAID')),
   notes TEXT,
-  related_trx_id UUID
+  related_trx_id TEXT
 );
 
 -- 6. Tabel payment_logs (Riwayat Pembayaran & Cicilan Kasbon)
 CREATE TABLE public.payment_logs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  debt_id UUID NOT NULL REFERENCES public.debts(id) ON DELETE CASCADE,
-  umkm_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  debt_id TEXT NOT NULL REFERENCES public.debts(id) ON DELETE CASCADE,
+  umkm_id TEXT NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   amount_paid INTEGER NOT NULL,
   payment_method TEXT NOT NULL DEFAULT 'CASH' CHECK (payment_method IN ('CASH', 'QRIS', 'TRANSFER')),
   notes TEXT,
@@ -82,8 +82,8 @@ CREATE TABLE public.payment_logs (
 
 -- 7. Tabel transactions
 CREATE TABLE public.transactions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  umkm_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  umkm_id TEXT NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   customer_name TEXT,
   customer_phone TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -99,7 +99,7 @@ CREATE TABLE public.transactions (
   shipping_address TEXT,
   snap_token TEXT,
   items JSONB NOT NULL,
-  debt_id UUID REFERENCES public.debts(id) ON DELETE SET NULL
+  debt_id TEXT REFERENCES public.debts(id) ON DELETE SET NULL
 );
 
 -- Foreign Key debts -> transactions
@@ -195,3 +195,63 @@ INSERT INTO public.transactions (id, umkm_id, customer_name, customer_phone, cre
 ('e2222222-2222-2222-2222-222222222222', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Pak RT Bambang', '081211112222', '2026-10-27 14:13:16+00', '2026-10-27 14:13:16+00', 'IN', 'PENJUALAN', 'CREDIT', 'UNPAID', 75000, '[{"name": "Rinso Anti Noda Bubuk 770g", "unit": "bungkus", "price": 21000, "quantity": 1, "subtotal": 21000, "costPrice": 18500, "productId": "22222222-0023-4444-8888-000000000023"}, {"name": "Korek Api Zippo Model Klasik", "unit": "pcs", "price": 35000, "quantity": 1, "subtotal": 35000, "costPrice": 26000, "productId": "22222222-0032-4444-8888-000000000032"}]'::jsonb, 'd1111111-1111-1111-1111-111111111111'),
 ('e3333333-3333-3333-3333-333333333333', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Siti Rahma', '081987654320', '2026-10-29 14:13:16+00', '2026-10-29 14:13:16+00', 'IN', 'PENJUALAN', 'QRIS', 'PAID', 28000, '[{"name": "Sunlight Jeruk Nipis 210ml", "unit": "pouch", "price": 5000, "quantity": 2, "subtotal": 10000, "costPrice": 4200, "productId": "22222222-0025-4444-8888-000000000025"}, {"name": "3M Scotch Lakban Bening 48mm", "unit": "pcs", "price": 14000, "quantity": 1, "subtotal": 14000, "costPrice": 11500, "productId": "22222222-0030-4444-8888-000000000030"}, {"name": "Antangin JRG Herbal Sachet", "unit": "sachet", "price": 4000, "quantity": 1, "subtotal": 4000, "costPrice": 3200, "productId": "22222222-0026-4444-8888-000000000026"}]'::jsonb, NULL),
 ('e4444444-4444-4444-4444-444444444444', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Agen Grosir Pasar', NULL, '2026-10-30 14:13:16+00', '2026-10-30 14:13:16+00', 'OUT', 'KULAKAN', 'CASH', 'PAID', 250000, '[{"name": "Kulakan Mi Instan, Sabun, dan Minuman Dingin", "price": 250000, "quantity": 1, "subtotal": 250000, "costPrice": 250000}]'::jsonb, NULL);
+
+-- =========================================================================
+-- 8. Analytical Views (Laporan & Monitoring Supabase)
+-- =========================================================================
+
+CREATE OR REPLACE VIEW public.view_piutang_jatuh_tempo AS
+SELECT
+  d.id AS debt_id,
+  d.umkm_id AS umkm_id,
+  u.store_name AS store_name,
+  d.customer_name AS customer_name,
+  d.customer_phone AS customer_phone,
+  d.amount AS amount,
+  d.paid_amount AS paid_amount,
+  d.remaining_amount AS remaining_amount,
+  d.type AS debt_type,
+  d.due_date AS due_date,
+  d.status AS status,
+  (CASE
+    WHEN (d.due_date < now() AND d.status != 'PAID') THEN 'JATUH TEMPO'
+    WHEN d.status = 'PAID' THEN 'LUNAS'
+    WHEN d.status = 'PARTIAL' THEN 'DICICIL'
+    ELSE 'AKTIF'
+  END) AS status_tempo
+FROM public.debts d
+JOIN public.users u ON d.umkm_id = u.id;
+
+CREATE OR REPLACE VIEW public.view_produk_kritis AS
+SELECT
+  p.id AS product_id,
+  p.umkm_id AS umkm_id,
+  u.store_name AS store_name,
+  p.name AS product_name,
+  p.stock AS stock,
+  p.min_stock AS min_stock,
+  p.unit AS unit,
+  (p.min_stock - p.stock) AS kekurangan_stok,
+  (CASE
+    WHEN p.stock = 0 THEN 'HABIS (Segera Kulakan)'
+    WHEN p.stock <= p.min_stock THEN 'MENIPIS (Perlu Restock)'
+    ELSE 'AMAN'
+  END) AS status_stok
+FROM public.products p
+JOIN public.users u ON p.umkm_id = u.id
+WHERE p.stock <= p.min_stock;
+
+CREATE OR REPLACE VIEW public.view_ringkasan_umkm AS
+SELECT
+  u.id AS umkm_id,
+  u.store_name AS store_name,
+  u.owner_name AS owner_name,
+  COUNT(DISTINCT p.id) AS total_produk,
+  COALESCE(SUM(CASE WHEN t.type = 'IN' THEN t.total_amount ELSE 0 END), 0) AS total_pemasukan,
+  COALESCE(SUM(CASE WHEN t.type = 'OUT' THEN t.total_amount ELSE 0 END), 0) AS total_pengeluaran,
+  COALESCE((SELECT SUM(d.remaining_amount) FROM public.debts d WHERE d.umkm_id = u.id AND d.status != 'PAID'), 0) AS total_piutang_aktif
+FROM public.users u
+LEFT JOIN public.products p ON u.id = p.umkm_id
+LEFT JOIN public.transactions t ON u.id = t.umkm_id
+GROUP BY u.id, u.store_name, u.owner_name;
+

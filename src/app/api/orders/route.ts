@@ -35,8 +35,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Nama pemesan wajib diisi' }, { status: 400 });
     }
 
-    // Default UMKM (Toko Wadira)
-    const umkmId = 'usr-warung-01';
+    // Default UMKM (Toko Wadira / Sembako Berkah)
+    const umkmId = body?.umkmId || 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 
     // 1. Ambil data produk untuk cek dan kurangi stok
     const productIds = items.map((it: any) => it.productId || it.id).filter(Boolean);
