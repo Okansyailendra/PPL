@@ -40,9 +40,10 @@ CREATE TABLE `users` (
   UNIQUE KEY `users_email_unique` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Password di-hash menggunakan bcrypt (password123 & madura123)
 INSERT INTO `users` (`id`, `email`, `password`, `store_name`, `owner_name`, `phone_number`, `created_at`) VALUES
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'admin@warungberkah.com', 'password123', 'Warung Sembako Berkah', 'Helwiyah', '081234567890', '2026-10-02 14:13:16'),
-('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'toko.madura@gmail.com', 'madura123', 'Toko Madura Barokah 24 Jam', 'H. Hasan Basri', '081987654321', '2026-10-12 14:13:16');
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'admin@warungberkah.com', '$2b$10$U7L9ZeGyX3r1p4t1Sx4C2ebnO7YFe4bau85.S6myCHn.Npb.Vkq5W', 'Warung Sembako Berkah', 'Helwiyah', '081234567890', '2026-10-02 14:13:16'),
+('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'toko.madura@gmail.com', '$2b$10$K5JF7qfgfkw51iMqO9VUeetK3ycJPltLjPSzjzjgyX1THM69TGd2W', 'Toko Madura Barokah 24 Jam', 'H. Hasan Basri', '081987654321', '2026-10-12 14:13:16');
 
 -- --------------------------------------------------------
 -- 2. Tabel categories (Kategori Produk)

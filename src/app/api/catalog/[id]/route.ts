@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { formatProductResponse } from '@/lib/product-utils';
+import { formatPublicCatalogProduct } from '@/lib/product-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +28,7 @@ export async function GET(
       return NextResponse.json({ error: 'Produk tidak ditemukan' }, { status: 404 });
     }
 
-    const formatted = formatProductResponse(rawProduct);
+    const formatted = formatPublicCatalogProduct(rawProduct);
     const stock = Number(formatted.stock) || 0;
     const minStock = Number(formatted.min_stock) || 5;
 

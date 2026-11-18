@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { formatProductResponse } from '@/lib/product-utils';
+import { formatPublicCatalogProduct } from '@/lib/product-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,9 +38,9 @@ export async function GET(req: Request) {
       console.warn('Warning: Gagal mengambil categories dari db, fallback ke default:', catErr);
     }
 
-    // Format products
+    // Format products (sembunyikan modal/cost_price untuk etalase publik)
     let products = (rawProducts || []).map((p: any) => {
-      const formatted = formatProductResponse(p);
+      const formatted = formatPublicCatalogProduct(p);
       const stock = Number(formatted.stock) || 0;
       const minStock = Number(formatted.min_stock) || 5;
       return {

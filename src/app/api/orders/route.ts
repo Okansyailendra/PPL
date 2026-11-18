@@ -41,27 +41,32 @@ export async function POST(req: Request) {
 
     const productMap = new Map<string, any>((dbProducts || []).map((p: any) => [p.id, p]));
 
-    // 2. Cek kecukupan stok
+    // 2. Cek kecukupan stok dan pastikan semua barang valid
     for (const item of items) {
       const pid = item.productId || item.id;
       const dbProd = productMap.get(pid);
-      if (dbProd) {
-        const requiredQty = Number(item.quantity) || 1;
-        if (Number(dbProd.stock) < requiredQty) {
-          return NextResponse.json(
-            { error: `Stok "${dbProd.name}" tidak mencukupi (sisa ${dbProd.stock} ${dbProd.unit})` },
-            { status: 400 }
-          );
-        }
+      if (!dbProd) {
+        return NextResponse.json(
+          { error: `Produk dengan ID "${pid}" tidak ditemukan di database` },
+          { status: 404 }
+        );
+      }
+      const requiredQty = Math.max(1, Math.round(Number(item.quantity) || 1));
+      if (Number(dbProd.stock) < requiredQty) {
+        return NextResponse.json(
+          { error: `Stok "${dbProd.name}" tidak mencukupi (sisa ${dbProd.stock} ${dbProd.unit || 'pcs'})` },
+          { status: 400 }
+        );
       }
     }
 
-    // 3. Kurangi stok produk
+    // 3. Kurangi stok produk secara aman
     for (const item of items) {
       const pid = item.productId || item.id;
       const dbProd = productMap.get(pid);
       if (dbProd) {
-        const newStock = Math.max(0, Number(dbProd.stock) - (Number(item.quantity) || 1));
+        const qty = Math.max(1, Math.round(Number(item.quantity) || 1));
+        const newStock = Math.max(0, Number(dbProd.stock) - qty);
         await supabase
           .from('products')
           .update({ stock: newStock })
@@ -69,12 +74,24 @@ export async function POST(req: Request) {
       }
     }
 
-    // 4. Hitung total belanja
-    const totalAmount = items.reduce((sum: number, it: any) => {
-      const price = Number(it.price) || 0;
-      const qty = Number(it.quantity) || 1;
-      return sum + (price * qty);
-    }, 0);
+    // 4. Hitung total belanja HANYA menggunakan harga resmi dari database (mencegah price tampering)
+    const formattedItems = items.map((it: any) => {
+      const pid = it.productId || it.id;
+      const prod = productMap.get(pid)!;
+      const qty = Math.max(1, Math.round(Number(it.quantity) || 1));
+      const officialPrice = Number(prod.price) || 0;
+      return {
+        productId: prod.id,
+        name: prod.name || it.name || 'Produk Warung',
+        quantity: qty,
+        price: officialPrice,
+        costPrice: prod.cost_price ?? 0,
+        unit: prod.unit || it.unit || 'pcs',
+        subtotal: officialPrice * qty,
+      };
+    });
+
+    const totalAmount = formattedItems.reduce((sum, it) => sum + it.subtotal, 0);
 
     // 5. Generate Order ID yang mudah dibaca
     const randomHex = crypto.randomBytes(2).toString('hex').toUpperCase();
@@ -82,22 +99,10 @@ export async function POST(req: Request) {
     const orderId = `ORD-${dateStr}-${randomHex}`;
     const nowIso = new Date().toISOString();
 
-    const formattedItems = items.map((it: any) => {
-      const pid = it.productId || it.id;
-      const prod = productMap.get(pid);
-      return {
-        productId: pid,
-        name: it.name || prod?.name || 'Produk Warung',
-        quantity: Number(it.quantity) || 1,
-        price: Number(it.price) || Number(prod?.price) || 0,
-        unit: it.unit || prod?.unit || 'pcs',
-        subtotal: (Number(it.price) || 0) * (Number(it.quantity) || 1),
-      };
-    });
-
     const isCash = paymentMethod === 'cash';
 
     // 6. Simpan transaksi ke tabel transactions
+    // Keamanan: Pesanan online belum diverifikasi di gerbang pembayaran, harus berstatus PENDING
     const { error: trxErr } = await supabase
       .from('transactions')
       .insert([
@@ -107,7 +112,7 @@ export async function POST(req: Request) {
           type: 'IN',
           category: 'PESANAN_ONLINE',
           payment_method: isCash ? 'CASH' : 'QRIS',
-          payment_status: isCash ? 'PENDING' : 'PAID',
+          payment_status: 'PENDING',
           total_amount: totalAmount,
           customer_name: customer.name.trim(),
           customer_phone: customer.phone?.trim() || null,

@@ -1,31 +1,26 @@
 import { supabase } from '@/lib/supabase';
-import { cookies } from 'next/headers';
-import type { UserSession, Product, Debt } from '@/types';
+import { getCurrentUser } from '@/lib/auth';
+import type { Product, Debt } from '@/types';
 import LaporanClient from './LaporanClient';
 
 export const dynamic = 'force-dynamic';
 
 export default async function LaporanPage() {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('userSession')?.value;
-  let user: UserSession | null = null;
+  const user = await getCurrentUser();
   let transactions: any[] = [];
   let products: Product[] = [];
   let debts: Debt[] = [];
 
-  if (sessionCookie) {
+  if (user?.id) {
     try {
-      user = JSON.parse(sessionCookie);
-      if (user?.id) {
-        const [trxRes, prodRes, debtRes] = await Promise.all([
-          supabase.from('transactions').select('*').eq('umkm_id', user.id).order('created_at', { ascending: false }),
-          supabase.from('products').select('*').eq('umkm_id', user.id),
-          supabase.from('debts').select('*').eq('umkm_id', user.id)
-        ]);
-        if (trxRes.data) transactions = trxRes.data;
-        if (prodRes.data) products = prodRes.data;
-        if (debtRes.data) debts = debtRes.data;
-      }
+      const [trxRes, prodRes, debtRes] = await Promise.all([
+        supabase.from('transactions').select('*').eq('umkm_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('products').select('*').eq('umkm_id', user.id),
+        supabase.from('debts').select('*').eq('umkm_id', user.id)
+      ]);
+      if (trxRes.data) transactions = trxRes.data;
+      if (prodRes.data) products = prodRes.data;
+      if (debtRes.data) debts = debtRes.data;
     } catch (e) {
       console.error('Error fetching data for laporan:', e);
     }

@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { cookies } from 'next/headers';
+import { getCurrentUser } from '@/lib/auth';
 import { startChatWithFallback } from '@/lib/gemini';
-import type { ChatMessage, UserSession } from '@/types';
+import type { ChatMessage } from '@/types';
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,13 +16,11 @@ export async function POST(req: NextRequest) {
     const prompt = messages[messages.length - 1].content;
     
     // ======== MULAI IMPLEMENTASI RAG ========
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('userSession');
+    const user = await getCurrentUser();
     let contextData = '';
     let userId = null;
 
-    if (sessionCookie) {
-      const user: UserSession = JSON.parse(sessionCookie.value);
+    if (user?.id) {
       userId = user.id;
 
       // Ambil data stok barang dari Supabase

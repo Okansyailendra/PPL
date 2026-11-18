@@ -122,10 +122,10 @@ CREATE POLICY "Allow all debts" ON public.debts FOR ALL USING (true) WITH CHECK 
 CREATE POLICY "Allow all payment_logs" ON public.payment_logs FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all transactions" ON public.transactions FOR ALL USING (true) WITH CHECK (true);
 
--- SEED DATA
+-- SEED DATA (Password di-hash bcrypt: password123 & madura123)
 INSERT INTO public.users (id, email, password, store_name, owner_name, phone_number, created_at) VALUES
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'admin@warungberkah.com', 'password123', 'Warung Sembako Berkah', 'Helwiyah', '081234567890', '2026-10-02 14:13:16+00'),
-('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'toko.madura@gmail.com', 'madura123', 'Toko Madura Barokah 24 Jam', 'H. Hasan Basri', '081987654321', '2026-10-12 14:13:16+00');
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'admin@warungberkah.com', '$2b$10$U7L9ZeGyX3r1p4t1Sx4C2ebnO7YFe4bau85.S6myCHn.Npb.Vkq5W', 'Warung Sembako Berkah', 'Helwiyah', '081234567890', '2026-10-02 14:13:16+00'),
+('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'toko.madura@gmail.com', '$2b$10$K5JF7qfgfkw51iMqO9VUeetK3ycJPltLjPSzjzjgyX1THM69TGd2W', 'Toko Madura Barokah 24 Jam', 'H. Hasan Basri', '081987654321', '2026-10-12 14:13:16+00');
 
 INSERT INTO public.categories (id, umkm_id, name, description, created_at) VALUES
 ('11111111-0001-4444-8888-000000000001', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Mi & Makanan Instan', 'Mi instan dan makanan siap saji cepat saji', '2026-10-07 14:13:16+00'),

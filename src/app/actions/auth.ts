@@ -4,9 +4,10 @@ import { supabase } from '@/lib/supabase';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { UserSession } from '@/types';
+import { signSessionToken, verifyPassword, hashPassword } from '@/lib/auth';
 
 export async function login(formData: FormData) {
-  const email = formData.get('email') as string;
+  const email = (formData.get('email') as string)?.trim()?.toLowerCase();
   const password = formData.get('password') as string;
 
   if (!email || !password) {
@@ -17,14 +18,28 @@ export async function login(formData: FormData) {
     .from('users')
     .select('*')
     .eq('email', email)
-    .eq('password', password)
     .single();
 
   if (error || !user) {
     return { error: 'Email atau password salah.' };
   }
 
-  // Set user session in cookies (Expires in 1 day)
+  const isPasswordValid = await verifyPassword(password, user.password);
+  if (!isPasswordValid) {
+    return { error: 'Email atau password salah.' };
+  }
+
+  // Auto-upgrade password lama ke bcrypt jika masih plaintext
+  if (!/^\$2[aby]\$\d{2}\$/.test(user.password)) {
+    try {
+      const newHash = await hashPassword(password);
+      await supabase.from('users').update({ password: newHash }).eq('id', user.id);
+    } catch (e) {
+      console.warn('Gagal upgrade hash password:', e);
+    }
+  }
+
+  // Set user session bertanda tangan kriptografis (HMAC signed)
   const userData: UserSession = {
     id: user.id,
     email: user.email,
@@ -32,10 +47,14 @@ export async function login(formData: FormData) {
     owner_name: user.owner_name,
     phone_number: user.phone_number,
   };
+
+  const token = signSessionToken(userData, 24 * 60 * 60);
   
   const cookieStore = await cookies();
-  cookieStore.set('userSession', JSON.stringify(userData), { 
+  cookieStore.set('userSession', token, { 
     httpOnly: true, 
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
     maxAge: 24 * 60 * 60 
   });
 
@@ -43,14 +62,18 @@ export async function login(formData: FormData) {
 }
 
 export async function register(formData: FormData) {
-  const email = formData.get('email') as string;
+  const email = (formData.get('email') as string)?.trim()?.toLowerCase();
   const password = formData.get('password') as string;
-  const store_name = formData.get('store_name') as string;
-  const owner_name = formData.get('owner_name') as string;
-  const phone_number = formData.get('phone_number') as string;
+  const store_name = (formData.get('store_name') as string)?.trim();
+  const owner_name = (formData.get('owner_name') as string)?.trim();
+  const phone_number = (formData.get('phone_number') as string)?.trim();
 
   if (!email || !password || !store_name || !owner_name) {
     return { error: 'Semua kolom bertanda bintang wajib diisi.' };
+  }
+
+  if (password.length < 6) {
+    return { error: 'Kata sandi minimal harus 6 karakter.' };
   }
 
   // Check if user already exists
@@ -64,11 +87,14 @@ export async function register(formData: FormData) {
     return { error: 'Email sudah terdaftar.' };
   }
 
+  // Hash password dengan bcrypt sebelum disimpan ke database
+  const hashedPassword = await hashPassword(password);
+
   // Insert new user
   const { data: newUser, error } = await supabase
     .from('users')
     .insert([
-      { email, password, store_name, owner_name, phone_number }
+      { email, password: hashedPassword, store_name, owner_name, phone_number }
     ])
     .select()
     .single();
@@ -78,7 +104,7 @@ export async function register(formData: FormData) {
     return { error: error?.message || 'Terjadi kesalahan saat mendaftar.' };
   }
 
-  // Auto login
+  // Auto login dengan session signed
   const userData: UserSession = {
     id: newUser.id,
     email: newUser.email,
@@ -86,10 +112,14 @@ export async function register(formData: FormData) {
     owner_name: newUser.owner_name,
     phone_number: newUser.phone_number,
   };
+
+  const token = signSessionToken(userData, 24 * 60 * 60);
   
   const cookieStore = await cookies();
-  cookieStore.set('userSession', JSON.stringify(userData), { 
+  cookieStore.set('userSession', token, { 
     httpOnly: true, 
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
     maxAge: 24 * 60 * 60 
   });
 
@@ -156,7 +186,7 @@ export async function requestPasswordReset(formData: FormData) {
     success: true,
     message: 'Tautan verifikasi telah berhasil dikirimkan ke kotak masuk email Anda.',
     email: user.email,
-    previewUrl: mailResult?.previewUrl || null,
+    previewUrl: process.env.NODE_ENV === 'development' ? (mailResult?.previewUrl || null) : null,
   };
 }
 
@@ -226,10 +256,13 @@ export async function resetPasswordWithToken(formData: FormData) {
     return { error: check.error || 'Token tidak valid.' };
   }
 
+  // Hash kata sandi baru dengan bcrypt sebelum disimpan
+  const hashedPassword = await hashPassword(newPassword);
+
   // Update password di database
   const { error: updateErr } = await supabase
     .from('users')
-    .update({ password: newPassword })
+    .update({ password: hashedPassword })
     .eq('email', email);
 
   if (updateErr) {

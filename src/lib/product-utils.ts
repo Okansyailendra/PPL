@@ -21,8 +21,8 @@ export const ALLOWED_UNITS = [
 ] as const;
 
 /**
- * Memformat baris produk dari DB agar kompatibel dengan field UI (`price`, `cost_price`)
- * maupun alias spesifikasi backend (`harga_jual`, `modal`).
+ * Memformat baris produk dari DB untuk dashboard kasir/penjual
+ * menyertakan field modal dan cost_price untuk kalkulasi keuntungan.
  */
 export function formatProductResponse(product: any) {
   if (!product) return null;
@@ -30,6 +30,19 @@ export function formatProductResponse(product: any) {
     ...product,
     harga_jual: product.price,
     modal: product.cost_price ?? 0,
+  };
+}
+
+/**
+ * Helper khusus etalase publik pelanggan:
+ * Menjamin harga modal (cost_price dan modal) tidak bocor ke publik atau kompetitor.
+ */
+export function formatPublicCatalogProduct(product: any) {
+  if (!product) return null;
+  const { cost_price, modal, ...publicData } = product;
+  return {
+    ...publicData,
+    harga_jual: product.price,
   };
 }
 

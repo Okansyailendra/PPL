@@ -1,52 +1,12 @@
 'use server';
 
 import { supabase } from '@/lib/supabase';
-import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { resolveCategoryForUmkm } from '@/lib/product-utils';
+import { getCurrentUser } from '@/lib/auth';
 import type { UserSession } from '@/types';
 
-async function getUser(): Promise<UserSession | null> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('userSession')?.value;
-  if (!sessionCookie) return null;
-  try {
-    const parsed: UserSession = JSON.parse(sessionCookie);
-    if (!parsed?.id) return null;
-
-    // Cek apakah user ada di database
-    const { data: dbUser } = await supabase
-      .from('users')
-      .select('id, email, store_name, owner_name, phone_number')
-      .eq('id', parsed.id)
-      .single();
-
-    if (dbUser) {
-      return dbUser as UserSession;
-    }
-
-    // Auto-heal: jika id berubah tapi email cocok
-    if (parsed.email) {
-      const { data: emailUser } = await supabase
-        .from('users')
-        .select('id, email, store_name, owner_name, phone_number')
-        .eq('email', parsed.email)
-        .single();
-
-      if (emailUser) {
-        cookieStore.set('userSession', JSON.stringify(emailUser), {
-          httpOnly: true,
-          maxAge: 24 * 60 * 60,
-        });
-        return emailUser as UserSession;
-      }
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-}
+const getUser = getCurrentUser;
 
 export async function addProduct(formData: FormData) {
   const user = await getUser();

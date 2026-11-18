@@ -32,10 +32,24 @@ next-env.d.ts
 *.tmp
 
 # Debug / Logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+
+# IDE & Editor Settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Sub-services (wa-server)
+wa-server/node_modules/
+wa-server/.env*
+
+# Vercel / Deployment
+.vercel/
 
 # System Files
 .DS_Store

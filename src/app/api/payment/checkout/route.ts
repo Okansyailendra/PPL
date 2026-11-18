@@ -22,25 +22,86 @@ export async function POST(req: Request) {
       );
     }
 
-    // 1. Hitung total belanja produk
-    const itemsTotal = items.reduce(
-      (sum: number, it: any) => sum + Number(it.price) * Number(it.quantity),
-      0
-    );
+    // 1. Ambil data produk resmi dari database untuk mencegah manipulasi harga (Price Tampering)
+    const productIds = items
+      .map((it: any) => it.productId || it.id)
+      .filter(Boolean);
 
-    // Ongkos kirim jika ada
-    const shippingCost = Number(shipping?.cost) || 0;
+    if (productIds.length === 0) {
+      return NextResponse.json(
+        { error: 'Produk dalam keranjang tidak valid' },
+        { status: 400 }
+      );
+    }
+
+    const { data: dbProducts, error: dbErr } = await supabase
+      .from('products')
+      .select('*')
+      .in('id', productIds);
+
+    if (dbErr || !dbProducts || dbProducts.length === 0) {
+      return NextResponse.json(
+        { error: 'Gagal memverifikasi produk dari database' },
+        { status: 400 }
+      );
+    }
+
+    const productMap = new Map<string, any>((dbProducts as any[]).map((p: any) => [p.id, p]));
+
+    // Validasi stok dan hitung total menggunakan harga resmi database
+    const validatedItems: any[] = [];
+    let itemsTotal = 0;
+
+    for (const it of items) {
+      const pid = it.productId || it.id;
+      const dbProd = productMap.get(pid);
+
+      if (!dbProd) {
+        return NextResponse.json(
+          { error: `Produk dengan ID "${pid}" tidak ditemukan di database` },
+          { status: 404 }
+        );
+      }
+
+      const qty = Math.max(1, Math.round(Number(it.quantity) || 1));
+      if (Number(dbProd.stock) < qty) {
+        return NextResponse.json(
+          {
+            error: `Stok "${dbProd.name}" tidak mencukupi (tersisa ${dbProd.stock} ${dbProd.unit || 'pcs'})`,
+          },
+          { status: 400 }
+        );
+      }
+
+      // Selalu gunakan harga resmi dari database (bukan dari input klien)
+      const officialPrice = Number(dbProd.price) || 0;
+      const subtotal = officialPrice * qty;
+      itemsTotal += subtotal;
+
+      validatedItems.push({
+        id: dbProd.id,
+        productId: dbProd.id,
+        name: dbProd.name || 'Produk',
+        price: officialPrice,
+        quantity: qty,
+        unit: dbProd.unit || 'pcs',
+        subtotal,
+      });
+    }
+
+    // Ongkos kirim jika ada (pastikan tidak negatif)
+    const shippingCost = Math.max(0, Number(shipping?.cost) || 0);
     const grossAmount = itemsTotal + shippingCost;
 
     // 2. Generate Order ID yang unik (misal: ORDER-timestamp-random)
     const orderId = `ORDER-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 
-    // Siapkan item_details untuk Midtrans
-    const itemDetails = items.map((it: any) => ({
-      id: it.productId || it.id || crypto.randomUUID(),
-      price: Math.round(Number(it.price)),
-      quantity: Number(it.quantity),
-      name: (it.name || 'Produk').slice(0, 50),
+    // Siapkan item_details untuk Midtrans menggunakan harga database terverifikasi
+    const itemDetails = validatedItems.map((it: any) => ({
+      id: it.id,
+      price: Math.round(it.price),
+      quantity: it.quantity,
+      name: it.name.slice(0, 50),
     }));
 
     if (shippingCost > 0) {
@@ -106,13 +167,13 @@ export async function POST(req: Request) {
       courier_service: shipping?.service || null,
       shipping_address: customer.address || null,
       snap_token: snapToken,
-      items: items.map((it: any) => ({
-        productId: it.productId || it.id,
+      items: validatedItems.map((it: any) => ({
+        productId: it.productId,
         name: it.name,
         quantity: it.quantity,
         price: it.price,
-        unit: it.unit || 'pcs',
-        subtotal: it.quantity * it.price,
+        unit: it.unit,
+        subtotal: it.subtotal,
       })),
       created_at: nowIso,
     };
