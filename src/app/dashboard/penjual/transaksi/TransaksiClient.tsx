@@ -23,7 +23,10 @@ import {
   Info,
   Calendar,
   MessageSquare,
-  Printer
+  Printer,
+  Sparkles,
+  Wand2,
+  Loader2
 } from 'lucide-react';
 
 interface TransaksiClientProps {
@@ -108,6 +111,102 @@ export default function TransaksiClient({
   const videoRef = useRef<HTMLVideoElement>(null);
   const lastScanTimeRef = useRef<number>(0);
   const lastScannedCodeRef = useRef<string>('');
+
+  // AI Transaction Parser Modal States (Zaki DEL-6)
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [aiInputText, setAiInputText] = useState('');
+  const [isAiParsing, setIsAiParsing] = useState(false);
+  const [aiParseError, setAiParseError] = useState('');
+  const [aiParseResult, setAiParseResult] = useState<any | null>(null);
+
+  const handleRunAiParse = async () => {
+    if (!aiInputText.trim()) {
+      setAiParseError('Tolong masukkan catatan transaksi kasir terlebih dahulu.');
+      return;
+    }
+    setIsAiParsing(true);
+    setAiParseError('');
+    setAiParseResult(null);
+
+    try {
+      const res = await fetch('/api/ai/parse-transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: aiInputText.trim(),
+          store_id: user?.id,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Gagal memproses parsing transaksi AI.');
+      }
+
+      setAiParseResult(json.data);
+    } catch (err: any) {
+      setAiParseError(err?.message || 'Terjadi kesalahan saat memproses NLP transaksi.');
+    } finally {
+      setIsAiParsing(false);
+    }
+  };
+
+  const handleApplyAiToCart = () => {
+    if (!aiParseResult) return;
+
+    // 1. Terapkan Action Mode (SALE / RESTOCK)
+    if (aiParseResult.action === 'RESTOCK') {
+      setMode('RESTOCK');
+    } else {
+      setMode('SALE');
+    }
+
+    // 2. Terapkan Metode Pembayaran & Kasbon
+    if (aiParseResult.payment_method === 'CREDIT') {
+      setPaymentMethod('CREDIT');
+      if (aiParseResult.customer_name) {
+        setCustomerName(aiParseResult.customer_name);
+      }
+    } else if (aiParseResult.payment_method === 'QRIS') {
+      setPaymentMethod('QRIS');
+      setQrisStatus('PAID');
+    } else {
+      setPaymentMethod('CASH');
+    }
+
+    // 3. Masukkan Produk Teridentifikasi ke Keranjang
+    setCart((prevCart) => {
+      let updatedCart = [...prevCart];
+
+      for (const item of aiParseResult.items) {
+        // Cari produk di katalog berdasarkan product_id atau nama
+        const found =
+          products.find((p) => item.product_id && p.id === item.product_id) ||
+          products.find((p) => p.name.toLowerCase() === item.name.toLowerCase());
+
+        if (found) {
+          const existingIdx = updatedCart.findIndex((c) => c.product.id === found.id);
+          const addQty = Math.max(1, item.quantity);
+
+          if (existingIdx >= 0) {
+            updatedCart[existingIdx] = {
+              ...updatedCart[existingIdx],
+              quantity: updatedCart[existingIdx].quantity + addQty,
+            };
+          } else {
+            updatedCart.push({
+              product: found,
+              quantity: addQty,
+            });
+          }
+        }
+      }
+
+      return updatedCart;
+    });
+
+    setIsAiModalOpen(false);
+  };
 
   // Gabungan kategori master dari database + kategori produk yang ada
   const allCategoryOptions = useMemo(() => {
@@ -665,10 +764,23 @@ export default function TransaksiClient({
                 setScannerTab('camera');
                 setScannerStatus('');
               }}
-              className="px-4 py-2.5 bg-[#cbf14e] hover:bg-[#bef03b] text-[#1c240d] font-bold rounded-xl text-xs flex items-center gap-2 shadow-xs transition shrink-0 cursor-pointer"
+              className="px-3.5 sm:px-4 py-2.5 bg-[#cbf14e] hover:bg-[#bef03b] text-[#1c240d] font-bold rounded-xl text-xs flex items-center gap-2 shadow-xs transition shrink-0 cursor-pointer"
             >
               <ScanBarcode className="w-4 h-4 text-[#1c240d]" />
-              <span>Scan barcode</span>
+              <span className="hidden sm:inline">Scan barcode</span>
+              <span className="sm:hidden">Scan</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsAiModalOpen(true);
+                setAiParseError('');
+              }}
+              className="px-3.5 sm:px-4 py-2.5 bg-[#4a5829] hover:bg-[#3d4922] text-[#d5ed70] font-bold rounded-xl text-xs flex items-center gap-2 shadow-xs transition shrink-0 cursor-pointer border border-[#3d4922]"
+            >
+              <Sparkles className="w-4 h-4 text-[#d5ed70]" />
+              <span>Input AI</span>
             </button>
           </div>
 
@@ -1409,6 +1521,226 @@ export default function TransaksiClient({
         <span>Wadira | Meja operasional warung</span>
         <span>{storeDisplayName}</span>
       </div>
+
+      {/* ========================================================= */}
+      {/* 6.5. AI TRANSACTION PARSER MODAL (ZAKI DEL-6) */}
+      {/* ========================================================= */}
+      {isAiModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl overflow-hidden w-full max-w-xl shadow-2xl relative border border-neutral-200 max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="bg-[#4a5829] text-white px-6 py-5 flex items-start justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#d5ed70] flex items-center justify-center text-[#1c240d] shadow-xs">
+                  <Sparkles className="w-5 h-5 text-[#1c240d]" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-extrabold tracking-wider text-[#d5ed70] uppercase block">
+                    MODUL BACKEND AI [ZAKI - DEL-6]
+                  </span>
+                  <h3 className="text-lg sm:text-xl font-black text-white mt-0.5">
+                    Parser Teks Transaksi Kasir
+                  </h3>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAiModalOpen(false);
+                  setAiParseError('');
+                }}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-5">
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 uppercase tracking-wider mb-2">
+                  Tulis atau Tempel Catatan Transaksi Kasir
+                </label>
+                <textarea
+                  rows={3}
+                  value={aiInputText}
+                  onChange={(e) => setAiInputText(e.target.value)}
+                  placeholder="Contoh: laku indomi 3, telur 1/2 kg, rokok surya 1 bks cash"
+                  className="w-full text-xs sm:text-sm p-3.5 rounded-xl border border-neutral-200 focus:border-[#4a5829] focus:outline-none transition resize-none bg-neutral-50/50"
+                />
+
+                {/* Quick Few-Shot Chip Suggestions */}
+                <div className="mt-2.5">
+                  <span className="text-[11px] font-semibold text-neutral-400 block mb-1.5">
+                    Coba contoh kalimat:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      'laku indomi 3, telur 1/2 kg',
+                      'beli rokok surya 1 bungkus, le mineral 2 botol bayar cash',
+                      'pak budi kasbon beras 5 kg sama masako sapi 2 renteng',
+                      'kulakan minyak goreng bimoli 10 botol, sabun nuvo 2 lusin',
+                      'token listrik 50rb bu ani bayar qris',
+                    ].map((exampleText, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setAiInputText(exampleText)}
+                        className="text-[11px] bg-neutral-100 hover:bg-[#eef5db] hover:text-[#3b4c1a] hover:border-[#cbf14e] border border-neutral-200 px-2.5 py-1 rounded-lg text-neutral-600 transition cursor-pointer text-left"
+                      >
+                        {exampleText}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Button */}
+              <div>
+                <button
+                  type="button"
+                  onClick={handleRunAiParse}
+                  disabled={isAiParsing || !aiInputText.trim()}
+                  className="w-full bg-[#cbf14e] hover:bg-[#bef03b] text-[#1c240d] font-bold py-3 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isAiParsing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-[#1c240d]" />
+                      <span>Memproses dengan AI (LLM / NLP Extraction)...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="w-4 h-4 text-[#1c240d]" />
+                      <span>Ekstrak &amp; Cocokkan dengan Database Produk</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Error Message */}
+              {aiParseError && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs flex items-center gap-2">
+                  <Info className="w-4 h-4 text-red-500 shrink-0" />
+                  <span>{aiParseError}</span>
+                </div>
+              )}
+
+              {/* Result Preview */}
+              {aiParseResult && (
+                <div className="bg-[#fcfdfa] border border-[#d6e5b4] rounded-2xl p-4 flex flex-col gap-3 animate-fadeIn">
+                  <div className="flex items-center justify-between border-b border-[#eef5db] pb-3">
+                    <span className="text-[10px] font-extrabold tracking-wider text-[#4a5829] uppercase">
+                      HASIL EKSTRAKSI ENTITAS
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#eef5db] text-[#3b4c1a]">
+                      {aiParseResult.engine === 'GEMINI_LLM' ? '🤖 Gemini AI' : '⚡ Heuristic Rules Fallback'}
+                    </span>
+                  </div>
+
+                  {/* Summary Badges */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                    <div className="bg-white border border-neutral-200/80 rounded-xl p-2">
+                      <span className="text-[10px] text-neutral-400 font-bold block uppercase">Aksi</span>
+                      <span className="text-xs font-black text-neutral-800">
+                        {aiParseResult.action === 'RESTOCK' ? 'Kulakan (Masuk)' : 'Penjualan (Laku)'}
+                      </span>
+                    </div>
+
+                    <div className="bg-white border border-neutral-200/80 rounded-xl p-2">
+                      <span className="text-[10px] text-neutral-400 font-bold block uppercase">Metode</span>
+                      <span className="text-xs font-black text-neutral-800">
+                        {aiParseResult.payment_method === 'CREDIT'
+                          ? 'Kasbon'
+                          : aiParseResult.payment_method === 'QRIS'
+                          ? 'QRIS'
+                          : 'Tunai'}
+                      </span>
+                    </div>
+
+                    <div className="bg-white border border-neutral-200/80 rounded-xl p-2">
+                      <span className="text-[10px] text-neutral-400 font-bold block uppercase">Pelanggan</span>
+                      <span className="text-xs font-black text-neutral-800 truncate block">
+                        {aiParseResult.customer_name || '-'}
+                      </span>
+                    </div>
+
+                    <div className="bg-white border border-neutral-200/80 rounded-xl p-2">
+                      <span className="text-[10px] text-neutral-400 font-bold block uppercase">Total Estimasi</span>
+                      <span className="text-xs font-black text-[#4a5829]">
+                        Rp{Number(aiParseResult.total_estimated || 0).toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Identified Products List */}
+                  <div>
+                    <span className="text-[11px] font-bold text-neutral-700 block mb-2">
+                      Daftar Produk Teridentifikasi ({aiParseResult.items?.length || 0}):
+                    </span>
+                    <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
+                      {aiParseResult.items?.map((it: any, idx: number) => (
+                        <div
+                          key={idx}
+                          className="bg-white border border-neutral-200 rounded-xl p-2.5 flex items-center justify-between text-xs"
+                        >
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-neutral-800">{it.name}</span>
+                              {it.matched ? (
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm bg-green-100 text-green-700">
+                                  {it.match_type === 'EXACT' ? 'Cocok Persis' : `Fuzzy (${Math.round((it.confidence || 0) * 100)}%)`}
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm bg-amber-100 text-amber-700">
+                                  Belum di DB
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[11px] text-neutral-400">
+                              Kata kasir: "{it.raw_query}" &bull; {it.quantity} {it.unit}
+                            </span>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <span className="font-bold text-neutral-800 block">
+                              Rp{Number(it.subtotal || 0).toLocaleString('id-ID')}
+                            </span>
+                            <span className="text-[10px] text-neutral-400 block">
+                              @Rp{Number(it.price || 0).toLocaleString('id-ID')}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            {aiParseResult && (
+              <div className="p-4 bg-neutral-50 border-t border-neutral-200 flex items-center justify-end gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsAiModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl border border-neutral-300 hover:bg-neutral-100 text-neutral-700 font-bold text-xs cursor-pointer transition"
+                >
+                  Tutup
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApplyAiToCart}
+                  className="px-5 py-2.5 bg-[#4a5829] hover:bg-[#3d4922] text-[#d5ed70] font-bold rounded-xl text-xs flex items-center gap-2 shadow-xs transition cursor-pointer"
+                >
+                  <ShoppingCart className="w-4 h-4 text-[#d5ed70]" />
+                  <span>Terapkan ke Keranjang Kasir</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 7. Barcode Scanner Modal (Screenshots 3 & 4) */}
       {isBarcodeOpen && (

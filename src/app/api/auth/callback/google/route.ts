@@ -34,7 +34,7 @@ export async function GET(req: Request) {
 
   const clientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/auth/callback/google.';
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/auth/callback/google';
 
   try {
     // 1. Tukar authorization code dengan access token & id token ke Google OAuth
@@ -80,6 +80,7 @@ export async function GET(req: Request) {
     const email = googleUser.email.trim().toLowerCase();
     const name = (googleUser.name || googleUser.given_name || email.split('@')[0]).trim();
     const avatar = googleUser.picture || '';
+    const googleId = googleUser.sub || '';
 
     // 3. Cek apakah akun ini sebelumnya sudah didaftarkan di database
     const { data: existingUser, error: queryError } = await supabase
@@ -109,6 +110,8 @@ export async function GET(req: Request) {
           phone_number: existingUser.phone_number || '',
           role: 'penjual',
           avatar_url: existingUser.avatar_url || avatar || '',
+          google_id: existingUser.google_id || googleId || null,
+          address: existingUser.address || null,
         };
         finalRedirect = '/dashboard/penjual';
       } else {
@@ -121,14 +124,20 @@ export async function GET(req: Request) {
           phone_number: existingUser.phone_number || '',
           role: 'pelanggan',
           avatar_url: existingUser.avatar_url || avatar || '',
+          google_id: existingUser.google_id || googleId || null,
+          address: existingUser.address || null,
         };
         finalRedirect = redirectTarget;
       }
 
-      // Update avatar jika ada foto Google terbaru
-      if (avatar && !existingUser.avatar_url) {
+      // Update avatar & google_id jika belum ada
+      const userUpdates: Record<string, any> = {};
+      if (avatar && !existingUser.avatar_url) userUpdates.avatar_url = avatar;
+      if (googleId && !existingUser.google_id) userUpdates.google_id = googleId;
+
+      if (Object.keys(userUpdates).length > 0) {
         try {
-          await supabase.from('users').update({ avatar_url: avatar }).eq('id', existingUser.id);
+          await supabase.from('users').update(userUpdates).eq('id', existingUser.id);
         } catch {
           // ignore
         }
@@ -147,6 +156,8 @@ export async function GET(req: Request) {
         phone_number: '',
         role: 'pelanggan',
         avatar_url: avatar,
+        google_id: googleId || null,
+        address: null,
         created_at: now,
       };
 
@@ -169,6 +180,8 @@ export async function GET(req: Request) {
         phone_number: '',
         role: 'pelanggan',
         avatar_url: avatar,
+        google_id: googleId || null,
+        address: null,
       };
 
       finalRedirect = redirectTarget;

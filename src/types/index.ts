@@ -7,6 +7,8 @@ export interface UserSession {
   warung_name?: string | null;
   role?: 'penjual' | 'pelanggan' | 'admin';
   avatar_url?: string | null;
+  google_id?: string | null;
+  address?: string | null;
 }
 
 export interface Debt {
@@ -134,4 +136,34 @@ export interface Order {
   delivery_address?: string;
   status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
   created_at: string;
+}
+
+export interface ParsedTransactionItem {
+  productId: string | null;
+  name: string;
+  rawQuery: string;
+  quantity: number;
+  unit: string;
+  price: number;
+  subtotal: number;
+  matched: boolean;
+  matchType: 'EXACT' | 'FUZZY' | 'UNMATCHED';
+  confidence: number;
+  currentStock?: number | null;
+  category?: string | null;
+}
+
+export interface ParsedTransactionResponse {
+  action: 'SALE' | 'RESTOCK';
+  paymentMethod: 'CASH' | 'QRIS' | 'CREDIT';
+  paymentStatus: 'PAID' | 'UNPAID' | 'PENDING';
+  customerName: string | null;
+  customerPhone?: string | null;
+  notes?: string | null;
+  items: ParsedTransactionItem[];
+  totalEstimated: number;
+  matchedCount: number;
+  unmatchedCount: number;
+  rawInput: string;
+  engine: 'GEMINI_LLM' | 'HEURISTIC_RULE_FALLBACK';
 }

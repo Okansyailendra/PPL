@@ -1,6 +1,8 @@
 -- =========================================================================
 -- WarungPPL Database Script (MySQL / MariaDB Edition)
 -- Database Name: `warungppl_db`
+-- Dilengkapi dukungan Akun Penjual & Akun Pembeli (Google Login)
+-- Total 10 Kategori & 69 Produk Kelontong / Warung Madura Lengkap
 -- =========================================================================
 
 SET FOREIGN_KEY_CHECKS = 0;
@@ -13,8 +15,12 @@ SET NAMES utf8mb4;
 --
 
 -- --------------------------------------------------------
--- 1. Tabel users (Pemilik Warung / Kasir)
+-- 1. Hapus Tabel Lama Jika Ada (Clean Setup)
 -- --------------------------------------------------------
+
+DROP VIEW IF EXISTS `view_ringkasan_umkm`;
+DROP VIEW IF EXISTS `view_produk_kritis`;
+DROP VIEW IF EXISTS `view_piutang_jatuh_tempo`;
 
 DROP TABLE IF EXISTS `payment_logs`;
 DROP TABLE IF EXISTS `transactions`;
@@ -24,6 +30,10 @@ DROP TABLE IF EXISTS `categories`;
 DROP TABLE IF EXISTS `customers`;
 DROP TABLE IF EXISTS `users`;
 
+-- --------------------------------------------------------
+-- 2. Tabel users (Pemilik Warung / Penjual & Pembeli / Google Login)
+-- --------------------------------------------------------
+
 CREATE TABLE `users` (
   `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
   `email` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -31,21 +41,24 @@ CREATE TABLE `users` (
   `store_name` varchar(191) NULL,
   `owner_name` varchar(191) NOT NULL,
   `phone_number` varchar(50) NULL,
-  `role` varchar(50) NOT NULL DEFAULT 'penjual',
+  `role` enum('penjual','pelanggan','admin') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pelanggan',
   `avatar_url` text NULL,
+  `google_id` varchar(191) NULL,
+  `address` text NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `users_email_unique` (`email`)
+  UNIQUE KEY `users_email_unique` (`email`),
+  KEY `idx_users_role` (`role`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Akun Penjual / Admin Resmi Wadira
-INSERT INTO `users` (`id`, `email`, `password`, `store_name`, `owner_name`, `phone_number`, `role`, `avatar_url`, `created_at`) VALUES
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'adminwadira12@gmail.com', NULL, 'Toko Wadira (Warung Madura)', 'Admin Wadira', '089516201846', 'penjual', NULL, '2026-10-02 14:13:16'),
-('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'okanwahyudi540@gmail.com', NULL, 'Toko Wadira (Warung Madura)', 'Okan Wahyudi', '089516201846', 'penjual', NULL, '2026-10-02 14:13:16'),
-('b93bb3f4-86b7-4348-92f7-14a2a816de08', 'otansyailendra123@gmail.com', NULL, '', '24-179 Okansyailendrawahyudi', '', 'pelanggan', NULL, '2026-11-19 13:39:07');
+-- Seed Data Akun: Penjual (Admin Wadira) & Pembeli (Google Login)
+INSERT INTO `users` (`id`, `email`, `password`, `store_name`, `owner_name`, `phone_number`, `role`, `avatar_url`, `google_id`, `address`, `created_at`) VALUES
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'adminwadira12@gmail.com', NULL, 'Toko Wadira (Warung Madura)', 'Admin Wadira', '089516201846', 'penjual', NULL, NULL, 'Jl. Raya Warung Madura No. 12', '2026-10-02 14:13:16'),
+('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'okanwahyudi540@gmail.com', NULL, 'Toko Wadira (Warung Madura)', 'Okan Wahyudi', '089516201846', 'penjual', NULL, NULL, 'Jl. Raya Warung Madura No. 12', '2026-10-02 14:13:16'),
+('b93bb3f4-86b7-4348-92f7-14a2a816de08', 'otansyailendra123@gmail.com', NULL, NULL, '24-179 Okansyailendrawahyudi', '081234567899', 'pelanggan', NULL, NULL, 'Kos Putra Jl. Melati No. 5', '2026-11-19 13:39:07');
 
 -- --------------------------------------------------------
--- 2. Tabel categories (Kategori Produk)
+-- 3. Tabel categories (Kategori Produk Etalase)
 -- --------------------------------------------------------
 
 CREATE TABLE `categories` (
@@ -61,15 +74,18 @@ CREATE TABLE `categories` (
 
 INSERT INTO `categories` (`id`, `umkm_id`, `name`, `description`, `created_at`) VALUES
 ('cat-01', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Mi & Makanan Instan', 'Mi instan dan makanan siap saji cepat saji', '2026-10-07 14:13:16'),
-('cat-02', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Bumbu & Dapur', 'Saus, kecap, merica, dan penyedap masakan', '2026-10-07 14:13:16'),
-('cat-03', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Makanan Ringan & Biskuit', 'Cokelat, pilus, wafer, camilan, brownies, biskuit', '2026-10-07 14:13:16'),
-('cat-04', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Minuman', 'Minuman gelas, jus, isotonik, air mineral, susu, dan teh', '2026-10-07 14:13:16'),
-('cat-05', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Sabun & Kebutuhan Rumah Tangga', 'Pewangi pakaian, sabun mandi, deterjen, sabun cuci piring', '2026-10-07 14:13:16'),
-('cat-06', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Obat & Kesehatan', 'Jamu saset, obat masuk angin, obat diare anak, madu', '2026-10-07 14:13:16'),
-('cat-07', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Perlengkapan & Korek Api', 'Selotip, lakban, dan korek api', '2026-10-07 14:13:16');
+('cat-02', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Bumbu & Dapur', 'Saus, kecap, merica, bumbu racik, dan penyedap masakan', '2026-10-07 14:13:16'),
+('cat-03', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Makanan Ringan & Biskuit', 'Cokelat, pilus, wafer, camilan siip, brownies, biskuit, sosis', '2026-10-07 14:13:16'),
+('cat-04', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Minuman', 'Minuman gelas, jus botol, isotonik, air mineral, susu, teh, dan kopi saset', '2026-10-07 14:13:16'),
+('cat-05', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Sabun & Kebutuhan Rumah Tangga', 'Pewangi pakaian, sabun mandi, deterjen, sampo, sabun cuci piring', '2026-10-07 14:13:16'),
+('cat-06', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Obat & Kesehatan', 'Jamu saset, obat masuk angin, obat diare anak, madu saset', '2026-10-07 14:13:16'),
+('cat-07', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Perlengkapan & Alat Rumah Tangga', 'Selotip, lakban, tali rafia, bohlam lampu, dan korek api', '2026-10-07 14:13:16'),
+('cat-08', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Aksesoris & Elektronik', 'Jam tangan, kalung, gelang, headset, kipas mini, mainan anak, parfum', '2026-10-07 14:13:16'),
+('cat-09', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Tagihan & Pulsa', 'Token listrik PLN, tagihan air PDAM, pulsa & paket data all operator', '2026-10-07 14:13:16'),
+('cat-10', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Gas & Galon', 'Gas LPG tabung melon 3 kg dan air minum galon isi ulang 19 liter', '2026-10-07 14:13:16');
 
 -- --------------------------------------------------------
--- 3. Tabel products (Inventaris Produk & Stok)
+-- 4. Tabel products (Inventaris Produk & Stok)
 -- --------------------------------------------------------
 
 CREATE TABLE `products` (
@@ -135,12 +151,65 @@ INSERT INTO `products` (`id`, `umkm_id`, `category_id`, `category`, `name`, `pri
 ('p29', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-06', 'Obat & Kesehatan', 'Madu TJ Murni Sachet 20g', 2500, 1900, 35, 6, 'sachet', '2026-10-07 14:13:16'),
 
 -- 7. Perlengkapan & Korek Api
-('p30', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-07', 'Perlengkapan & Korek Api', '3M Scotch Lakban Bening 48mm', 14000, 11500, 12, 3, 'pcs', '2026-10-07 14:13:16'),
-('p31', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-07', 'Perlengkapan & Korek Api', 'Korek Api Gas Tokai Original', 3500, 2600, 40, 8, 'pcs', '2026-10-07 14:13:16'),
-('p32', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-07', 'Perlengkapan & Korek Api', 'Korek Api Zippo Model Klasik', 35000, 26000, 5, 2, 'pcs', '2026-10-07 14:13:16');
+('p30', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-07', 'Perlengkapan & Alat Rumah Tangga', '3M Scotch Lakban Bening 48mm', 14000, 11500, 12, 3, 'pcs', '2026-10-07 14:13:16'),
+('p31', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-07', 'Perlengkapan & Alat Rumah Tangga', 'Korek Api Gas Tokai Original', 3500, 2600, 40, 8, 'pcs', '2026-10-07 14:13:16'),
+('p32', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-07', 'Perlengkapan & Alat Rumah Tangga', 'Korek Api Zippo Model Klasik', 35000, 26000, 5, 2, 'pcs', '2026-10-07 14:13:16'),
+
+-- Tambahan Kategori 2. Bumbu & Dapur
+('p33', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-02', 'Bumbu & Dapur', 'Masako Bumbu Kaldu Rasa Sapi 10g', 1000, 500, 80, 15, 'sachet', '2026-10-07 14:13:16'),
+('p34', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-02', 'Bumbu & Dapur', 'Masako Bumbu Kaldu Rasa Ayam 10g', 1000, 500, 80, 15, 'sachet', '2026-10-07 14:13:16'),
+('p35', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-02', 'Bumbu & Dapur', 'Royco Bumbu Pelezat Rasa Sapi 9g', 1000, 500, 80, 15, 'sachet', '2026-10-07 14:13:16'),
+('p36', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-02', 'Bumbu & Dapur', 'Sajiku Bumbu Nasi Goreng Rasa Ayam 20g', 2500, 1800, 40, 8, 'bungkus', '2026-10-07 14:13:16'),
+('p37', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-02', 'Bumbu & Dapur', 'Sajiku Bumbu Ikan Goreng Gurih 20g', 2500, 1800, 35, 8, 'bungkus', '2026-10-07 14:13:16'),
+('p38', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-02', 'Bumbu & Dapur', 'Kecap Sedaap Kedelai Hitam Pouch 250ml', 10500, 8500, 20, 5, 'pouch', '2026-10-07 14:13:16'),
+('p39', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-02', 'Bumbu & Dapur', 'Kecap Sedaap Kedelai Hitam Pouch 500ml', 19000, 15500, 15, 4, 'pouch', '2026-10-07 14:13:16'),
+('p40', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-02', 'Bumbu & Dapur', 'Minyak Goreng Bimoli Klasik Pouch 1 Liter', 20000, 17500, 24, 5, 'pouch', '2026-10-07 14:13:16'),
+('p41', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-02', 'Bumbu & Dapur', 'Minyak Goreng Bimoli Spesial Botol 1 Liter', 22500, 19500, 18, 4, 'botol', '2026-10-07 14:13:16'),
+('p42', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-02', 'Bumbu & Dapur', 'Desaku Ketumbar Bubuk Murni 15g', 2000, 1400, 40, 8, 'sachet', '2026-10-07 14:13:16'),
+('p43', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-02', 'Bumbu & Dapur', 'Desaku Kunyit Bubuk Murni 10g', 2000, 1400, 40, 8, 'sachet', '2026-10-07 14:13:16'),
+
+-- Tambahan Kategori 3. Makanan Ringan & Biskuit
+('p44', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-03', 'Makanan Ringan & Biskuit', 'Sosis So Nice Siap Makan Rasa Sapi', 1500, 1000, 60, 12, 'pcs', '2026-10-07 14:13:16'),
+
+-- Tambahan Kategori 4. Minuman
+('p45', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-04', 'Minuman', 'Sariwangi Teh Celup Asli Renceng (12 Bag)', 7500, 5800, 25, 5, 'renceng', '2026-10-07 14:13:16'),
+('p46', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-04', 'Minuman', 'Kopi Kapal Api Spesial Mix Gula 23g', 2000, 1400, 70, 15, 'sachet', '2026-10-07 14:13:16'),
+('p47', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-04', 'Minuman', 'Luwak White Koffie Original 3in1 20g', 2000, 1400, 60, 15, 'sachet', '2026-10-07 14:13:16'),
+('p48', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-04', 'Minuman', 'Teh Hijau Segar Kemasan Gelas 200ml', 1500, 1000, 48, 12, 'gelas', '2026-10-07 14:13:16'),
+
+-- Tambahan Kategori 5. Sabun & Kebutuhan Rumah Tangga
+('p49', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-05', 'Sabun & Kebutuhan Rumah Tangga', 'Sunlight Cuci Piring Jeruk Nipis 650ml', 15500, 12800, 20, 5, 'pouch', '2026-10-07 14:13:16'),
+('p50', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-05', 'Sabun & Kebutuhan Rumah Tangga', 'Sampo Lifebuoy Anti Ketombe Renceng', 6000, 4800, 20, 4, 'renceng', '2026-10-07 14:13:16'),
+('p51', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-05', 'Sabun & Kebutuhan Rumah Tangga', 'Sabun Mandi Batang Nuvo Family 76g', 4000, 3000, 30, 6, 'batang', '2026-10-07 14:13:16'),
+('p52', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-05', 'Sabun & Kebutuhan Rumah Tangga', 'Deterjen Bubuk Daia Bunga 290g', 6000, 4800, 25, 5, 'bungkus', '2026-10-07 14:13:16'),
+
+-- Tambahan Kategori 7. Perlengkapan & Alat Rumah Tangga
+('p53', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-07', 'Perlengkapan & Alat Rumah Tangga', 'Lakban Cokelat / Bening Serbaguna 2 Inch', 12000, 8500, 15, 4, 'roll', '2026-10-07 14:13:16'),
+('p54', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-07', 'Perlengkapan & Alat Rumah Tangga', 'Tali Rafia Gulungan Sedang 1/2 Kg', 13000, 9500, 15, 3, 'gulung', '2026-10-07 14:13:16'),
+('p55', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-07', 'Perlengkapan & Alat Rumah Tangga', 'Lampu Pijar Hemat Energi Philips 18W', 32000, 26000, 10, 2, 'unit', '2026-10-07 14:13:16'),
+('p56', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-07', 'Perlengkapan & Alat Rumah Tangga', 'Bohlam Lampu LED Opple Bright 40 Watt', 48000, 38000, 8, 2, 'unit', '2026-10-07 14:13:16'),
+('p57', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-07', 'Perlengkapan & Alat Rumah Tangga', 'Bohlam Lampu LED Haomen Super Terang 30 Watt', 29000, 22000, 10, 2, 'unit', '2026-10-07 14:13:16'),
+
+-- 8. Aksesoris & Elektronik
+('p58', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-08', 'Aksesoris & Elektronik', 'Gelang Tali Etnik / Manik Kasual', 5000, 3000, 20, 5, 'pcs', '2026-10-07 14:13:16'),
+('p59', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-08', 'Aksesoris & Elektronik', 'Kipas Angin Mini Portable USB Rechargeable', 30000, 22000, 8, 2, 'unit', '2026-10-07 14:13:16'),
+('p60', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-08', 'Aksesoris & Elektronik', 'Mainan Anak Mobil-Mobilan / Tiup Balon', 7000, 4000, 15, 4, 'pcs', '2026-10-07 14:13:16'),
+('p61', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-08', 'Aksesoris & Elektronik', 'Headset / Earphone Bass Stereo 3.5mm', 20000, 13000, 10, 3, 'pcs', '2026-10-07 14:13:16'),
+('p62', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-08', 'Aksesoris & Elektronik', 'Jam Tangan Sport Digital LED Anti Air', 40000, 28000, 8, 2, 'unit', '2026-10-07 14:13:16'),
+('p63', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-08', 'Aksesoris & Elektronik', 'Kalung Titanium / Tali Liontin Stylish', 18000, 11000, 12, 3, 'pcs', '2026-10-07 14:13:16'),
+('p64', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-08', 'Aksesoris & Elektronik', 'Parfum Minyak Wangi Roll-On Non Alkohol 6ml', 15000, 9500, 15, 3, 'botol', '2026-10-07 14:13:16'),
+
+-- 9. Tagihan & Pulsa
+('p65', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-09', 'Tagihan & Pulsa', 'Token Listrik PLN Prabayar (Denom 20k - 100k)', 23000, 20500, 99, 10, 'transaksi', '2026-10-07 14:13:16'),
+('p66', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-09', 'Tagihan & Pulsa', 'Pembayaran Tagihan Air PDAM Bulanan', 5000, 2500, 99, 10, 'transaksi', '2026-10-07 14:13:16'),
+('p67', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-09', 'Tagihan & Pulsa', 'Pulsa & Paket Data All Operator', 13000, 10500, 99, 10, 'transaksi', '2026-10-07 14:13:16'),
+
+-- 10. Gas & Galon
+('p68', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-10', 'Gas & Galon', 'Gas LPG Tabung Melon 3 Kg (Tukar Tabung)', 22000, 19000, 16, 3, 'tabung', '2026-10-07 14:13:16'),
+('p69', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-10', 'Gas & Galon', 'Air Minum Galon Isi Ulang Higienis 19L', 6000, 3500, 25, 5, 'galon', '2026-10-07 14:13:16');
 
 -- --------------------------------------------------------
--- 4. Tabel debts (Buku Bon / Piutang)
+-- 5. Tabel debts (Buku Bon / Piutang Warung)
 -- --------------------------------------------------------
 
 CREATE TABLE `debts` (
@@ -168,7 +237,7 @@ INSERT INTO `debts` (`id`, `umkm_id`, `customer_name`, `customer_phone`, `amount
 ('d2222222-2222-2222-2222-222222222222', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Bu Dewi Sri', '081233334444', 50000, 20000, 30000, 'PINJAMAN_TUNAI', '2026-10-17 14:13:16', '2026-11-15 14:13:16', 'PARTIAL', 'Pinjaman tunai keperluan dapur', NULL);
 
 -- --------------------------------------------------------
--- 5. Tabel payment_logs (Riwayat Pembayaran & Cicilan Kasbon)
+-- 6. Tabel payment_logs (Riwayat Pembayaran & Cicilan Kasbon)
 -- --------------------------------------------------------
 
 CREATE TABLE `payment_logs` (
@@ -191,12 +260,14 @@ INSERT INTO `payment_logs` (`id`, `debt_id`, `umkm_id`, `amount_paid`, `payment_
 ('log-001', 'd2222222-2222-2222-2222-222222222222', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 20000, 'CASH', 'Cicilan pertama diserahkan tunai', '2026-10-25 10:00:00', '2026-10-25 10:00:00');
 
 -- --------------------------------------------------------
--- 6. Tabel transactions (Mutasi Transaksi Penjualan & Kulakan)
+-- 7. Tabel transactions (Mutasi Transaksi Penjualan & Kulakan)
+-- Mendukung relasi ke customer_id (akun pembeli Google)
 -- --------------------------------------------------------
 
 CREATE TABLE `transactions` (
   `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
   `umkm_id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `customer_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `customer_name` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `customer_phone` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -215,8 +286,10 @@ CREATE TABLE `transactions` (
   `debt_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_transactions_umkm` (`umkm_id`),
+  KEY `idx_transactions_customer` (`customer_id`),
   KEY `idx_transactions_date` (`transaction_date`),
   KEY `idx_transactions_debt` (`debt_id`),
+  CONSTRAINT `fk_transactions_customer` FOREIGN KEY (`customer_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_transactions_debt` FOREIGN KEY (`debt_id`) REFERENCES `debts` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_transactions_user` FOREIGN KEY (`umkm_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -225,14 +298,14 @@ CREATE TABLE `transactions` (
 ALTER TABLE `debts`
   ADD CONSTRAINT `fk_debts_trx` FOREIGN KEY (`related_trx_id`) REFERENCES `transactions` (`id`) ON DELETE SET NULL;
 
-INSERT INTO `transactions` (`id`, `umkm_id`, `customer_name`, `customer_phone`, `created_at`, `transaction_date`, `type`, `category`, `payment_method`, `payment_status`, `total_amount`, `items`, `debt_id`) VALUES
-('e1111111-1111-1111-1111-111111111111', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Budi Santoso', '081234567891', '2026-10-26 14:13:16', '2026-10-26 14:13:16', 'IN', 'PENJUALAN', 'CASH', 'PAID', 14000, '[{"name": "Indomie Goreng Spesial 85g", "unit": "bungkus", "price": 3500, "quantity": 2, "subtotal": 7000, "costPrice": 2900, "productId": "p03"}, {"name": "Floridina Orange Juice 350ml", "unit": "botol", "price": 3500, "quantity": 2, "subtotal": 7000, "costPrice": 2800, "productId": "p15"}]', NULL),
-('e2222222-2222-2222-2222-222222222222', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Pak RT Bambang', '081211112222', '2026-10-27 14:13:16', '2026-10-27 14:13:16', 'IN', 'PENJUALAN', 'CREDIT', 'UNPAID', 75000, '[{"name": "Rinso Anti Noda Bubuk 770g", "unit": "bungkus", "price": 21000, "quantity": 1, "subtotal": 21000, "costPrice": 18500, "productId": "p23"}, {"name": "Zippo Korek Api Klasik", "unit": "pcs", "price": 35000, "quantity": 1, "subtotal": 35000, "costPrice": 26000, "productId": "p32"}]', 'd1111111-1111-1111-1111-111111111111'),
-('e3333333-3333-3333-3333-333333333333', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Siti Rahma', '081987654320', '2026-10-29 14:13:16', '2026-10-29 14:13:16', 'IN', 'PENJUALAN', 'QRIS', 'PAID', 28000, '[{"name": "Sunlight Jeruk Nipis 210ml", "unit": "pouch", "price": 5000, "quantity": 2, "subtotal": 10000, "costPrice": 4200, "productId": "p25"}, {"name": "3M Scotch Lakban Bening 48mm", "unit": "pcs", "price": 14000, "quantity": 1, "subtotal": 14000, "costPrice": 11500, "productId": "p30"}, {"name": "Antangin JRG Herbal Sachet", "unit": "sachet", "price": 4000, "quantity": 1, "subtotal": 4000, "costPrice": 3200, "productId": "p26"}]', NULL),
-('e4444444-4444-4444-4444-444444444444', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Agen Grosir Pasar', NULL, '2026-10-30 14:13:16', '2026-10-30 14:13:16', 'OUT', 'KULAKAN', 'CASH', 'PAID', 250000, '[{"name": "Kulakan Mi Instan, Sabun, dan Minuman Dingin", "price": 250000, "quantity": 1, "subtotal": 250000, "costPrice": 250000}]', NULL);
+INSERT INTO `transactions` (`id`, `umkm_id`, `customer_id`, `customer_name`, `customer_phone`, `created_at`, `transaction_date`, `type`, `category`, `payment_method`, `payment_status`, `total_amount`, `items`, `debt_id`) VALUES
+('e1111111-1111-1111-1111-111111111111', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', NULL, 'Budi Santoso', '081234567891', '2026-10-26 14:13:16', '2026-10-26 14:13:16', 'IN', 'PENJUALAN', 'CASH', 'PAID', 14000, '[{"name": "Indomie Goreng Spesial 85g", "unit": "bungkus", "price": 3500, "quantity": 2, "subtotal": 7000, "costPrice": 2900, "productId": "p03"}, {"name": "Floridina Orange Juice 350ml", "unit": "botol", "price": 3500, "quantity": 2, "subtotal": 7000, "costPrice": 2800, "productId": "p15"}]', NULL),
+('e2222222-2222-2222-2222-222222222222', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', NULL, 'Pak RT Bambang', '081211112222', '2026-10-27 14:13:16', '2026-10-27 14:13:16', 'IN', 'PENJUALAN', 'CREDIT', 'UNPAID', 75000, '[{"name": "Rinso Anti Noda Bubuk 770g", "unit": "bungkus", "price": 21000, "quantity": 1, "subtotal": 21000, "costPrice": 18500, "productId": "p23"}, {"name": "Korek Api Zippo Model Klasik", "unit": "pcs", "price": 35000, "quantity": 1, "subtotal": 35000, "costPrice": 26000, "productId": "p32"}]', 'd1111111-1111-1111-1111-111111111111'),
+('e3333333-3333-3333-3333-333333333333', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'b93bb3f4-86b7-4348-92f7-14a2a816de08', '24-179 Okansyailendrawahyudi', '081234567899', '2026-10-29 14:13:16', '2026-10-29 14:13:16', 'IN', 'PENJUALAN', 'QRIS', 'PAID', 28000, '[{"name": "Sunlight Jeruk Nipis 210ml", "unit": "pouch", "price": 5000, "quantity": 2, "subtotal": 10000, "costPrice": 4200, "productId": "p25"}, {"name": "3M Scotch Lakban Bening 48mm", "unit": "pcs", "price": 14000, "quantity": 1, "subtotal": 14000, "costPrice": 11500, "productId": "p30"}, {"name": "Antangin JRG Herbal Sachet", "unit": "sachet", "price": 4000, "quantity": 1, "subtotal": 4000, "costPrice": 3200, "productId": "p26"}]', NULL),
+('e4444444-4444-4444-4444-444444444444', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', NULL, 'Agen Grosir Pasar', NULL, '2026-10-30 14:13:16', '2026-10-30 14:13:16', 'OUT', 'KULAKAN', 'CASH', 'PAID', 250000, '[{"name": "Kulakan Mi Instan, Sabun, dan Minuman Dingin", "price": 250000, "quantity": 1, "subtotal": 250000, "costPrice": 250000}]', NULL);
 
 -- --------------------------------------------------------
--- 7. Views Penunjang
+-- 8. Views Penunjang Laporan & Monitoring
 -- --------------------------------------------------------
 
 DROP VIEW IF EXISTS `view_piutang_jatuh_tempo`;

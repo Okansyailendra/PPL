@@ -219,12 +219,16 @@ function LoginContent() {
 
   useEffect(() => {
     if (errorParam) {
-      setErrorMessage(decodeURIComponent(errorParam));
+      if (errorParam === 'GoogleClientIdBelumDiatur') {
+        setErrorMessage('Kredensial Google OAuth (Client ID) belum dimasukkan ke file .env.local oleh pengembang.');
+      } else {
+        setErrorMessage(decodeURIComponent(errorParam));
+      }
     }
   }, [errorParam]);
 
-  // Handler utama: Langsung redirect ke otorisasi resmi Google OAuth 2.0
-  const handleGoogleAuthorize = () => {
+  // Handler klik tombol "Lanjutkan dengan Google": Langsung ke OAuth resmi Google
+  const handleGoogleClick = () => {
     setIsLoading(true);
     setErrorMessage(null);
     const targetUrl = `/api/auth/google${redirectParam ? `?redirect=${encodeURIComponent(redirectParam)}` : ''}`;
@@ -339,7 +343,7 @@ function LoginContent() {
               Masuk dengan mudah untuk melanjutkan.
             </p>
 
-            {/* Error Banner jika ada */}
+            {/* Error Banner jika ada error fatal */}
             {errorMessage && (
               <div className="mb-5 p-3.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-medium flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
@@ -350,14 +354,14 @@ function LoginContent() {
             {/* Tombol Masuk dengan Google Otorisasi Langsung */}
             <button
               type="button"
-              onClick={handleGoogleAuthorize}
+              onClick={handleGoogleClick}
               disabled={isLoading}
               className="w-full py-3.5 px-4 rounded-xl border border-neutral-300 bg-white hover:bg-neutral-50 active:scale-[0.99] text-neutral-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-3 shadow-2xs transition cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed group"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin text-neutral-600" />
-                  <span>Membuka Otorisasi Google...</span>
+                  <span>Menghubungkan Akun Google...</span>
                 </>
               ) : (
                 <>

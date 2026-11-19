@@ -112,7 +112,7 @@ export async function getCurrentUser(): Promise<UserSession | null> {
 
     const { data: dbUser } = await supabase
       .from('users')
-      .select('id, email, store_name, owner_name, phone_number, role, avatar_url')
+      .select('id, email, store_name, owner_name, phone_number, role, avatar_url, google_id, address')
       .eq('id', payload.id)
       .single();
 
@@ -134,7 +134,7 @@ export async function getCurrentUser(): Promise<UserSession | null> {
     if (payload.email) {
       const { data: userByEmail } = await supabase
         .from('users')
-        .select('id, email, store_name, owner_name, phone_number, role, avatar_url')
+        .select('id, email, store_name, owner_name, phone_number, role, avatar_url, google_id, address')
         .eq('email', payload.email)
         .single();
 

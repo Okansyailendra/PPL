@@ -8,9 +8,14 @@ import type { UserSession } from '@/types';
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const redirectParam = searchParams.get('redirect') || searchParams.get('callbackUrl') || '';
+  const isCheck = searchParams.get('check') === '1';
 
   const clientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/auth/callback/google.';
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/auth/callback/google';
+
+  if (isCheck) {
+    return NextResponse.json({ hasConfig: Boolean(clientId) });
+  }
 
   if (!clientId) {
     return NextResponse.redirect(new URL('/login?error=GoogleClientIdBelumDiatur', req.url));
@@ -102,6 +107,8 @@ export async function POST(req: Request) {
           phone_number: existingUser.phone_number || '',
           role: effectiveRole,
           avatar_url: existingUser.avatar_url || avatar || '',
+          google_id: existingUser.google_id || null,
+          address: existingUser.address || null,
         };
         targetUrl = '/dashboard/penjual';
       } else {
@@ -114,6 +121,8 @@ export async function POST(req: Request) {
           phone_number: existingUser.phone_number || '',
           role: 'pelanggan',
           avatar_url: existingUser.avatar_url || avatar || '',
+          google_id: existingUser.google_id || null,
+          address: existingUser.address || null,
         };
         // Jika ada redirect khusus (misal dari keranjang checkout)
         targetUrl = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/dashboard/pelanggan';
@@ -140,6 +149,8 @@ export async function POST(req: Request) {
         phone_number: '',
         role: 'pelanggan',
         avatar_url: avatar || '',
+        google_id: null,
+        address: null,
         created_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
       };
 
@@ -161,6 +172,8 @@ export async function POST(req: Request) {
         phone_number: '',
         role: 'pelanggan',
         avatar_url: avatar || '',
+        google_id: null,
+        address: null,
       };
 
       targetUrl = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/dashboard/pelanggan';
