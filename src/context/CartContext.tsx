@@ -113,6 +113,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const clearCart = () => {
     setCart([]);
+    try {
+      localStorage.removeItem('warung_cart');
+    } catch {
+      // ignore
+    }
   };
 
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);

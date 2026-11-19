@@ -53,6 +53,9 @@ function KeranjangContent() {
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
 
+  // Status Pesanan Berhasil
+  const [orderSuccess, setOrderSuccess] = useState(false);
+
   // Form data pemesan
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -201,6 +204,11 @@ ${fulfillmentType === 'delivery'
       : `https://web.whatsapp.com/send?phone=${WARUNG_WA_NUMBER}&text=${encodedMessage}`;
 
     window.open(waUrl, '_blank');
+
+    // Kosongkan keranjang belanja agar saat belanja berikutnya keranjang bersih
+    clearCart();
+    setOrderSuccess(true);
+    setCurrentStep(1);
   };
 
   const handlePayWithMidtrans = async () => {
@@ -258,6 +266,8 @@ ${fulfillmentType === 'delivery'
               orderId: data.orderId,
             });
             clearCart();
+            setOrderSuccess(true);
+            setCurrentStep(1);
           },
           onPending: function (result: any) {
             console.log('Payment pending:', result);
@@ -383,28 +393,66 @@ ${fulfillmentType === 'delivery'
             </div>
           </div>
 
-          {/* Empty Cart State */}
+          {/* Empty or Order Success State */}
           {cart.length === 0 ? (
-            <div className="bg-white rounded-3xl border border-slate-200/80 p-12 text-center max-w-xl mx-auto space-y-4 shadow-xs">
-              <div className="w-20 h-20 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto">
-                <ShoppingBag className="w-10 h-10 stroke-1" />
+            orderSuccess ? (
+              <div className="bg-white rounded-3xl border border-emerald-200/90 p-8 sm:p-12 text-center max-w-xl mx-auto space-y-5 shadow-xs animate-in zoom-in-95 duration-200">
+                <div className="w-20 h-20 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-xs">
+                  <CheckCircle2 className="w-10 h-10" />
+                </div>
+                <div className="space-y-1.5">
+                  <h3 className="text-xl sm:text-2xl font-black text-neutral-900 tracking-tight">
+                    Pesanan Berhasil Dikirim ke Kasir!
+                  </h3>
+                  <p className="text-xs sm:text-sm text-neutral-600 max-w-md mx-auto leading-relaxed">
+                    Rincian pesanan telah dikirimkan ke WhatsApp Kasir Toko Wadira. Keranjang belanja Anda telah otomatis dikosongkan agar siap untuk belanja berikutnya.
+                  </p>
+                </div>
+
+                <div className="p-3.5 bg-emerald-50 rounded-2xl border border-emerald-100 text-xs text-emerald-800 font-medium">
+                  Kasir akan segera merespons chat WhatsApp Anda untuk konfirmasi ketersediaan barang dan pengantaran.
+                </div>
+
+                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <Link
+                    href="/dashboard/pelanggan"
+                    onClick={() => setOrderSuccess(false)}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#465427] hover:bg-[#38441f] text-white font-bold text-xs sm:text-sm shadow-xs transition"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Mulai Belanja Kebutuhan Lain</span>
+                  </Link>
+                  <Link
+                    href="/dashboard/pelanggan/struk"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-700 font-bold text-xs sm:text-sm shadow-2xs transition"
+                  >
+                    <FileText className="w-4 h-4 text-emerald-600" />
+                    <span>Lihat Riwayat Struk</span>
+                  </Link>
+                </div>
               </div>
-              <div>
-                <h3 className="text-xl font-bold text-slate-900">Keranjang belanja Anda masih kosong</h3>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-md mx-auto">
-                  Belum ada barang kebutuhan yang dipilih. Yuk cek etalase warung dan pilih barang belanja harian Anda.
-                </p>
+            ) : (
+              <div className="bg-white rounded-3xl border border-slate-200/80 p-12 text-center max-w-xl mx-auto space-y-4 shadow-xs">
+                <div className="w-20 h-20 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto">
+                  <ShoppingBag className="w-10 h-10 stroke-1" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Keranjang belanja Anda masih kosong</h3>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-md mx-auto">
+                    Belum ada barang kebutuhan yang dipilih. Yuk cek etalase warung dan pilih barang belanja harian Anda.
+                  </p>
+                </div>
+                <div className="pt-2">
+                  <Link
+                    href="/dashboard/pelanggan"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm shadow-md transition"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Mulai Belanja di Etalase</span>
+                  </Link>
+                </div>
               </div>
-              <div className="pt-2">
-                <Link
-                  href="/dashboard/pelanggan"
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm shadow-md transition"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Mulai Belanja di Etalase</span>
-                </Link>
-              </div>
-            </div>
+            )
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               {/* ================= LEFT COLUMN ================= */}
