@@ -39,7 +39,7 @@ export default function Header({ user }: HeaderProps) {
     <header className="w-full bg-[#465427] text-white sticky top-0 z-50 shadow-sm">
       {/* Top Bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-        {/* Left: Brand wadira. | Warung Madura Digital */}
+        {/* Left: Brand wadira. | Warung Digital Madura */}
         <div className="flex items-center gap-3">
           <Link href="/dashboard/penjual" className="flex items-center gap-2 group">
             <span className="font-sans text-2xl font-black tracking-tight text-white group-hover:opacity-90 transition">
@@ -48,7 +48,7 @@ export default function Header({ user }: HeaderProps) {
           </Link>
           <div className="h-4 w-px bg-white/20 hidden sm:block" />
           <span className="text-xs text-white/80 font-medium hidden sm:inline-block">
-            Warung Madura Digital
+            Warung Digital Madura
           </span>
         </div>
 

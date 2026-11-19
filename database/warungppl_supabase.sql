@@ -20,10 +20,12 @@ DROP TABLE IF EXISTS public.users CASCADE;
 CREATE TABLE public.users (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   email TEXT UNIQUE NOT NULL,
-  password TEXT NOT NULL,
-  store_name TEXT NOT NULL,
+  password TEXT NULL,
+  store_name TEXT NULL,
   owner_name TEXT NOT NULL,
-  phone_number TEXT NOT NULL,
+  phone_number TEXT NULL,
+  role TEXT NOT NULL DEFAULT 'penjual' CHECK (role IN ('penjual', 'pelanggan', 'admin')),
+  avatar_url TEXT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -144,10 +146,11 @@ CREATE POLICY "Allow public read products" ON public.products
   FOR SELECT TO anon, authenticated
   USING (true);
 
--- SEED DATA (Password di-hash bcrypt: password123 & madura123)
-INSERT INTO public.users (id, email, password, store_name, owner_name, phone_number, created_at) VALUES
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'admin@warungberkah.com', '$2b$10$U7L9ZeGyX3r1p4t1Sx4C2ebnO7YFe4bau85.S6myCHn.Npb.Vkq5W', 'Warung Sembako Berkah', 'Helwiyah', '081234567890', '2026-10-02 14:13:16+00'),
-('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'toko.madura@gmail.com', '$2b$10$K5JF7qfgfkw51iMqO9VUeetK3ycJPltLjPSzjzjgyX1THM69TGd2W', 'Toko Madura Barokah 24 Jam', 'H. Hasan Basri', '081987654321', '2026-10-12 14:13:16+00');
+-- Akun Penjual Tunggal Wadira
+INSERT INTO public.users (id, email, password, store_name, owner_name, phone_number, role, avatar_url, created_at) VALUES
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'adminwadira12@gmail.com', NULL, 'Toko Wadira (Warung Madura)', 'Admin Wadira', '089516201846', 'penjual', NULL, '2026-10-02 14:13:16+00'),
+('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'okanwahyudi540@gmail.com', NULL, 'Toko Wadira (Warung Madura)', 'Okan Wahyudi', '089516201846', 'penjual', NULL, '2026-10-02 14:13:16+00'),
+('b93bb3f4-86b7-4348-92f7-14a2a816de08', 'otansyailendra123@gmail.com', NULL, '', '24-179 Okansyailendrawahyudi', '', 'pelanggan', NULL, '2026-11-19 13:39:07+00');
 
 INSERT INTO public.categories (id, umkm_id, name, description, created_at) VALUES
 ('11111111-0001-4444-8888-000000000001', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Mi & Makanan Instan', 'Mi instan dan makanan siap saji cepat saji', '2026-10-07 14:13:16+00'),

@@ -4,7 +4,6 @@ import React, { useState, useMemo, useEffect, use } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
-import TopHeader from '@/components/pembeli/TopHeader';
 import CartDrawer from '@/components/pembeli/CartDrawer';
 import Footer from '@/components/pembeli/Footer';
 import { PRODUCTS as FALLBACK_PRODUCTS } from '@/data/mockProducts';
@@ -131,11 +130,7 @@ function ProductDetailContent({ productId }: { productId: string }) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
-      {/* Top Navbar */}
-      <TopHeader />
-
-      <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-[1600px] w-full mx-auto space-y-6">
+    <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
           {/* Breadcrumb & Action Header */}
           <div className="space-y-2">
             <nav className="flex items-center gap-2 text-xs font-medium text-slate-500">
@@ -399,7 +394,6 @@ function ProductDetailContent({ productId }: { productId: string }) {
           </div>
 
           <Footer />
-        </main>
 
       <CartDrawer />
     </div>

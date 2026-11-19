@@ -3,14 +3,10 @@
 -- Database Name: `warungppl_db`
 -- =========================================================================
 
+SET FOREIGN_KEY_CHECKS = 0;
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-START TRANSACTION;
 SET time_zone = "+00:00";
-
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8mb4 */;
+SET NAMES utf8mb4;
 
 --
 -- Database: `warungppl_db`
@@ -31,19 +27,22 @@ DROP TABLE IF EXISTS `users`;
 CREATE TABLE `users` (
   `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
   `email` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `password` varchar(255) NOT NULL,
-  `store_name` varchar(191) NOT NULL,
+  `password` varchar(255) NULL,
+  `store_name` varchar(191) NULL,
   `owner_name` varchar(191) NOT NULL,
-  `phone_number` varchar(50) NOT NULL,
+  `phone_number` varchar(50) NULL,
+  `role` varchar(50) NOT NULL DEFAULT 'penjual',
+  `avatar_url` text NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `users_email_unique` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Password di-hash menggunakan bcrypt (password123 & madura123)
-INSERT INTO `users` (`id`, `email`, `password`, `store_name`, `owner_name`, `phone_number`, `created_at`) VALUES
-('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'admin@warungberkah.com', '$2b$10$U7L9ZeGyX3r1p4t1Sx4C2ebnO7YFe4bau85.S6myCHn.Npb.Vkq5W', 'Warung Sembako Berkah', 'Helwiyah', '081234567890', '2026-10-02 14:13:16'),
-('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'toko.madura@gmail.com', '$2b$10$K5JF7qfgfkw51iMqO9VUeetK3ycJPltLjPSzjzjgyX1THM69TGd2W', 'Toko Madura Barokah 24 Jam', 'H. Hasan Basri', '081987654321', '2026-10-12 14:13:16');
+-- Akun Penjual / Admin Resmi Wadira
+INSERT INTO `users` (`id`, `email`, `password`, `store_name`, `owner_name`, `phone_number`, `role`, `avatar_url`, `created_at`) VALUES
+('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'adminwadira12@gmail.com', NULL, 'Toko Wadira (Warung Madura)', 'Admin Wadira', '089516201846', 'penjual', NULL, '2026-10-02 14:13:16'),
+('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'okanwahyudi540@gmail.com', NULL, 'Toko Wadira (Warung Madura)', 'Okan Wahyudi', '089516201846', 'penjual', NULL, '2026-10-02 14:13:16'),
+('b93bb3f4-86b7-4348-92f7-14a2a816de08', 'otansyailendra123@gmail.com', NULL, '', '24-179 Okansyailendrawahyudi', '', 'pelanggan', NULL, '2026-11-19 13:39:07');
 
 -- --------------------------------------------------------
 -- 2. Tabel categories (Kategori Produk)
@@ -292,8 +291,4 @@ FROM ((`users` `u`
   LEFT JOIN `transactions` `t` ON (`u`.`id` = `t`.`umkm_id`))
 GROUP BY `u`.`id`, `u`.`store_name`, `u`.`owner_name`;
 
-COMMIT;
-
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+SET FOREIGN_KEY_CHECKS = 1;

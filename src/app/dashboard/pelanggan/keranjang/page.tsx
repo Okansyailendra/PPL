@@ -4,10 +4,9 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { CartProvider, useCart } from '@/context/CartContext';
-import TopHeader from '@/components/pembeli/TopHeader';
 import Footer from '@/components/pembeli/Footer';
 import CartDrawer from '@/components/pembeli/CartDrawer';
-import { ProductVariant } from '@/types';
+import { ProductVariant, UserSession } from '@/types';
 import { 
   Plus, 
   Minus, 
@@ -29,6 +28,8 @@ import {
   Banknote, 
   CreditCard, 
   FileText,
+  Lock,
+  LogIn,
   X 
 } from 'lucide-react';
 
@@ -45,8 +46,12 @@ function KeranjangContent() {
     setFulfillmentType,
   } = useCart();
 
-  // Active step in checkout workflow: 1: Keranjang, 2: Pengiriman & Identitas, 3: Tinjau & WhatsApp
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  // Alur checkout ringkas: 1: Keranjang, 2: Pengiriman & Identitas
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
+
+  // Status User & Modal Login
+  const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Form data pemesan
   const [customerName, setCustomerName] = useState('');
@@ -57,6 +62,28 @@ function KeranjangContent() {
   const [validationError, setValidationError] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentResult, setPaymentResult] = useState<{ status: 'success' | 'pending' | 'error'; message: string; orderId?: string } | null>(null);
+
+  // Cek sesi user yang sedang aktif
+  useEffect(() => {
+    async function checkAuthSession() {
+      try {
+        const res = await fetch('/api/auth/session', { cache: 'no-store' });
+        const data = await res.json();
+        if (data?.success && data?.user) {
+          setCurrentUser(data.user);
+          if (data.user.owner_name) {
+            setCustomerName((prev) => prev || data.user.owner_name);
+          }
+          if (data.user.phone_number) {
+            setCustomerPhone((prev) => prev || data.user.phone_number);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+    checkAuthSession();
+  }, []);
 
   // Jika opsi antar dipilih, paksa metode pembayaran menjadi Transfer / QRIS (non-tunai)
   useEffect(() => {
@@ -100,9 +127,9 @@ function KeranjangContent() {
 
     if (!customerName.trim()) {
       setValidationError('Silakan isi Nama Pemesan.');
-      setCurrentStep(2);
       return;
     }
+    setValidationError('');
 
     // Save profile to LocalStorage
     try {
@@ -265,11 +292,7 @@ ${fulfillmentType === 'delivery'
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
-      {/* Top Navbar */}
-      <TopHeader />
-
-      <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-[1600px] w-full mx-auto space-y-6">
+    <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
           {/* Page Heading & Action Button */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
@@ -329,7 +352,14 @@ ${fulfillmentType === 'delivery'
 
               {/* Step 2 */}
               <button
-                onClick={() => cart.length > 0 && setCurrentStep(2)}
+                onClick={() => {
+                  if (cart.length === 0) return;
+                  if (!currentUser) {
+                    setShowLoginModal(true);
+                    return;
+                  }
+                  setCurrentStep(2);
+                }}
                 disabled={cart.length === 0}
                 className="flex items-center gap-2.5 group cursor-pointer disabled:cursor-not-allowed"
               >
@@ -337,12 +367,10 @@ ${fulfillmentType === 'delivery'
                   className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition ${
                     currentStep === 2
                       ? 'bg-emerald-700 text-white shadow-2xs'
-                      : currentStep > 2
-                      ? 'bg-emerald-100 text-emerald-800'
                       : 'bg-slate-100 text-slate-500'
                   }`}
                 >
-                  {currentStep > 2 ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : '2'}
+                  2
                 </div>
                 <span
                   className={`text-xs font-bold ${
@@ -350,36 +378,6 @@ ${fulfillmentType === 'delivery'
                   }`}
                 >
                   Pengiriman &amp; Identitas
-                </span>
-              </button>
-
-              <div
-                className={`flex-1 h-0.5 mx-3 ${
-                  currentStep >= 3 ? 'bg-emerald-600' : 'bg-slate-200'
-                }`}
-              />
-
-              {/* Step 3 */}
-              <button
-                onClick={() => cart.length > 0 && setCurrentStep(3)}
-                disabled={cart.length === 0}
-                className="flex items-center gap-2.5 group cursor-pointer disabled:cursor-not-allowed"
-              >
-                <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition ${
-                    currentStep === 3
-                      ? 'bg-emerald-700 text-white shadow-2xs'
-                      : 'bg-slate-100 text-slate-500'
-                  }`}
-                >
-                  3
-                </div>
-                <span
-                  className={`text-xs font-bold ${
-                    currentStep === 3 ? 'text-slate-900' : 'text-slate-500'
-                  }`}
-                >
-                  Tinjau &amp; WhatsApp
                 </span>
               </button>
             </div>
@@ -793,100 +791,7 @@ ${fulfillmentType === 'delivery'
                       </div>
                     </div>
 
-                    {/* Tombol Navigasi Step 2 */}
-                    <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-                      <button
-                        type="button"
-                        onClick={() => setCurrentStep(1)}
-                        className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 transition flex items-center gap-1.5"
-                      >
-                        <ArrowLeft className="w-3.5 h-3.5" />
-                        <span>Kembali ke Keranjang</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!customerName.trim()) {
-                            setValidationError('Nama Pemesan wajib diisi.');
-                            return;
-                          }
-                          setValidationError('');
-                          setCurrentStep(3);
-                        }}
-                        className="px-5 py-2.5 rounded-xl bg-[#d4f952] hover:bg-[#c4ec3e] text-neutral-950 font-bold text-xs border border-[#c4ec3e] shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <span>Lanjut ke Tinjau &amp; WhatsApp</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 3: TINJAU & SIAP KIRIM KE WHATSAPP */}
-                {currentStep === 3 && (
-                  <div className="bg-white rounded-3xl border border-neutral-200/90 p-6 md:p-8 shadow-xs space-y-6">
-                    <div>
-                      <h2 className="text-lg font-black text-neutral-950">
-                        Langkah 3: Tinjau &amp; Kirim Pesanan
-                      </h2>
-                      <p className="text-xs text-neutral-500 mt-0.5">
-                        Pesanan Anda sudah siap dikirimkan langsung ke kasir WhatsApp Toko Wadira.
-                      </p>
-                    </div>
-
-                    {/* Ringkasan Data Pemesan */}
-                    <div className="p-4 rounded-2xl bg-[#f2f7ec] border border-[#e2edd8] space-y-2 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-neutral-600">Pemesan:</span>
-                        <span className="font-bold text-neutral-950">{customerName}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-neutral-600">Metode:</span>
-                        <span className="font-bold text-neutral-950">
-                          {fulfillmentType === 'delivery' ? '🛵 Dikirim ke Rumah (Ongkir dicek penjual via ojol)' : '🏪 Ambil di Warung (Gratis)'}
-                        </span>
-                      </div>
-                      {fulfillmentType === 'delivery' && (
-                        <div className="flex justify-between">
-                          <span className="text-neutral-600">Alamat:</span>
-                          <span className="font-bold text-neutral-950 text-right">{customerAddress}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span className="text-neutral-600">Pembayaran:</span>
-                        <span className="font-bold text-neutral-950">
-                          {fulfillmentType === 'delivery'
-                            ? 'Transfer / QRIS (Menunggu info total + ongkir)'
-                            : paymentMethod === 'cash'
-                            ? 'Tunai di Warung'
-                            : 'Transfer / QRIS'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Preview Rekap Barang */}
-                    <div className="space-y-2">
-                      <div className="text-xs font-bold text-neutral-800 uppercase tracking-wider">
-                        Rincian {totalKinds} Jenis Barang ({totalItems} unit):
-                      </div>
-                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                        {cart.map((item, idx) => {
-                          const itemPrice = item.selectedVariant ? item.selectedVariant.price : item.product.price;
-                          const subtotal = itemPrice * item.quantity;
-                          return (
-                            <div key={idx} className="flex justify-between text-xs p-2 rounded-lg bg-neutral-50 border border-neutral-100">
-                              <span className="text-neutral-800">
-                                {idx + 1}. {item.product.name} {item.selectedVariant ? `(${item.selectedVariant.name})` : ''} x {item.quantity}
-                              </span>
-                              <span className="font-bold text-neutral-950">Rp{subtotal.toLocaleString('id-ID')}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Notifikasi Hasil Pembayaran */}
+                    {/* Hasil Pembayaran jika ada */}
                     {paymentResult && (
                       <div
                         className={`p-4 rounded-2xl border text-xs space-y-1 ${
@@ -900,67 +805,65 @@ ${fulfillmentType === 'delivery'
                           <span>{paymentResult.message}</span>
                         </div>
                         {paymentResult.orderId && (
-                          <div className="text-[11px] opacity-80">
-                            ID Pesanan: <span className="font-mono font-bold">{paymentResult.orderId}</span>
+                          <div className="text-[11px] opacity-90 pt-1 space-y-1">
+                            <div>
+                              ID Pesanan: <span className="font-mono font-bold">{paymentResult.orderId}</span>
+                            </div>
+                            <Link
+                              href={`/dashboard/pelanggan/struk?search=${encodeURIComponent(paymentResult.orderId)}`}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition-colors"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>Lihat &amp; Cetak Struk Belanja</span>
+                            </Link>
                           </div>
                         )}
                       </div>
                     )}
 
-                    {/* Tombol Pembayaran Utama */}
-                    <div className="pt-3 border-t border-neutral-100 space-y-3">
-                      {paymentMethod === 'qris' ? (
-                        <button
-                          type="button"
-                          disabled={isProcessingPayment}
-                          onClick={handlePayWithMidtrans}
-                          className="w-full py-4 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm shadow-md flex items-center justify-center gap-2.5 transition active:scale-[0.99] cursor-pointer disabled:opacity-50"
-                        >
-                          <CreditCard className="w-4 h-4" />
-                          <span>
-                            {isProcessingPayment ? 'Menyiapkan Pembayaran Midtrans...' : 'Bayar Sekarang via Midtrans (QRIS / VA / Bank)'}
-                          </span>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={handleCheckoutWA}
-                          className="w-full py-4 px-6 rounded-xl bg-[#d4f952] hover:bg-[#c4ec3e] text-neutral-950 font-black text-sm border border-[#c4ec3e] shadow-xs flex items-center justify-center gap-2.5 transition active:scale-[0.99] cursor-pointer"
-                        >
-                          <Send className="w-4 h-4" />
-                          <span>Kirim Pesanan ke WhatsApp Toko Wadira</span>
-                        </button>
-                      )}
+                    {/* Tombol Aksi Langsung Kirim / Bayar di Step 2 */}
+                    <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentStep(1)}
+                        className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        <span>Kembali ke Keranjang</span>
+                      </button>
 
-                      {/* Tombol alternatif kirim WA jika pilih bayar online tapi ingin konfirmasi chat */}
-                      {paymentMethod === 'qris' && (
-                        <button
-                          type="button"
-                          onClick={handleCheckoutWA}
-                          className="w-full py-2.5 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center justify-center gap-2 transition"
-                        >
-                          <Send className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Atau Kirim Rincian Pesanan ke WhatsApp Toko</span>
-                        </button>
-                      )}
+                      <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2">
+                        {paymentMethod === 'qris' ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={isProcessingPayment}
+                              onClick={handlePayWithMidtrans}
+                              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                            >
+                              <CreditCard className="w-4 h-4" />
+                              <span>{isProcessingPayment ? 'Memproses...' : 'Bayar Sekarang via QRIS'}</span>
+                            </button>
 
-                      <div className="flex justify-between items-center pt-2">
-                        <button
-                          type="button"
-                          onClick={() => setCurrentStep(2)}
-                          className="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1"
-                        >
-                          <ArrowLeft className="w-3.5 h-3.5" />
-                          <span>Ubah data pengiriman</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setCurrentStep(1)}
-                          className="text-xs font-semibold text-emerald-700 hover:underline"
-                        >
-                          Ubah rincian belanja
-                        </button>
+                            <button
+                              type="button"
+                              onClick={handleCheckoutWA}
+                              className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                            >
+                              <Send className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Kirim via WA</span>
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleCheckoutWA}
+                            className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#d4f952] hover:bg-[#c4ec3e] text-neutral-950 font-black text-xs border border-[#c4ec3e] shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <Send className="w-4 h-4" />
+                            <span>Kirim Pesanan ke WhatsApp</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1017,39 +920,59 @@ ${fulfillmentType === 'delivery'
                   {/* Action Button: Dynamic depending on Step */}
                   <div className="pt-1">
                     {currentStep === 1 ? (
-                      <button
-                        type="button"
-                        onClick={() => setCurrentStep(2)}
-                        className="w-full py-3.5 px-4 bg-[#0F4A3C] hover:bg-[#0c3c31] text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-sm transition active:scale-[0.99] cursor-pointer"
-                      >
-                        <span>Pilih ambil atau antar</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
-                    ) : currentStep === 2 ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!customerName.trim()) {
-                            setValidationError('Nama Pemesan wajib diisi.');
-                            return;
-                          }
-                          setValidationError('');
-                          setCurrentStep(3);
-                        }}
-                        className="w-full py-3.5 px-4 bg-[#0F4A3C] hover:bg-[#0c3c31] text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-sm transition active:scale-[0.99] cursor-pointer"
-                      >
-                        <span>Tinjau Pesanan</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
+                      <div className="space-y-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!currentUser) {
+                              setShowLoginModal(true);
+                              return;
+                            }
+                            setCurrentStep(2);
+                          }}
+                          className="w-full py-3.5 px-4 bg-[#0F4A3C] hover:bg-[#0c3c31] text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-sm transition active:scale-[0.99] cursor-pointer"
+                        >
+                          <span>Pilih ambil atau antar</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                        {!currentUser && (
+                          <div className="p-2.5 rounded-xl bg-amber-50/90 border border-amber-200 text-amber-900 text-center text-[11px] font-medium flex items-center justify-center gap-1.5">
+                            <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                            <span>Wajib login dengan Google untuk lanjut ke pengiriman</span>
+                          </div>
+                        )}
+                      </div>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={handleCheckoutWA}
-                        className="w-full py-3.5 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-md shadow-emerald-700/20 transition active:scale-[0.99] cursor-pointer"
-                      >
-                        <Send className="w-4 h-4" />
-                        <span>Kirim ke WhatsApp</span>
-                      </button>
+                      <div className="space-y-2">
+                        {paymentMethod === 'qris' ? (
+                          <button
+                            type="button"
+                            disabled={isProcessingPayment}
+                            onClick={handlePayWithMidtrans}
+                            className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-sm transition active:scale-[0.99] cursor-pointer disabled:opacity-50"
+                          >
+                            <CreditCard className="w-4 h-4" />
+                            <span>{isProcessingPayment ? 'Memproses...' : 'Bayar Sekarang via QRIS'}</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleCheckoutWA}
+                            className="w-full py-3.5 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-md shadow-emerald-700/20 transition active:scale-[0.99] cursor-pointer"
+                          >
+                            <Send className="w-4 h-4" />
+                            <span>Kirim ke WhatsApp</span>
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => setCurrentStep(1)}
+                          className="w-full py-2 text-center text-xs font-bold text-slate-500 hover:text-slate-800 transition cursor-pointer"
+                        >
+                          ← Kembali Ubah Belanjaan
+                        </button>
+                      </div>
                     )}
                   </div>
 
@@ -1082,7 +1005,96 @@ ${fulfillmentType === 'delivery'
 
           {/* Footer */}
           <Footer />
-        </main>
+
+      {/* Modal Wajib Login dengan Akun Google untuk Lanjut Checkout */}
+      {showLoginModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-2xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-neutral-200 p-6 sm:p-8 space-y-5 animate-in zoom-in-95 duration-200">
+            {/* Header Icon & Close */}
+            <div className="flex items-start justify-between">
+              <div className="w-12 h-12 rounded-2xl bg-[#f4f8ed] border border-[#d6e5c5] flex items-center justify-center">
+                <svg className="w-6 h-6" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.24v3.15C3.26 21.36 7.33 24 12 24z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.24C.45 8.16 0 9.97 0 12s.45 3.84 1.24 5.42l4.04-3.15z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.24 6.58l4.04 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+                  />
+                </svg>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowLoginModal(false)}
+                className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-400 hover:text-neutral-700 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Copy */}
+            <div className="space-y-2">
+              <h3 className="text-xl font-black text-neutral-900 tracking-tight">
+                Masuk untuk Melanjutkan Checkout
+              </h3>
+              <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed">
+                Untuk memilih metode antar/ambil dan mengonfirmasi pesanan ke kasir, silakan masuk dengan akun Google Anda terlebih dahulu.
+              </p>
+            </div>
+
+            {/* Benefit Box */}
+            <div className="p-3 bg-emerald-50/70 border border-emerald-100 rounded-2xl flex items-center gap-2.5 text-xs text-emerald-800 font-medium">
+              <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+              <span>Daftar belanja Anda aman dan otomatis tersimpan di keranjang.</span>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-2.5 pt-1">
+              <a
+                href="/api/auth/google?redirect=/dashboard/pelanggan/keranjang"
+                className="w-full py-3.5 px-4 rounded-xl border border-neutral-300 bg-white hover:bg-neutral-50 active:scale-[0.99] text-neutral-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-3 shadow-2xs transition cursor-pointer"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.24v3.15C3.26 21.36 7.33 24 12 24z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.24C.45 8.16 0 9.97 0 12s.45 3.84 1.24 5.42l4.04-3.15z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.24 6.58l4.04 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+                  />
+                </svg>
+                <span>Lanjutkan dengan Google</span>
+              </a>
+
+              <button
+                type="button"
+                onClick={() => setShowLoginModal(false)}
+                className="w-full py-2.5 px-4 rounded-xl text-neutral-500 hover:text-neutral-800 text-xs font-semibold hover:bg-neutral-100 transition cursor-pointer"
+              >
+                Kembali ke Keranjang
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Slide-over Cart Drawer */}
       <CartDrawer />

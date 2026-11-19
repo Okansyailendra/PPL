@@ -1,10 +1,12 @@
 export interface UserSession {
   id: string;
   email: string;
-  store_name: string;
+  store_name?: string | null;
   owner_name: string;
-  phone_number?: string;
-  warung_name?: string;
+  phone_number?: string | null;
+  warung_name?: string | null;
+  role?: 'penjual' | 'pelanggan' | 'admin';
+  avatar_url?: string | null;
 }
 
 export interface Debt {

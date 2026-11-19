@@ -3,6 +3,7 @@
 import { supabase } from '@/lib/supabase';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import crypto from 'crypto';
 import type { UserSession } from '@/types';
 import { signSessionToken, verifyPassword, hashPassword } from '@/lib/auth';
 import { globalRateLimiter } from '@/lib/rate-limit';
@@ -59,19 +60,26 @@ export async function login(formData: FormData) {
     store_name: user.store_name,
     owner_name: user.owner_name,
     phone_number: user.phone_number,
+    role: user.role || 'penjual',
+    avatar_url: user.avatar_url || '',
   };
 
-  const token = signSessionToken(userData, 24 * 60 * 60);
+  const token = signSessionToken(userData, 7 * 24 * 60 * 60);
   
   const cookieStore = await cookies();
   cookieStore.set('userSession', token, { 
     httpOnly: true, 
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 24 * 60 * 60 
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60 
   });
 
-  redirect('/dashboard/penjual');
+  if (userData.role === 'pelanggan') {
+    redirect('/dashboard/pelanggan');
+  } else {
+    redirect('/dashboard/penjual');
+  }
 }
 
 export async function register(formData: FormData) {
@@ -80,9 +88,15 @@ export async function register(formData: FormData) {
   const store_name = (formData.get('store_name') as string)?.trim();
   const owner_name = (formData.get('owner_name') as string)?.trim();
   const phone_number = (formData.get('phone_number') as string)?.trim();
+  const requestedRole = ((formData.get('role') as string)?.trim() || 'pelanggan') as 'pelanggan' | 'penjual';
+  const role = requestedRole === 'penjual' ? 'penjual' : 'pelanggan';
 
-  if (!email || !password || !store_name || !owner_name) {
-    return { error: 'Semua kolom bertanda bintang wajib diisi.' };
+  if (!email || !password || !owner_name) {
+    return { error: 'Nama, email, dan kata sandi wajib diisi.' };
+  }
+
+  if (role === 'penjual' && !store_name) {
+    return { error: 'Nama warung wajib diisi untuk pendaftaran penjual.' };
   }
 
   if (password.length < 6) {
@@ -102,13 +116,25 @@ export async function register(formData: FormData) {
 
   // Hash password dengan bcrypt sebelum disimpan ke database
   const hashedPassword = await hashPassword(password);
+  const newId = crypto.randomUUID();
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  const newRecord = {
+    id: newId,
+    email,
+    password: hashedPassword,
+    store_name: role === 'penjual' ? (store_name || 'Toko Wadira') : '',
+    owner_name,
+    phone_number: phone_number || '',
+    role,
+    avatar_url: '',
+    created_at: now,
+  };
 
   // Insert new user
   const { data: newUser, error } = await supabase
     .from('users')
-    .insert([
-      { email, password: hashedPassword, store_name, owner_name, phone_number }
-    ])
+    .insert([newRecord])
     .select()
     .single();
 
@@ -119,24 +145,30 @@ export async function register(formData: FormData) {
 
   // Auto login dengan session signed
   const userData: UserSession = {
-    id: newUser.id,
-    email: newUser.email,
-    store_name: newUser.store_name,
-    owner_name: newUser.owner_name,
-    phone_number: newUser.phone_number,
+    id: newUser.id || newId,
+    email: newUser.email || email,
+    store_name: newUser.store_name || newRecord.store_name,
+    owner_name: newUser.owner_name || owner_name,
+    phone_number: newUser.phone_number || phone_number || '',
+    role,
   };
 
-  const token = signSessionToken(userData, 24 * 60 * 60);
+  const token = signSessionToken(userData, 7 * 24 * 60 * 60);
   
   const cookieStore = await cookies();
   cookieStore.set('userSession', token, { 
     httpOnly: true, 
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 24 * 60 * 60 
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60 
   });
 
-  redirect('/dashboard/penjual');
+  if (role === 'pelanggan') {
+    redirect('/dashboard/pelanggan');
+  } else {
+    redirect('/dashboard/penjual');
+  }
 }
 
 export async function logout() {
@@ -149,7 +181,6 @@ export async function logout() {
 // FITUR LUPA KATA SANDI (FORGOT & RESET PASSWORD)
 // =========================================================================
 
-import crypto from 'crypto';
 import { sendPasswordResetEmail } from '@/lib/mail';
 
 const RESET_SECRET = process.env.RESET_TOKEN_SECRET || 'wadira-secure-reset-token-secret-2026';

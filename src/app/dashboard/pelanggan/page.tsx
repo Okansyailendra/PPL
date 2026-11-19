@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import TopHeader from '@/components/pembeli/TopHeader';
 import HeroBanner from '@/components/pembeli/HeroBanner';
 import SearchBar from '@/components/pembeli/SearchBar';
 import CategorySidebar from '@/components/pembeli/CategorySidebar';
@@ -102,74 +101,68 @@ export default function DashboardPelangganPage() {
   }, [products, selectedCategory, searchQuery, stockFilter]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#fbfbf9]">
-      {/* Top Navbar */}
-      <TopHeader />
-
-      {/* Main Full-Width Content Area */}
-      <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-[1600px] w-full mx-auto space-y-6">
-        {/* Breadcrumb & Page Heading */}
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div className="space-y-1">
-            <div className="text-[11px] font-bold text-neutral-400 tracking-wider uppercase">
-              TOKO WADIRA • ETALASE RESMI
-            </div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-neutral-950 tracking-tight">
-              Belanja dekat, stok akurat &amp; lengkap.
-            </h1>
-            <p className="text-xs sm:text-sm text-neutral-600">
-              Sembako komplit dan kebutuhan warung harian langsung tersinkronisasi dengan kasir Toko Wadira.
-            </p>
+    <div className="p-4 sm:px-6 lg:px-8 py-6 max-w-7xl w-full mx-auto space-y-6">
+      {/* Breadcrumb & Page Heading */}
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="space-y-1">
+          <div className="text-[11px] font-bold text-neutral-400 tracking-wider uppercase">
+            TOKO WADIRA • ETALASE RESMI
           </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={loadCatalogData}
-              disabled={isLoading}
-              title="Perbarui stok terkini"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-xs font-bold text-neutral-700 shadow-xs transition cursor-pointer"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 text-neutral-600 ${isLoading ? 'animate-spin' : ''}`} />
-              <span>{isLoading ? 'Menyinkronkan...' : 'Sinkronkan Stok'}</span>
-            </button>
-          </div>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-neutral-950 tracking-tight">
+            Belanja dekat, stok akurat &amp; lengkap.
+          </h1>
+          <p className="text-xs sm:text-sm text-neutral-600">
+            Sembako komplit dan kebutuhan warung harian langsung tersinkronisasi dengan kasir Toko Wadira.
+          </p>
         </div>
 
-        {fetchError && (
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs text-amber-800">
-            <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
-            <span>{fetchError}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={loadCatalogData}
+            disabled={isLoading}
+            title="Perbarui stok terkini"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-xs font-bold text-neutral-700 shadow-xs transition cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-neutral-600 ${isLoading ? 'animate-spin' : ''}`} />
+            <span>{isLoading ? 'Menyinkronkan...' : 'Sinkronkan Stok'}</span>
+          </button>
+        </div>
+      </div>
 
-        {/* Hero Banner (Redesigned Editorial Layout) */}
-        <HeroBanner />
+      {fetchError && (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs text-amber-800">
+          <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+          <span>{fetchError}</span>
+        </div>
+      )}
 
-        {/* Search Bar & Filter Buttons */}
-        <SearchBar
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          stockFilter={stockFilter}
-          setStockFilter={setStockFilter}
+      {/* Hero Banner (Redesigned Editorial Layout) */}
+      <HeroBanner />
+
+      {/* Search Bar & Filter Buttons */}
+      <SearchBar
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        stockFilter={stockFilter}
+        setStockFilter={setStockFilter}
+      />
+
+      {/* Two Column Section: Category Sidebar + Product Grid */}
+      <div className="flex flex-col lg:flex-row items-start gap-6 pt-1">
+        <CategorySidebar
+          selectedCategory={selectedCategory}
+          onSelectCategory={setSelectedCategory}
+          categories={categories}
         />
 
-        {/* Two Column Section: Category Sidebar + Product Grid */}
-        <div className="flex flex-col lg:flex-row items-start gap-6 pt-1">
-          <CategorySidebar
-            selectedCategory={selectedCategory}
-            onSelectCategory={setSelectedCategory}
-            categories={categories}
-          />
+        <ProductGrid
+          products={filteredProducts}
+          totalProductsCount={products.length}
+        />
+      </div>
 
-          <ProductGrid
-            products={filteredProducts}
-            totalProductsCount={products.length}
-          />
-        </div>
-
-        {/* Footer */}
-        <Footer />
-      </main>
+      {/* Footer */}
+      <Footer />
 
       {/* Slide-over Cart Drawer */}
       <CartDrawer />

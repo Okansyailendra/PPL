@@ -31,6 +31,7 @@ import {
   CreditCard,
   Droplets,
   Flame,
+  LogIn,
   MapPin,
   Menu,
   MessageCircle,
@@ -206,8 +207,16 @@ function Navbar() {
           ))}
         </nav>
 
-        {/* Kanan: Tombol Katalog Belanja Figma (Pill Lime Green) */}
-        <div className="flex items-center gap-3">
+        {/* Kanan: Tombol Login & Katalog Belanja */}
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-1.5 rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs sm:text-sm font-bold text-neutral-800 shadow-2xs transition-all duration-200 hover:bg-neutral-100 hover:text-neutral-950"
+          >
+            <LogIn className="h-4 w-4" />
+            <span>Login</span>
+          </Link>
+
           <Link
             href="/dashboard/pelanggan"
             className="inline-flex items-center gap-2 rounded-full bg-[#d4f952] px-5 py-2.5 text-xs sm:text-sm font-bold text-neutral-950 shadow-xs transition-all duration-200 hover:bg-[#c4ec3e] hover:shadow"
@@ -242,6 +251,24 @@ function Navbar() {
                 {link.label}
               </a>
             ))}
+            <div className="pt-3 border-t border-neutral-100 flex flex-col gap-2">
+              <Link
+                href="/login"
+                onClick={() => setOpen(false)}
+                className="flex items-center justify-center gap-2 rounded-xl border border-neutral-300 py-2.5 text-sm font-bold text-neutral-800 hover:bg-neutral-50"
+              >
+                <LogIn className="h-4 w-4" />
+                <span>Masuk / Login</span>
+              </Link>
+              <Link
+                href="/dashboard/pelanggan"
+                onClick={() => setOpen(false)}
+                className="flex items-center justify-center gap-2 rounded-xl bg-[#d4f952] py-2.5 text-sm font-bold text-neutral-950"
+              >
+                <ShoppingBag className="h-4 w-4" />
+                <span>Katalog Belanja</span>
+              </Link>
+            </div>
           </nav>
         </div>
       )}
@@ -798,6 +825,9 @@ function Footer() {
             </a>
             <Link href="/dashboard/pelanggan" className="hover:underline">
               Katalog Belanja
+            </Link>
+            <Link href="/login" className="hover:underline">
+              Portal Masuk
             </Link>
             <a href="#lokasi" className="hover:underline">
               Kontak Kasir

@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { 
   X, 
@@ -16,7 +18,8 @@ import {
   MapPin, 
   Phone, 
   User, 
-  FileText 
+  FileText,
+  Lock
 } from 'lucide-react';
 
 export default function CartDrawer() {
@@ -46,7 +49,10 @@ export default function CartDrawer() {
   const WARUNG_WA_NUMBER = '6289516201846';
   const WARUNG_NAME = 'Toko Wadira (Warung Madura)';
 
-  // Muat data pemesan dari LocalStorage jika pernah belanja sebelumnya
+  const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Muat data pemesan dari LocalStorage jika pernah belanja sebelumnya & cek login
   useEffect(() => {
     try {
       const savedInfo = localStorage.getItem('warung_customer_profile');
@@ -59,7 +65,30 @@ export default function CartDrawer() {
     } catch {
       // ignore
     }
-  }, []);
+
+    async function checkSession() {
+      try {
+        const res = await fetch('/api/auth/session', { cache: 'no-store' });
+        const data = await res.json();
+        if (data?.success && data?.user) {
+          setIsLoggedIn(true);
+          if (data.user.owner_name) {
+            setCustomerName((prev) => prev || data.user.owner_name);
+          }
+          if (data.user.phone_number) {
+            setCustomerPhone((prev) => prev || data.user.phone_number);
+          }
+        } else {
+          setIsLoggedIn(false);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    if (isCartOpen) {
+      checkSession();
+    }
+  }, [isCartOpen]);
 
   // Jika opsi kirim dipilih, otomatis ubah metode bayar ke non-tunai (Transfer / QRIS)
   useEffect(() => {
@@ -72,6 +101,12 @@ export default function CartDrawer() {
 
   const handleCheckoutWA = async () => {
     if (cart.length === 0 || isSubmitting) return;
+
+    if (!isLoggedIn) {
+      setIsCartOpen(false);
+      router.push('/login?redirect=/dashboard/pelanggan/keranjang');
+      return;
+    }
 
     if (!customerName.trim()) {
       setValidationError('Silakan isi Nama Pemesan terlebih dahulu.');
@@ -217,11 +252,18 @@ ${generatedOrderId ? `✅ _Pesanan sudah tercatat di sistem kasir Toko Wadira (\
               <p className="text-xs text-slate-500">{totalItems} barang dipilih</p>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
+            <Link
+              href="/dashboard/pelanggan/keranjang"
+              onClick={() => setIsCartOpen(false)}
+              className="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition"
+            >
+              Halaman Keranjang &rarr;
+            </Link>
             {cart.length > 0 && (
               <button
                 onClick={clearCart}
-                className="text-[11px] font-semibold text-slate-400 hover:text-red-600 px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition"
+                className="text-[11px] font-semibold text-slate-400 hover:text-red-600 px-2 py-1.5 rounded-lg hover:bg-red-50 transition"
                 title="Kosongkan Keranjang"
               >
                 Kosongkan
@@ -491,6 +533,13 @@ ${generatedOrderId ? `✅ _Pesanan sudah tercatat di sistem kasir Toko Wadira (\
                 {fulfillmentType === 'delivery' ? '🛵 Dikirim (Ojol Lokal)' : '🏪 Ambil di Warung'}
               </span>
             </div>
+
+            {!isLoggedIn && (
+              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-center gap-1.5 font-medium text-center">
+                <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <span>Wajib masuk dengan Google untuk checkout pesanan.</span>
+              </div>
+            )}
 
             <button
               onClick={handleCheckoutWA}

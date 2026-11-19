@@ -13,6 +13,10 @@ export default async function PenjualLayout({
     redirect('/login');
   }
 
+  if (user.role === 'pelanggan') {
+    redirect('/dashboard/pelanggan');
+  }
+
   return (
     <DashboardShell user={user}>
       {children}

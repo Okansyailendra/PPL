@@ -1,11 +1,10 @@
-import { cookies } from 'next/headers';
+import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 
 export default async function DashboardIndexPage() {
-  const cookieStore = await cookies();
-  const session = cookieStore.get('userSession')?.value;
+  const user = await getCurrentUser();
 
-  if (session) {
+  if (user?.role === 'penjual' || user?.role === 'admin') {
     redirect('/dashboard/penjual');
   } else {
     redirect('/dashboard/pelanggan');

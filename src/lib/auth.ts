@@ -12,6 +12,12 @@ const SESSION_SECRET =
 export interface SessionPayload {
   id: string;
   email: string;
+  role?: 'penjual' | 'pelanggan' | 'admin';
+  name?: string;
+  owner_name?: string;
+  store_name?: string;
+  phone_number?: string;
+  avatar_url?: string;
   exp: number;
 }
 
@@ -19,11 +25,17 @@ export interface SessionPayload {
  * Membuat token sesi aman yang ditandatangani dengan HMAC-SHA256.
  * Format token: base64url(payload).hex(hmac)
  */
-export function signSessionToken(userData: UserSession, maxAgeSeconds: number = 24 * 60 * 60): string {
+export function signSessionToken(userData: UserSession, maxAgeSeconds: number = 7 * 24 * 60 * 60): string {
   const exp = Date.now() + maxAgeSeconds * 1000;
   const payload: SessionPayload = {
     id: userData.id,
     email: userData.email,
+    role: userData.role || 'pelanggan',
+    name: userData.owner_name,
+    owner_name: userData.owner_name,
+    store_name: userData.store_name,
+    phone_number: userData.phone_number,
+    avatar_url: userData.avatar_url,
     exp,
   };
   const payloadStr = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -100,12 +112,92 @@ export async function getCurrentUser(): Promise<UserSession | null> {
 
     const { data: dbUser } = await supabase
       .from('users')
-      .select('id, email, store_name, owner_name, phone_number')
+      .select('id, email, store_name, owner_name, phone_number, role, avatar_url')
       .eq('id', payload.id)
       .single();
 
+    const WADIRA_STORE_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+
     if (dbUser) {
-      return dbUser as UserSession;
+      const userObj = dbUser as UserSession;
+      // Jika role penjual/admin, pastikan mengakses inventory Toko Wadira yang sama
+      if (userObj.role === 'penjual' || userObj.role === 'admin') {
+        return {
+          ...userObj,
+          id: WADIRA_STORE_ID,
+        };
+      }
+      return userObj;
+    }
+
+    // Jika id tidak ditemukan di database, cek apakah user ada berdasarkan email
+    if (payload.email) {
+      const { data: userByEmail } = await supabase
+        .from('users')
+        .select('id, email, store_name, owner_name, phone_number, role, avatar_url')
+        .eq('email', payload.email)
+        .single();
+
+      if (userByEmail) {
+        const userObj = userByEmail as UserSession;
+        if (userObj.role === 'penjual' || userObj.role === 'admin') {
+          return {
+            ...userObj,
+            id: WADIRA_STORE_ID,
+          };
+        }
+        return userObj;
+      }
+
+      // Auto-restore ke tabel users jika session token valid namun tabel database di-reset / drop
+      const effectiveRole = payload.role || 'pelanggan';
+      const userToRestore: UserSession = {
+        id: payload.id,
+        email: payload.email,
+        owner_name: payload.owner_name || payload.name || payload.email.split('@')[0],
+        store_name: payload.store_name || (effectiveRole === 'penjual' ? 'Toko Wadira (Warung Madura)' : ''),
+        phone_number: payload.phone_number || '',
+        role: effectiveRole,
+        avatar_url: payload.avatar_url || '',
+      };
+
+      try {
+        await supabase.from('users').insert([
+          {
+            id: userToRestore.id,
+            email: userToRestore.email,
+            password: null,
+            store_name: userToRestore.store_name,
+            owner_name: userToRestore.owner_name,
+            phone_number: userToRestore.phone_number,
+            role: userToRestore.role,
+            avatar_url: userToRestore.avatar_url,
+            created_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+          },
+        ]);
+        console.log(`[Session Auth] Auto-restored user ${userToRestore.email} (${userToRestore.role}) ke database users.`);
+      } catch (insertErr) {
+        console.error('Gagal auto-restore user session ke database:', insertErr);
+      }
+
+      if (effectiveRole === 'penjual' || effectiveRole === 'admin') {
+        return {
+          ...userToRestore,
+          id: WADIRA_STORE_ID,
+        };
+      }
+      return userToRestore;
+    }
+
+    // Fallback dari session payload jika query sedang lambat
+    if (payload.id && payload.email) {
+      const isSeller = payload.role === 'penjual' || payload.role === 'admin';
+      return {
+        id: isSeller ? WADIRA_STORE_ID : payload.id,
+        email: payload.email,
+        owner_name: payload.name || payload.email.split('@')[0],
+        role: payload.role || 'pelanggan',
+      } as UserSession;
     }
 
     return null;

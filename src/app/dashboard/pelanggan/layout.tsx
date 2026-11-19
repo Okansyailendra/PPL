@@ -1,12 +1,18 @@
-'use client';
+import { getCurrentUser } from '@/lib/auth';
+import PelangganShell from '@/components/pembeli/PelangganShell';
 
-import React from 'react';
-import { CartProvider } from '@/context/CartContext';
+export const dynamic = 'force-dynamic';
 
-export default function PelangganLayout({
+export default async function PelangganLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <CartProvider>{children}</CartProvider>;
+  const user = await getCurrentUser();
+
+  return (
+    <PelangganShell user={user}>
+      {children}
+    </PelangganShell>
+  );
 }
