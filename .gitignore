@@ -1,56 +1,103 @@
+# ==========================================
 # Dependencies
+# ==========================================
 node_modules/
 /.pnp
 .pnp.js
+wa-server/node_modules/
 
-# Next.js Build Output
+# ==========================================
+# Next.js Build Output & Cache
+# ==========================================
 .next/
 out/
 build/
 dist/
+.turbo/
 
-# Environment Variables & Secrets
+# ==========================================
+# Environment Variables & Secrets (SANGAT PENTING)
+# Mengabaikan semua variasi .env kecuali .env.example
+# ==========================================
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+.env*.local
 !.env.example
+wa-server/.env*
 
+# ==========================================
+# Kunci Privat & Sertifikat (SSL/TLS/SSH)
+# ==========================================
+*.pem
+*.key
+*.crt
+*.cer
+*.pfx
+*.p12
+
+# ==========================================
 # WhatsApp Baileys Authentication & Session
+# Jangan sampai session WhatsApp warung bocor
+# ==========================================
 wa-server/auth_info_baileys/
 **/auth_info_baileys/
 *auth_info*
+creds.json
+*baileys_store*
 
+# ==========================================
+# Backup Data Riil & Database Dumps
+# (Mencegah data transaksi/pelanggan nyata ter-push)
+# ==========================================
+*.dump
+*.sqlite
+*.sqlite3
+*.db
+*.sql.bak
+database/backups/
+database/dumps/
+
+# ==========================================
 # TypeScript Cache
+# ==========================================
 *.tsbuildinfo
 next-env.d.ts
 
+# ==========================================
 # Backup / Temporary Files
+# ==========================================
 *.old.json
 *.bak
 *.tmp
+*~
 
-# Debug / Logs
+# ==========================================
+# Debug & Logs
+# ==========================================
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# ==========================================
 # IDE & Editor Settings
+# ==========================================
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# Sub-services (wa-server)
-wa-server/node_modules/
-wa-server/.env*
-
+# ==========================================
 # Vercel / Deployment
+# ==========================================
 .vercel/
 
-# System Files
+# ==========================================
+# System Files (OS Artifacts)
+# ==========================================
 .DS_Store
+._*
 Thumbs.db
+desktop.ini
+ehthumbs.db
