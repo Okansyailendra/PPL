@@ -1,7 +1,13 @@
 import { mysqlClient } from './mysql-client';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
+// Prioritaskan SUPABASE_SERVICE_ROLE_KEY di server-side untuk bypass RLS secara aman,
+// fallback ke ANON_KEY jika service role key belum disetel.
+const supabaseKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.SUPABASE_ANON_KEY ||
+  '';
 
 const isSupabaseConfigured =
   Boolean(supabaseUrl) &&

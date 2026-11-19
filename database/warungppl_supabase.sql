@@ -107,7 +107,10 @@ ALTER TABLE public.debts
   ADD CONSTRAINT fk_debts_trx
   FOREIGN KEY (related_trx_id) REFERENCES public.transactions(id) ON DELETE SET NULL;
 
--- Enable RLS & Policies
+-- =========================================================================
+-- Enable Row Level Security (RLS) & Hardened Policies
+-- Keamanan: Lindungi data privat dari akses langsung anon/publik via Supabase REST API
+-- =========================================================================
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
@@ -115,12 +118,31 @@ ALTER TABLE public.debts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payment_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow all users" ON public.users FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all categories" ON public.categories FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all products" ON public.products FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all debts" ON public.debts FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all payment_logs" ON public.payment_logs FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all transactions" ON public.transactions FOR ALL USING (true) WITH CHECK (true);
+-- 1. Tabel users (Privat): Hanya backend server (service_role) yang dapat membaca/menulis
+DROP POLICY IF EXISTS "Allow all users" ON public.users;
+
+-- 2. Tabel debts / kasbon (Privat): Data utang pelanggan tidak boleh diakses publik
+DROP POLICY IF EXISTS "Allow all debts" ON public.debts;
+
+-- 3. Tabel payment_logs (Privat): Riwayat pembayaran kasbon dilindungi
+DROP POLICY IF EXISTS "Allow all payment_logs" ON public.payment_logs;
+
+-- 4. Tabel transactions (Privat): Pembukuan finansial dilindungi
+DROP POLICY IF EXISTS "Allow all transactions" ON public.transactions;
+
+-- 5. Tabel categories: Publik (anon & authenticated) HANYA boleh membaca (SELECT) untuk etalase
+DROP POLICY IF EXISTS "Allow all categories" ON public.categories;
+DROP POLICY IF EXISTS "Allow public read categories" ON public.categories;
+CREATE POLICY "Allow public read categories" ON public.categories
+  FOR SELECT TO anon, authenticated
+  USING (true);
+
+-- 6. Tabel products: Publik (anon & authenticated) HANYA boleh membaca (SELECT) untuk etalase
+DROP POLICY IF EXISTS "Allow all products" ON public.products;
+DROP POLICY IF EXISTS "Allow public read products" ON public.products;
+CREATE POLICY "Allow public read products" ON public.products
+  FOR SELECT TO anon, authenticated
+  USING (true);
 
 -- SEED DATA (Password di-hash bcrypt: password123 & madura123)
 INSERT INTO public.users (id, email, password, store_name, owner_name, phone_number, created_at) VALUES
@@ -254,4 +276,9 @@ FROM public.users u
 LEFT JOIN public.products p ON u.id = p.umkm_id
 LEFT JOIN public.transactions t ON u.id = t.umkm_id
 GROUP BY u.id, u.store_name, u.owner_name;
+
+-- Batasi akses publik anon terhadap analytical views finansial
+REVOKE ALL ON public.view_piutang_jatuh_tempo FROM anon;
+REVOKE ALL ON public.view_ringkasan_umkm FROM anon;
+
 
