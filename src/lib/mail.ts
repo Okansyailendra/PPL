@@ -162,9 +162,11 @@ export async function sendPasswordResetEmail({
       html: htmlContent,
     });
 
-    const previewUrl = nodemailer.getTestMessageUrl(info) || undefined;
-    console.log(`[EMAIL TEST SENT] Email dikirim ke test inbox: ${to}`);
-    console.log(`[EMAIL TEST PREVIEW URL]: ${previewUrl}`);
+    const previewUrl = process.env.NODE_ENV === 'development' ? (nodemailer.getTestMessageUrl(info) || undefined) : undefined;
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[EMAIL TEST SENT] Email dikirim ke test inbox: ${to}`);
+      console.log(`[EMAIL TEST PREVIEW URL]: ${previewUrl}`);
+    }
 
     return {
       success: true,
@@ -172,7 +174,11 @@ export async function sendPasswordResetEmail({
       previewUrl,
     };
   } catch (fallbackErr: any) {
-    console.log(`[EMAIL FALLBACK] Reset Link untuk ${to}: ${resetUrl}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[EMAIL FALLBACK - DEV ONLY] Reset Link untuk ${to}: ${resetUrl}`);
+    } else {
+      console.error(`[EMAIL ERROR] Gagal mengirim email reset password ke tujuan.`);
+    }
     return { success: true };
   }
 }

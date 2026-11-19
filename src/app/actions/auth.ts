@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { UserSession } from '@/types';
 import { signSessionToken, verifyPassword, hashPassword } from '@/lib/auth';
+import { globalRateLimiter } from '@/lib/rate-limit';
 
 export async function login(formData: FormData) {
   const email = (formData.get('email') as string)?.trim()?.toLowerCase();
@@ -12,6 +13,15 @@ export async function login(formData: FormData) {
 
   if (!email || !password) {
     return { error: 'Email dan kata sandi wajib diisi.' };
+  }
+
+  // 1. Proteksi Brute Force Login (Maksimal 6 percobaan salah per 5 menit)
+  const rateLimitKey = `login-attempt:${email}`;
+  const rateLimitCheck = globalRateLimiter.check(rateLimitKey, 6, 5 * 60 * 1000);
+  if (!rateLimitCheck.allowed) {
+    return {
+      error: `Terlalu banyak percobaan masuk yang salah. Silakan coba lagi setelah ${rateLimitCheck.retryAfterSeconds} detik.`,
+    };
   }
 
   const { data: user, error } = await supabase
@@ -28,6 +38,9 @@ export async function login(formData: FormData) {
   if (!isPasswordValid) {
     return { error: 'Email atau password salah.' };
   }
+
+  // Reset counter jika login berhasil
+  globalRateLimiter.reset(rateLimitKey);
 
   // Auto-upgrade password lama ke bcrypt jika masih plaintext
   if (!/^\$2[aby]\$\d{2}\$/.test(user.password)) {
@@ -143,8 +156,10 @@ const RESET_SECRET = process.env.RESET_TOKEN_SECRET || 'wadira-secure-reset-toke
 
 /**
  * Membuat token verifikasi aman berbasis HMAC-SHA256 (Kedaluwarsa 1 jam)
- * dan mengirimkannya LANGSUNG ke email pengguna via SMTP / Mailer.
- * TIDAK mengembalikan tautan langsung ke browser demi keamanan.
+ * Dilindungi:
+ * 1. Rate Limiting (Maks 4 permintaan per 15 menit per email)
+ * 2. Anti User Enumeration (Respon seragam untuk email ada maupun tidak)
+ * 3. Single-Use Token / Anti Replay Attack (Terikat dengan hash password saat ini)
  */
 export async function requestPasswordReset(formData: FormData) {
   const email = (formData.get('email') as string)?.trim()?.toLowerCase();
@@ -153,20 +168,38 @@ export async function requestPasswordReset(formData: FormData) {
     return { error: 'Alamat email wajib diisi.' };
   }
 
-  // Cek apakah user dengan email tersebut terdaftar
+  // 1. Rate Limiting: Cegah Email Flooding & Kuota SMTP Habis
+  const rateLimitKey = `reset-request:${email}`;
+  const rateCheck = globalRateLimiter.check(rateLimitKey, 4, 15 * 60 * 1000);
+  if (!rateCheck.allowed) {
+    return {
+      error: `Terlalu banyak permintaan reset kata sandi. Silakan tunggu ${rateCheck.retryAfterSeconds} detik sebelum mencoba lagi.`,
+    };
+  }
+
+  // 2. Cek apakah user dengan email tersebut terdaftar
   const { data: user, error: dbError } = await supabase
     .from('users')
-    .select('id, email, store_name, owner_name')
+    .select('id, email, password, store_name, owner_name')
     .eq('email', email)
     .single();
 
+  // 3. Mencegah User Enumeration: Jika email tidak ada di database,
+  // jangan beri tahu penyerang bahwa email tidak terdaftar. Berikan pesan sukses seragam.
   if (dbError || !user) {
-    return { error: 'Email tidak ditemukan. Pastikan email sudah terdaftar sebagai pengelola/admin.' };
+    return {
+      success: true,
+      message: 'Jika alamat email terdaftar, tautan verifikasi telah dikirimkan ke kotak masuk Anda.',
+      email,
+      previewUrl: null,
+    };
   }
 
-  // Buat token signed dengan masa berlaku 1 jam
+  // 4. Buat token signed dengan masa berlaku 1 jam terikat dengan nonce hash password saat ini
+  // (Begitu password diubah, nonce ini berubah dan token lama langsung hangus secara otomatis)
   const expiresAt = Date.now() + 60 * 60 * 1000;
-  const data = `${user.email}:${expiresAt}`;
+  const passwordNonce = (user.password || '').slice(-16);
+  const data = `${user.email}:${passwordNonce}:${expiresAt}`;
   const hmac = crypto.createHmac('sha256', RESET_SECRET).update(data).digest('hex');
   const token = Buffer.from(`${data}:${hmac}`).toString('base64url');
 
@@ -192,6 +225,12 @@ export async function requestPasswordReset(formData: FormData) {
 
 /**
  * Memvalidasi token verifikasi dari URL sebelum menampilkan/memproses form reset.
+ * Memeriksa:
+ * 1. Format token valid (4 bagian: email:nonce:expiresAt:hmac)
+ * 2. Kesesuaian alamat email
+ * 3. Batas waktu kedaluwarsa 1 jam
+ * 4. Status Single-Use: Nonce masih sesuai dengan hash password saat ini
+ * 5. Keaslian signature HMAC dengan perbandingan konstan (Timing-Safe Equal)
  */
 export async function verifyResetToken(token: string, email: string): Promise<{ valid: boolean; error?: string }> {
   if (!token || !email) {
@@ -201,11 +240,11 @@ export async function verifyResetToken(token: string, email: string): Promise<{ 
   try {
     const decoded = Buffer.from(token, 'base64url').toString('utf8');
     const parts = decoded.split(':');
-    if (parts.length !== 3) {
-      return { valid: false, error: 'Format token verifikasi tidak valid.' };
+    if (parts.length !== 4) {
+      return { valid: false, error: 'Format token verifikasi tidak valid atau kedaluwarsa.' };
     }
 
-    const [tokenEmail, expiresAtStr, hmac] = parts;
+    const [tokenEmail, tokenNonce, expiresAtStr, hmac] = parts;
     const expiresAt = parseInt(expiresAtStr, 10);
 
     if (tokenEmail.toLowerCase() !== email.toLowerCase()) {
@@ -216,10 +255,34 @@ export async function verifyResetToken(token: string, email: string): Promise<{ 
       return { valid: false, error: 'Link verifikasi telah kedaluwarsa (lebih dari 1 jam). Silakan minta link baru.' };
     }
 
-    const data = `${tokenEmail}:${expiresAt}`;
+    // Ambil data user terkini dari database untuk memverifikasi password nonce
+    const { data: user } = await supabase
+      .from('users')
+      .select('password')
+      .eq('email', tokenEmail.toLowerCase())
+      .single();
+
+    if (!user?.password) {
+      return { valid: false, error: 'Akun pengguna tidak ditemukan.' };
+    }
+
+    // Single-Use Verification: Jika password sudah pernah diubah, nonce tidak cocok lagi
+    const currentNonce = (user.password || '').slice(-16);
+    if (tokenNonce !== currentNonce) {
+      return {
+        valid: false,
+        error: 'Tautan pemulihan ini sudah pernah digunakan atau kata sandi telah diperbarui. Silakan minta tautan baru.',
+      };
+    }
+
+    const data = `${tokenEmail}:${currentNonce}:${expiresAt}`;
     const expectedHmac = crypto.createHmac('sha256', RESET_SECRET).update(data).digest('hex');
 
-    if (hmac !== expectedHmac) {
+    // Constant-time comparison (Mencegah serangan Timing Attack)
+    const hmacBuf = Buffer.from(hmac, 'hex');
+    const expectedBuf = Buffer.from(expectedHmac, 'hex');
+
+    if (hmacBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(hmacBuf, expectedBuf)) {
       return { valid: false, error: 'Token verifikasi telah dimodifikasi atau tidak sah.' };
     }
 
@@ -250,7 +313,7 @@ export async function resetPasswordWithToken(formData: FormData) {
     return { error: 'Konfirmasi kata sandi tidak cocok.' };
   }
 
-  // Verifikasi keabsahan token
+  // Verifikasi keabsahan token (termasuk cek single-use)
   const check = await verifyResetToken(token, email);
   if (!check.valid) {
     return { error: check.error || 'Token tidak valid.' };
