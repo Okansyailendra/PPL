@@ -100,9 +100,9 @@ export async function POST(req: Request) {
       });
     }
 
-    // Ongkos kirim jika ada (pastikan tidak negatif)
-    const shippingCost = Math.max(0, Number(shipping?.cost) || 0);
-    const grossAmount = itemsTotal + shippingCost;
+    // Ongkos kirim tidak dibebankan di checkout web (dikonfirmasi langsung oleh penjual via ojol lokal di WhatsApp)
+    const shippingCost = 0;
+    const grossAmount = itemsTotal;
 
     // 2. Generate Order ID yang unik (misal: ORDER-timestamp-random)
     const orderId = `ORDER-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;

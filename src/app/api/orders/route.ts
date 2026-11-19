@@ -38,12 +38,13 @@ export async function POST(req: Request) {
     // Default UMKM (Toko Wadira / Sembako Berkah)
     const umkmId = body?.umkmId || 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 
-    // 1. Ambil data produk untuk cek dan kurangi stok
+    // 1. Ambil data produk untuk cek dan kurangi stok (terisolasi per UMKM)
     const productIds = items.map((it: any) => it.productId || it.id).filter(Boolean);
     const { data: dbProducts, error: fetchErr } = await supabase
       .from('products')
       .select('*')
-      .in('id', productIds);
+      .in('id', productIds)
+      .eq('umkm_id', umkmId);
 
     if (fetchErr) {
       console.error('Error fetching products for order:', fetchErr);
@@ -81,7 +82,8 @@ export async function POST(req: Request) {
         await supabase
           .from('products')
           .update({ stock: newStock })
-          .eq('id', dbProd.id);
+          .eq('id', dbProd.id)
+          .eq('umkm_id', umkmId);
       }
     }
 
@@ -110,7 +112,8 @@ export async function POST(req: Request) {
     const orderId = `ORD-${dateStr}-${randomHex}`;
     const nowIso = new Date().toISOString();
 
-    const isCash = paymentMethod === 'cash';
+    // Jika pengiriman dipilih, metode pembayaran wajib non-tunai (QRIS / Transfer)
+    const isCash = fulfillmentType === 'delivery' ? false : paymentMethod === 'cash';
 
     // 6. Simpan transaksi ke tabel transactions
     // Keamanan: Pesanan online belum diverifikasi di gerbang pembayaran, harus berstatus PENDING

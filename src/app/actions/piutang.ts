@@ -385,11 +385,12 @@ export async function updateDebt(formData: FormData) {
     return { error: 'Data tidak lengkap.' };
   }
 
-  // Hitung ulang remaining_amount berdasarkan paid_amount saat ini
+  // Hitung ulang remaining_amount berdasarkan paid_amount saat ini (pastikan milik UMKM yang sama)
   const { data: currentDebt } = await supabase
     .from('debts')
     .select('paid_amount')
     .eq('id', id)
+    .eq('umkm_id', user.id)
     .single();
 
   const paidAmount = Number(currentDebt?.paid_amount) || 0;

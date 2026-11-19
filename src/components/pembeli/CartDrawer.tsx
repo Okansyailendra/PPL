@@ -61,6 +61,13 @@ export default function CartDrawer() {
     }
   }, []);
 
+  // Jika opsi kirim dipilih, otomatis ubah metode bayar ke non-tunai (Transfer / QRIS)
+  useEffect(() => {
+    if (fulfillmentType === 'delivery' && paymentMethod === 'cash') {
+      setPaymentMethod('qris');
+    }
+  }, [fulfillmentType, paymentMethod]);
+
   if (!isCartOpen) return null;
 
   const handleCheckoutWA = async () => {
@@ -146,13 +153,15 @@ export default function CartDrawer() {
     // Label Metode Pengiriman
     const fulfillmentLabel =
       fulfillmentType === 'delivery'
-        ? 'Antar ke Rumah / Kos'
-        : 'Ambil Sendiri di Warung';
+        ? 'Dikirim ke Rumah / Kos (Kurir / Ojol Lokal)'
+        : 'Ambil Sendiri di Warung (Gratis)';
 
     // Label Metode Pembayaran
     const paymentLabel =
-      paymentMethod === 'cash'
-        ? 'Bayar Tunai (Cash / COD saat barang diterima)'
+      fulfillmentType === 'delivery'
+        ? 'Transfer / QRIS (Menunggu info total + ongkir dari penjual)'
+        : paymentMethod === 'cash'
+        ? 'Bayar Tunai di Warung'
         : 'Transfer / QRIS';
 
     // 4. FORMAT TEMPLATE PESAN WHATSAPP
@@ -163,16 +172,18 @@ _${formattedDate}_
 
 *DATA PEMESAN:*
 - *Nama:* ${customerName.trim()}
-${customerPhone.trim() ? `- *No. HP/WA:* ${customerPhone.trim()}\n` : ''}- *Metode:* ${fulfillmentLabel}
-${fulfillmentType === 'delivery' ? `- *Alamat Pengantaran:* ${customerAddress.trim() || 'Sesuai info chat'}\n` : ''}- *Pembayaran:* ${paymentLabel}
+${customerPhone.trim() ? `- *No. HP/WA:* ${customerPhone.trim()}\n` : ''}- *Metode Pengambilan:* ${fulfillmentLabel}
+${fulfillmentType === 'delivery' ? `- *Alamat Pengantaran:* ${customerAddress.trim() || 'Sesuai info chat'}\n` : ''}- *Metode Pembayaran:* ${paymentLabel}
 ${customerNote.trim() ? `- *Catatan:* _"${customerNote.trim()}"_\n` : ''}
 *RINCIAN BARANG:*
 ${orderItemsText}
 ----------------------------------------
-*TOTAL ESTIMASI: Rp ${totalPrice.toLocaleString('id-ID')}*
-(${totalItems} barang)
+*Subtotal Barang:* Rp ${totalPrice.toLocaleString('id-ID')}
+${fulfillmentType === 'delivery' ? `*Ongkos Kirim:* _Akan dicek oleh penjual via ojol lokal_\n*TOTAL BELANJA:* Rp ${totalPrice.toLocaleString('id-ID')} *(+ ongkir ojol)*\n` : `*TOTAL BELANJA:* Rp ${totalPrice.toLocaleString('id-ID')}\n`}(${totalItems} barang)
 
-${generatedOrderId ? `✅ _Pesanan sudah tercatat di sistem kasir Toko Wadira (\`#${generatedOrderId}\`)._\n` : ''}_Halo Kasir ${WARUNG_NAME}, saya mau pesan barang di atas ya. Mohon segera diproses. Terima kasih!_`;
+${generatedOrderId ? `✅ _Pesanan sudah tercatat di sistem kasir Toko Wadira (\`#${generatedOrderId}\`)._\n` : ''}${fulfillmentType === 'delivery' 
+  ? `_Halo Kasir ${WARUNG_NAME}, saya mau pesan barang di atas untuk dikirim. Mohon dicek ketersediaan stok dan konfirmasi total belanja + tarif ojol ke alamat saya agar bisa langsung saya transfer. Terima kasih!_`
+  : `_Halo Kasir ${WARUNG_NAME}, saya mau pesan barang di atas untuk diambil di warung. Mohon segera diproses. Terima kasih!_`}`;
 
     const encodedMessage = encodeURIComponent(formattedMessage);
 
@@ -340,26 +351,35 @@ ${generatedOrderId ? `✅ _Pesanan sudah tercatat di sistem kasir Toko Wadira (\
                     <button
                       type="button"
                       onClick={() => setFulfillmentType('pickup')}
-                      className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                      className={`flex flex-col items-center justify-center p-2.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
                         fulfillmentType === 'pickup'
                           ? 'bg-neutral-950 text-white border-neutral-950 shadow-xs'
                           : 'bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50'
                       }`}
                     >
-                      <Store className="w-3.5 h-3.5 text-[#d4f952]" />
-                      <span>Ambil Sendiri</span>
+                      <div className="flex items-center gap-1.5">
+                        <Store className="w-3.5 h-3.5 text-[#d4f952]" />
+                        <span>Ambil Sendiri</span>
+                      </div>
+                      <span className="text-[10px] font-normal opacity-80 mt-0.5">Gratis di Warung</span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => setFulfillmentType('delivery')}
-                      className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                      onClick={() => {
+                        setFulfillmentType('delivery');
+                        setPaymentMethod('qris');
+                      }}
+                      className={`flex flex-col items-center justify-center p-2.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
                         fulfillmentType === 'delivery'
                           ? 'bg-neutral-950 text-white border-neutral-950 shadow-xs'
                           : 'bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50'
                       }`}
                     >
-                      <Truck className="w-3.5 h-3.5 text-[#d4f952]" />
-                      <span>Antar ke Rumah</span>
+                      <div className="flex items-center gap-1.5">
+                        <Truck className="w-3.5 h-3.5 text-[#d4f952]" />
+                        <span>Dikirim (Ojol)</span>
+                      </div>
+                      <span className="text-[10px] font-normal opacity-80 mt-0.5">Ongkir dicek penjual</span>
                     </button>
                   </div>
                 </div>
@@ -368,7 +388,7 @@ ${generatedOrderId ? `✅ _Pesanan sudah tercatat di sistem kasir Toko Wadira (\
                 {fulfillmentType === 'delivery' && (
                   <div>
                     <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                      Alamat / Patokan Rumah
+                      Alamat / Patokan Rumah <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <MapPin className="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" />
@@ -380,6 +400,9 @@ ${generatedOrderId ? `✅ _Pesanan sudah tercatat di sistem kasir Toko Wadira (\
                         className="w-full text-xs pl-8 pr-3 py-2 rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 bg-white resize-none"
                       />
                     </div>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      Alamat digunakan penjual untuk mengecek tarif kurir / ojol lokal.
+                    </p>
                   </div>
                 )}
 
@@ -388,32 +411,44 @@ ${generatedOrderId ? `✅ _Pesanan sudah tercatat di sistem kasir Toko Wadira (\
                   <label className="block text-[11px] font-bold text-slate-600 mb-1">
                     Metode Pembayaran
                   </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('cash')}
-                      className={`flex flex-col items-center justify-center p-2 rounded-xl text-[11px] font-bold border transition text-center cursor-pointer ${
-                        paymentMethod === 'cash'
-                          ? 'bg-[#d4f952] border-[#c4ec3e] text-neutral-950 shadow-xs'
-                          : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
-                      }`}
-                    >
-                      <Banknote className="w-4 h-4 mb-0.5 text-neutral-900" />
-                      <span>Tunai / COD</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('qris')}
-                      className={`flex flex-col items-center justify-center p-2 rounded-xl text-[11px] font-bold border transition text-center cursor-pointer ${
-                        paymentMethod === 'qris'
-                          ? 'bg-[#d4f952] border-[#c4ec3e] text-neutral-950 shadow-xs'
-                          : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
-                      }`}
-                    >
-                      <CreditCard className="w-4 h-4 mb-0.5 text-neutral-900" />
-                      <span>QRIS / TF</span>
-                    </button>
-                  </div>
+                  {fulfillmentType === 'delivery' ? (
+                    <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs">
+                      <div className="flex items-center gap-1.5 font-bold text-emerald-900">
+                        <CreditCard className="w-4 h-4 text-emerald-700" />
+                        <span>Transfer / QRIS (Non-Tunai)</span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                        Metode tunai/COD ditiadakan untuk pengiriman. Total belanja + tarif ojol dikonfirmasi kasir sebelum Anda transfer.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('cash')}
+                        className={`flex flex-col items-center justify-center p-2 rounded-xl text-[11px] font-bold border transition text-center cursor-pointer ${
+                          paymentMethod === 'cash'
+                            ? 'bg-[#d4f952] border-[#c4ec3e] text-neutral-950 shadow-xs'
+                            : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+                        }`}
+                      >
+                        <Banknote className="w-4 h-4 mb-0.5 text-neutral-900" />
+                        <span>Tunai di Warung</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('qris')}
+                        className={`flex flex-col items-center justify-center p-2 rounded-xl text-[11px] font-bold border transition text-center cursor-pointer ${
+                          paymentMethod === 'qris'
+                            ? 'bg-[#d4f952] border-[#c4ec3e] text-neutral-950 shadow-xs'
+                            : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+                        }`}
+                      >
+                        <CreditCard className="w-4 h-4 mb-0.5 text-neutral-900" />
+                        <span>Transfer / QRIS</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Catatan Khusus */}
@@ -442,13 +477,18 @@ ${generatedOrderId ? `✅ _Pesanan sudah tercatat di sistem kasir Toko Wadira (\
           <div className="p-4 border-t border-neutral-200/80 bg-[#fbfbf9] space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-xs text-neutral-500 block font-medium">Total Pembayaran ({totalItems} item)</span>
+                <span className="text-xs text-neutral-500 block font-medium">Total Belanja ({totalItems} item)</span>
                 <span className="text-xl font-black text-neutral-950">
                   Rp {totalPrice.toLocaleString('id-ID')}
                 </span>
+                {fulfillmentType === 'delivery' && (
+                  <span className="text-[10px] text-amber-700 block font-medium">
+                    (+ ongkir ojol dikonfirmasi via WA)
+                  </span>
+                )}
               </div>
               <span className="text-[11px] font-bold text-emerald-800 bg-[#f2f7ec] border border-[#e2edd8] px-2.5 py-1 rounded-full">
-                {fulfillmentType === 'delivery' ? '🛵 Antar ke Rumah' : '🏪 Ambil di Warung'}
+                {fulfillmentType === 'delivery' ? '🛵 Dikirim (Ojol Lokal)' : '🏪 Ambil di Warung'}
               </span>
             </div>
 
