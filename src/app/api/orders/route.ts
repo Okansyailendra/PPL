@@ -92,14 +92,18 @@ export async function POST(req: Request) {
       const pid = it.productId || it.id;
       const prod = productMap.get(pid)!;
       const qty = Math.max(1, Math.round(Number(it.quantity) || 1));
-      const officialPrice = Number(prod.price) || 0;
+      let officialPrice = Number(prod.price) || 0;
+      // Dukungan PPOB & Tagihan Pulsa dengan denom pilihan pelanggan
+      if (prod.category === 'Tagihan & Pulsa' && Number(it.price) > 0) {
+        officialPrice = Number(it.price);
+      }
       return {
         productId: prod.id,
-        name: prod.name || it.name || 'Produk Warung',
+        name: it.name || prod.name || 'Produk Warung',
         quantity: qty,
         price: officialPrice,
         costPrice: prod.cost_price ?? 0,
-        unit: prod.unit || it.unit || 'pcs',
+        unit: it.unit || prod.unit || 'pcs',
         subtotal: officialPrice * qty,
       };
     });

@@ -200,9 +200,9 @@ INSERT INTO `products` (`id`, `umkm_id`, `category_id`, `category`, `name`, `pri
 ('p64', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-08', 'Aksesoris & Elektronik', 'Parfum Minyak Wangi Roll-On Non Alkohol 6ml', 15000, 9500, 15, 3, 'botol', '2026-10-07 14:13:16'),
 
 -- 9. Tagihan & Pulsa
-('p65', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-09', 'Tagihan & Pulsa', 'Token Listrik PLN Prabayar (Denom 20k - 100k)', 23000, 20500, 99, 10, 'transaksi', '2026-10-07 14:13:16'),
-('p66', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-09', 'Tagihan & Pulsa', 'Pembayaran Tagihan Air PDAM Bulanan', 5000, 2500, 99, 10, 'transaksi', '2026-10-07 14:13:16'),
-('p67', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-09', 'Tagihan & Pulsa', 'Pulsa & Paket Data All Operator', 13000, 10500, 99, 10, 'transaksi', '2026-10-07 14:13:16'),
+('p65', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-09', 'Tagihan & Pulsa', 'Tagihan & Token Listrik PLN', 22000, 20000, 999, 10, 'transaksi', '2026-10-07 14:13:16'),
+('p66', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-09', 'Tagihan & Pulsa', 'Tagihan Air PDAM Bulanan', 2500, 0, 999, 10, 'transaksi', '2026-10-07 14:13:16'),
+('p67', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-09', 'Tagihan & Pulsa', 'Pulsa All Operator', 7000, 5000, 999, 10, 'transaksi', '2026-10-07 14:13:16'),
 
 -- 10. Gas & Galon
 ('p68', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'cat-10', 'Gas & Galon', 'Gas LPG Tabung Melon 3 Kg (Tukar Tabung)', 22000, 19000, 16, 3, 'tabung', '2026-10-07 14:13:16'),

@@ -332,9 +332,9 @@ INSERT INTO public.products (id, umkm_id, category_id, category, name, price, co
 ('22222222-0064-4444-8888-000000000064', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11111111-0008-4444-8888-000000000008', 'Aksesoris & Elektronik', 'Parfum Minyak Wangi Roll-On Non Alkohol 6ml', 15000, 9500, 15, 3, 'botol', '2026-10-07 14:13:16+00'),
 
 -- 9. Tagihan & Pulsa
-('22222222-0065-4444-8888-000000000065', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11111111-0009-4444-8888-000000000009', 'Tagihan & Pulsa', 'Token Listrik PLN Prabayar (Denom 20k - 100k)', 23000, 20500, 99, 10, 'transaksi', '2026-10-07 14:13:16+00'),
-('22222222-0066-4444-8888-000000000066', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11111111-0009-4444-8888-000000000009', 'Tagihan & Pulsa', 'Pembayaran Tagihan Air PDAM Bulanan', 5000, 2500, 99, 10, 'transaksi', '2026-10-07 14:13:16+00'),
-('22222222-0067-4444-8888-000000000067', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11111111-0009-4444-8888-000000000009', 'Tagihan & Pulsa', 'Pulsa & Paket Data All Operator', 13000, 10500, 99, 10, 'transaksi', '2026-10-07 14:13:16+00'),
+('22222222-0065-4444-8888-000000000065', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11111111-0009-4444-8888-000000000009', 'Tagihan & Pulsa', 'Tagihan & Token Listrik PLN', 22000, 20000, 999, 10, 'transaksi', '2026-10-07 14:13:16+00'),
+('22222222-0066-4444-8888-000000000066', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11111111-0009-4444-8888-000000000009', 'Tagihan & Pulsa', 'Tagihan Air PDAM Bulanan', 2500, 0, 999, 10, 'transaksi', '2026-10-07 14:13:16+00'),
+('22222222-0067-4444-8888-000000000067', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11111111-0009-4444-8888-000000000009', 'Tagihan & Pulsa', 'Pulsa All Operator', 7000, 5000, 999, 10, 'transaksi', '2026-10-07 14:13:16+00'),
 
 -- 10. Gas & Galon
 ('22222222-0068-4444-8888-000000000068', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11111111-0010-4444-8888-000000000010', 'Gas & Galon', 'Gas LPG Tabung Melon 3 Kg (Tukar Tabung)', 22000, 19000, 16, 3, 'tabung', '2026-10-07 14:13:16+00'),

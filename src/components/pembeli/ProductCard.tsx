@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Plus, Check, Ban } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Plus, Check, Ban, ArrowRight, Zap } from 'lucide-react';
 import { Product } from '../../types';
 import { useCart } from '../../context/CartContext';
 
@@ -12,16 +13,22 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
+  const router = useRouter();
   const { addToCart } = useCart();
   const [justAdded, setJustAdded] = useState(false);
 
   const stock = typeof product.stock === 'number' ? product.stock : 0;
   const isOutOfStock = stock <= 0;
   const isLowStock = !isOutOfStock && (product.isLowStock || stock <= (product.min_stock || 5));
+  const isPPOB = product.category === 'Tagihan & Pulsa' || product.categoryLabel === 'Tagihan & Pulsa';
 
   const handleAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isOutOfStock) return;
+    if (isPPOB) {
+      router.push(`/dashboard/pelanggan/produk/${product.id}`);
+      return;
+    }
     addToCart(product);
     setJustAdded(true);
     setTimeout(() => setJustAdded(false), 900);
@@ -79,14 +86,16 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
           <div
             className={`text-[11px] font-medium ${
-              isOutOfStock 
-                ? 'text-rose-600 font-bold' 
-                : isLowStock 
-                  ? 'text-amber-700 font-bold' 
-                  : 'text-neutral-500'
+              isPPOB
+                ? 'text-emerald-700 font-semibold'
+                : isOutOfStock 
+                  ? 'text-rose-600 font-bold' 
+                  : isLowStock 
+                    ? 'text-amber-700 font-bold' 
+                    : 'text-neutral-500'
             }`}
           >
-            {isOutOfStock ? 'Stok kosong' : `Stok: ${stock} ${product.unit || 'pcs'}`}
+            {isPPOB ? 'Layanan Digital PPOB' : isOutOfStock ? 'Stok kosong' : `Stok: ${stock} ${product.unit || 'pcs'}`}
           </div>
         </div>
 
@@ -94,16 +103,25 @@ export default function ProductCard({ product }: ProductCardProps) {
           onClick={handleAdd}
           type="button"
           disabled={isOutOfStock}
-          aria-label={isOutOfStock ? `${product.name} habis` : `Tambah ${product.name} ke keranjang`}
-          className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all active:scale-90 ${
-            isOutOfStock
-              ? 'bg-neutral-100 text-neutral-400 border border-neutral-200 cursor-not-allowed'
-              : justAdded
-                ? 'bg-[#d4f952] text-neutral-950 font-bold border border-[#c4ec3e] shadow-xs cursor-pointer'
-                : 'border border-neutral-300 hover:border-[#c4ec3e] hover:bg-[#d4f952] text-neutral-800 hover:text-neutral-950 bg-white shadow-2xs cursor-pointer'
+          aria-label={isPPOB ? `Pilih ${product.name}` : isOutOfStock ? `${product.name} habis` : `Tambah ${product.name} ke keranjang`}
+          className={`h-8 rounded-xl flex items-center justify-center transition-all active:scale-95 ${
+            isPPOB
+              ? 'px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs gap-1 cursor-pointer'
+              : `w-8 ${
+                  isOutOfStock
+                    ? 'bg-neutral-100 text-neutral-400 border border-neutral-200 cursor-not-allowed'
+                    : justAdded
+                      ? 'bg-[#d4f952] text-neutral-950 font-bold border border-[#c4ec3e] shadow-xs cursor-pointer'
+                      : 'border border-neutral-300 hover:border-[#c4ec3e] hover:bg-[#d4f952] text-neutral-800 hover:text-neutral-950 bg-white shadow-2xs cursor-pointer'
+                }`
           }`}
         >
-          {isOutOfStock ? (
+          {isPPOB ? (
+            <>
+              <Zap className="w-3.5 h-3.5 fill-emerald-600 text-emerald-600" />
+              <span>Pilih</span>
+            </>
+          ) : isOutOfStock ? (
             <Ban className="w-4 h-4 text-neutral-400" />
           ) : justAdded ? (
             <Check className="w-4 h-4 stroke-[3]" />

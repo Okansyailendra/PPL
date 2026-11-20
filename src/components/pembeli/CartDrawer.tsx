@@ -322,30 +322,45 @@ ${generatedOrderId ? `✅ _Pesanan sudah tercatat di sistem kasir Toko Wadira (\
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          onClick={() => updateQuantity(item.product.id, item.quantity - 1, item.selectedVariant?.id)}
-                          className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-95 transition"
-                        >
-                          <Minus className="w-3.5 h-3.5" />
-                        </button>
-                        <span className="w-7 text-center text-sm font-bold text-slate-800">
-                          {item.quantity}
-                        </span>
-                        <button
-                          onClick={() => updateQuantity(item.product.id, item.quantity + 1, item.selectedVariant?.id)}
-                          className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center hover:bg-emerald-100 active:scale-95 transition"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => removeFromCart(item.product.id, item.selectedVariant?.id)}
-                          className="ml-1 text-slate-300 hover:text-red-500 transition p-1.5 rounded-md hover:bg-red-50"
-                          title="Hapus barang"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                      {item.product.category === 'Tagihan & Pulsa' ? (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                            1x transaksi
+                          </span>
+                          <button
+                            onClick={() => removeFromCart(item.product.id, item.selectedVariant?.id)}
+                            className="text-slate-300 hover:text-red-500 transition p-1.5 rounded-md hover:bg-red-50"
+                            title="Hapus layanan"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => updateQuantity(item.product.id, item.quantity - 1, item.selectedVariant?.id)}
+                            className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-95 transition"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="w-7 text-center text-sm font-bold text-slate-800">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => updateQuantity(item.product.id, item.quantity + 1, item.selectedVariant?.id)}
+                            className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center hover:bg-emerald-100 active:scale-95 transition"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => removeFromCart(item.product.id, item.selectedVariant?.id)}
+                            className="ml-1 text-slate-300 hover:text-red-500 transition p-1.5 rounded-md hover:bg-red-50"
+                            title="Hapus barang"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

@@ -84,18 +84,21 @@ export async function POST(req: Request) {
         );
       }
 
-      // Selalu gunakan harga resmi dari database (bukan dari input klien)
-      const officialPrice = Number(dbProd.price) || 0;
+      // Selalu gunakan harga resmi dari database kecuali produk PPOB (Tagihan & Pulsa) dengan nominal dinamis
+      let officialPrice = Number(dbProd.price) || 0;
+      if (dbProd.category === 'Tagihan & Pulsa' && Number(it.price) > 0) {
+        officialPrice = Number(it.price);
+      }
       const subtotal = officialPrice * qty;
       itemsTotal += subtotal;
 
       validatedItems.push({
         id: dbProd.id,
         productId: dbProd.id,
-        name: dbProd.name || 'Produk',
+        name: (it.name || dbProd.name || 'Produk').slice(0, 50),
         price: officialPrice,
         quantity: qty,
-        unit: dbProd.unit || 'pcs',
+        unit: it.unit || dbProd.unit || 'pcs',
         subtotal,
       });
     }
