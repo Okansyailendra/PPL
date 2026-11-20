@@ -64,7 +64,8 @@ export async function login(formData: FormData) {
     avatar_url: user.avatar_url || '',
   };
 
-  const token = signSessionToken(userData, 7 * 24 * 60 * 60);
+  const FIVE_DAYS = 5 * 24 * 60 * 60;
+  const token = signSessionToken(userData, 30 * 24 * 60 * 60);
   
   const cookieStore = await cookies();
   cookieStore.set('userSession', token, { 
@@ -72,7 +73,7 @@ export async function login(formData: FormData) {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: 7 * 24 * 60 * 60 
+    maxAge: FIVE_DAYS 
   });
 
   if (userData.role === 'pelanggan') {
@@ -153,7 +154,8 @@ export async function register(formData: FormData) {
     role,
   };
 
-  const token = signSessionToken(userData, 7 * 24 * 60 * 60);
+  const FIVE_DAYS = 5 * 24 * 60 * 60;
+  const token = signSessionToken(userData, 30 * 24 * 60 * 60);
   
   const cookieStore = await cookies();
   cookieStore.set('userSession', token, { 
@@ -161,7 +163,7 @@ export async function register(formData: FormData) {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: 7 * 24 * 60 * 60 
+    maxAge: FIVE_DAYS 
   });
 
   if (role === 'pelanggan') {

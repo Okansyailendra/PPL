@@ -92,12 +92,31 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard/penjual', request.url));
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+
+  // Sliding Session: Perpanjang masa aktif cookie 5 hari setiap kali user beraktivitas
+  if (hasSession && userSession) {
+    response.cookies.set('userSession', userSession, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 5 * 24 * 60 * 60,
+    });
+  }
+
+  return response;
 }
 
 // Backward compatibility alias jika dipanggil sebagai middleware
 export { proxy as middleware };
 
 export const config = {
-  matcher: ['/login', '/register', '/dashboard/penjual/:path*', '/api/auth/callback/google.'],
+  matcher: [
+    '/login',
+    '/register',
+    '/dashboard/penjual/:path*',
+    '/dashboard/pelanggan/:path*',
+    '/api/auth/callback/google.',
+  ],
 };

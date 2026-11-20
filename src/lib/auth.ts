@@ -25,7 +25,7 @@ export interface SessionPayload {
  * Membuat token sesi aman yang ditandatangani dengan HMAC-SHA256.
  * Format token: base64url(payload).hex(hmac)
  */
-export function signSessionToken(userData: UserSession, maxAgeSeconds: number = 7 * 24 * 60 * 60): string {
+export function signSessionToken(userData: UserSession, maxAgeSeconds: number = 30 * 24 * 60 * 60): string {
   const exp = Date.now() + maxAgeSeconds * 1000;
   const payload: SessionPayload = {
     id: userData.id,

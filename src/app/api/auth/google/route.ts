@@ -179,8 +179,9 @@ export async function POST(req: Request) {
       targetUrl = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/dashboard/pelanggan';
     }
 
-    // 4. Buat session token aman (HMAC signed, berlaku 7 hari)
-    const token = signSessionToken(userData, 7 * 24 * 60 * 60);
+    // 4. Buat session token aman (HMAC signed, berlaku hingga 30 hari, dikontrol cookie 5 hari)
+    const FIVE_DAYS = 5 * 24 * 60 * 60;
+    const token = signSessionToken(userData, 30 * 24 * 60 * 60);
 
     const cookieStore = await cookies();
     cookieStore.set('userSession', token, {
@@ -188,7 +189,7 @@ export async function POST(req: Request) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 7 * 24 * 60 * 60,
+      maxAge: FIVE_DAYS,
     });
 
     return NextResponse.json({

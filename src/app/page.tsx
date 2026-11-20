@@ -168,12 +168,30 @@ const ORDER_STEPS = [
 function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    email: string;
+    role?: string;
+    owner_name?: string;
+    store_name?: string;
+  } | null>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 15);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/auth/session')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.success && data?.user) {
+          setCurrentUser(data.user);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   return (
@@ -209,13 +227,32 @@ function Navbar() {
 
         {/* Kanan: Tombol Login & Katalog Belanja */}
         <div className="flex items-center gap-2.5 sm:gap-3">
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-1.5 rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs sm:text-sm font-bold text-neutral-800 shadow-2xs transition-all duration-200 hover:bg-neutral-100 hover:text-neutral-950"
-          >
-            <LogIn className="h-4 w-4" />
-            <span>Login</span>
-          </Link>
+          {currentUser ? (
+            currentUser.role === 'penjual' || currentUser.role === 'admin' ? (
+              <Link
+                href="/dashboard/penjual"
+                className="inline-flex items-center gap-1.5 rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs sm:text-sm font-bold text-neutral-800 shadow-2xs transition-all duration-200 hover:bg-neutral-100 hover:text-neutral-950"
+              >
+                <Store className="h-4 w-4 text-[#758c54]" />
+                <span>Dashboard Admin</span>
+              </Link>
+            ) : (
+              <Link
+                href="/dashboard/pelanggan"
+                className="inline-flex items-center gap-1.5 rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs sm:text-sm font-bold text-neutral-800 shadow-2xs transition-all duration-200 hover:bg-neutral-100 hover:text-neutral-950"
+              >
+                <span className="max-w-[120px] truncate">Hai, {currentUser.owner_name?.split(' ')[0] || 'Pelanggan'}</span>
+              </Link>
+            )
+          ) : (
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-1.5 rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs sm:text-sm font-bold text-neutral-800 shadow-2xs transition-all duration-200 hover:bg-neutral-100 hover:text-neutral-950"
+            >
+              <LogIn className="h-4 w-4" />
+              <span>Login</span>
+            </Link>
+          )}
 
           <Link
             href="/dashboard/pelanggan"
@@ -252,14 +289,35 @@ function Navbar() {
               </a>
             ))}
             <div className="pt-3 border-t border-neutral-100 flex flex-col gap-2">
-              <Link
-                href="/login"
-                onClick={() => setOpen(false)}
-                className="flex items-center justify-center gap-2 rounded-xl border border-neutral-300 py-2.5 text-sm font-bold text-neutral-800 hover:bg-neutral-50"
-              >
-                <LogIn className="h-4 w-4" />
-                <span>Masuk / Login</span>
-              </Link>
+              {currentUser ? (
+                currentUser.role === 'penjual' || currentUser.role === 'admin' ? (
+                  <Link
+                    href="/dashboard/penjual"
+                    onClick={() => setOpen(false)}
+                    className="flex items-center justify-center gap-2 rounded-xl border border-neutral-300 py-2.5 text-sm font-bold text-neutral-800 hover:bg-neutral-50"
+                  >
+                    <Store className="h-4 w-4 text-[#758c54]" />
+                    <span>Dashboard Admin</span>
+                  </Link>
+                ) : (
+                  <Link
+                    href="/dashboard/pelanggan"
+                    onClick={() => setOpen(false)}
+                    className="flex items-center justify-center gap-2 rounded-xl border border-neutral-300 py-2.5 text-sm font-bold text-neutral-800 hover:bg-neutral-50"
+                  >
+                    <span>Hai, {currentUser.owner_name?.split(' ')[0] || 'Pelanggan'}</span>
+                  </Link>
+                )
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-neutral-300 py-2.5 text-sm font-bold text-neutral-800 hover:bg-neutral-50"
+                >
+                  <LogIn className="h-4 w-4" />
+                  <span>Masuk / Login</span>
+                </Link>
+              )}
               <Link
                 href="/dashboard/pelanggan"
                 onClick={() => setOpen(false)}

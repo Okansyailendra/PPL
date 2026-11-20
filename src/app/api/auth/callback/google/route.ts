@@ -187,19 +187,20 @@ export async function GET(req: Request) {
       finalRedirect = redirectTarget;
     }
 
-    // 4. Set Session Cookie HMAC signed (7 hari)
-    const token = signSessionToken(userData, 7 * 24 * 60 * 60);
+    // 4. Set Session Cookie HMAC signed (dikontrol cookie 5 hari ketidakaktifan)
+    const FIVE_DAYS = 5 * 24 * 60 * 60;
+    const token = signSessionToken(userData, 30 * 24 * 60 * 60);
 
-    const cookieStore = await cookies();
-    cookieStore.set('userSession', token, {
+    const redirectResponse = NextResponse.redirect(new URL(finalRedirect, req.url));
+    redirectResponse.cookies.set('userSession', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 7 * 24 * 60 * 60,
+      maxAge: FIVE_DAYS,
     });
 
-    return NextResponse.redirect(new URL(finalRedirect, req.url));
+    return redirectResponse;
   } catch (err: any) {
     console.error('Error pada OAuth callback Google:', err);
     return NextResponse.redirect(
