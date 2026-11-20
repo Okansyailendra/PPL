@@ -255,10 +255,10 @@ INSERT INTO public.products (id, umkm_id, category_id, category, name, price, co
 ('22222222-0007-4444-8888-000000000007', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11111111-0003-4444-8888-000000000003', 'Makanan Ringan & Biskuit', 'Choki Choki Chococashew', 1500, 1000, 40, 10, 'pcs', '2026-10-07 14:13:16+00'),
 ('22222222-0008-4444-8888-000000000008', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11111111-0003-4444-8888-000000000003', 'Makanan Ringan & Biskuit', 'Garuda Pilus Rasa Sapi Panggang 95g', 6500, 5200, 25, 5, 'bungkus', '2026-10-07 14:13:16+00'),
 ('22222222-0009-4444-8888-000000000009', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11111111-0003-4444-8888-000000000003', 'Makanan Ringan & Biskuit', 'Gery Salut Malkist Cokelat 110g', 7500, 6200, 24, 6, 'bungkus', '2026-10-07 14:13:16+00'),
-('22222222-0010-4444-8888-000000000010', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11111111-0003-4444-8888-000000000010', 'Makanan Ringan & Biskuit', 'Nabati Siip Keju Stick', 2000, 1500, 45, 10, 'bungkus', '2026-10-07 14:13:16+00'),
-('22222222-0011-4444-8888-000000000011', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11111111-0003-4444-8888-000000000011', 'Makanan Ringan & Biskuit', 'Nextar Brownies Choco Delight 8x12g', 7000, 5800, 20, 5, 'kotak', '2026-10-07 14:13:16+00'),
-('22222222-0012-4444-8888-000000000012', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11111111-0003-4444-8888-000000000012', 'Makanan Ringan & Biskuit', 'Ring Snack Rasa Keju 20g', 2000, 1500, 30, 5, 'bungkus', '2026-10-07 14:13:16+00'),
-('22222222-0013-4444-8888-000000000013', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11111111-0003-4444-8888-000000000013', 'Makanan Ringan & Biskuit', 'Slai O''lai Strawberry 128g', 6000, 4900, 25, 5, 'bungkus', '2026-10-07 14:13:16+00'),
+('22222222-0010-4444-8888-000000000010', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11111111-0003-4444-8888-000000000003', 'Makanan Ringan & Biskuit', 'Nabati Siip Keju Stick', 2000, 1500, 45, 10, 'bungkus', '2026-10-07 14:13:16+00'),
+('22222222-0011-4444-8888-000000000011', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11111111-0003-4444-8888-000000000003', 'Makanan Ringan & Biskuit', 'Nextar Brownies Choco Delight 8x12g', 7000, 5800, 20, 5, 'kotak', '2026-10-07 14:13:16+00'),
+('22222222-0012-4444-8888-000000000012', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11111111-0003-4444-8888-000000000003', 'Makanan Ringan & Biskuit', 'Ring Snack Rasa Keju 20g', 2000, 1500, 30, 5, 'bungkus', '2026-10-07 14:13:16+00'),
+('22222222-0013-4444-8888-000000000013', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11111111-0003-4444-8888-000000000003', 'Makanan Ringan & Biskuit', 'Slai O''lai Strawberry 128g', 6000, 4900, 25, 5, 'bungkus', '2026-10-07 14:13:16+00'),
 
 -- 4. Minuman
 ('22222222-0014-4444-8888-000000000014', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', '11111111-0004-4444-8888-000000000004', 'Minuman', 'Ale-Ale Minuman Gelas Rasa Jeruk 200ml', 1500, 1000, 48, 12, 'cup', '2026-10-07 14:13:16+00'),
