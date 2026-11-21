@@ -73,7 +73,7 @@ function detectOperator(phone: string): { name: string; color: string; badge: st
 
 function ProductDetailSkeleton() {
   return (
-    <div className="max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 animate-pulse">
+    <div className="max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 animate-pulse">
       {/* Breadcrumb Skeleton */}
       <div className="space-y-2">
         <div className="flex items-center gap-2">
@@ -232,7 +232,7 @@ function ProductDetailContent({ productId }: { productId: string }) {
   // Not found state jika produk tidak ada di database
   if (!product) {
     return (
-      <div className="max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center space-y-4">
+      <div className="max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center space-y-4">
         <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
           <Ban className="w-8 h-8" />
         </div>
@@ -347,7 +347,7 @@ function ProductDetailContent({ productId }: { productId: string }) {
   const detectedOp = detectOperator(pulsaPhone);
 
   return (
-    <div className="max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Breadcrumb & Action Header */}
       <div className="space-y-2">
         <nav className="flex items-center gap-2 text-xs font-medium text-slate-500">

@@ -177,7 +177,7 @@ export default function PiutangClient({ initialDebts = [] }: PiutangClientProps)
   };
 
   return (
-    <div className="flex flex-col w-full max-w-7xl mx-auto pb-12 font-sans">
+    <div className="flex flex-col w-full max-w-[1600px] mx-auto pb-12 font-sans">
       {/* 1. Breadcrumb & Page Header */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-5">
         <div>

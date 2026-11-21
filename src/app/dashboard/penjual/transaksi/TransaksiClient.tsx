@@ -657,7 +657,7 @@ export default function TransaksiClient({
   const storeDisplayName = user?.store_name || user?.warung_name || 'HalwiyahStore';
 
   return (
-    <div className="flex flex-col w-full max-w-7xl mx-auto pb-12 font-sans">
+    <div className="flex flex-col w-full max-w-[1600px] mx-auto pb-12 font-sans">
       {/* 1. Breadcrumb & Page Header */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-5">
         <div>
@@ -915,7 +915,7 @@ export default function TransaksiClient({
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
               {filteredProducts.map((p) => {
                 const inCart = cart.find((c) => c.product.id === p.id);
                 const isOutOfStock = mode === 'SALE' && p.stock <= 0;

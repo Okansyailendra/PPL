@@ -446,7 +446,7 @@ export default function StokClient({ initialProducts = [], initialCategories = [
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-6 pb-12">
+    <div className="w-full max-w-[1600px] mx-auto space-y-6 pb-12">
       {/* Toast Messages */}
       {successMessage && (
         <div className="bg-[#eef5db] border border-[#d6e5b4] text-[#3a471f] px-4 py-3 rounded-xl flex items-center justify-between text-xs sm:text-sm font-semibold shadow-xs transition-all">

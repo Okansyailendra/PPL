@@ -121,7 +121,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex flex-col w-full max-w-7xl mx-auto pb-12 font-sans">
+    <div className="flex flex-col w-full max-w-[1600px] mx-auto pb-12 font-sans">
       {/* 1. Breadcrumb & Page Header */}
       <div className="mb-6">
         <span className="text-[11px] font-bold tracking-wider text-neutral-400 uppercase mb-1 block">

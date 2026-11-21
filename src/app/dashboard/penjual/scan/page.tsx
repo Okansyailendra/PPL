@@ -155,7 +155,7 @@ export default function ScanPage() {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-6 pb-12">
+    <div className="w-full max-w-[1600px] mx-auto space-y-6 pb-12">
       {/* Breadcrumb & Header */}
       <div>
         <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 mb-1">

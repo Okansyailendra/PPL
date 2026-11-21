@@ -38,7 +38,7 @@ export default function Header({ user }: HeaderProps) {
   return (
     <header className="w-full bg-[#465427] text-white sticky top-0 z-50 shadow-sm">
       {/* Top Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Left: Brand wadira. | Warung Digital Madura */}
         <div className="flex items-center gap-3">
           <Link href="/dashboard/penjual" className="flex items-center gap-2 group">
@@ -88,7 +88,7 @@ export default function Header({ user }: HeaderProps) {
 
       {/* Desktop Navigation Tabs */}
       <div className="border-t border-white/10 hidden lg:block">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-2">
           <nav className="flex items-center gap-1.5">
             {navLinks.map((link) => {
               const active = isLinkActive(link.href, link.exact);

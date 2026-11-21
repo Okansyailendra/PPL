@@ -8,11 +8,11 @@ export default function HeroBanner() {
     <div className="relative overflow-hidden rounded-3xl bg-[#d4f952] text-neutral-950 p-6 sm:p-7 shadow-xs border border-[#c4ec3e]">
       <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         {/* Sisi Kiri: Heading Utama & Deskripsi */}
-        <div className="space-y-1.5 max-w-xl">
+        <div className="space-y-1.5 max-w-2xl lg:max-w-3xl">
           <h2 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight leading-tight text-neutral-950">
             Kebutuhan rumah, dari warung tetangga.
           </h2>
-          <p className="text-xs sm:text-sm text-neutral-800 leading-relaxed font-medium max-w-lg">
+          <p className="text-xs sm:text-sm text-neutral-800 leading-relaxed font-medium max-w-xl lg:max-w-2xl">
             Pesan sembako harian dan belanjaan dapur lewat katalog online, pesanan langsung disiapkan kasir Toko Wadira.
           </p>
         </div>

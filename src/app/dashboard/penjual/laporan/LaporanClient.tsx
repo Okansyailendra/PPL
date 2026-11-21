@@ -139,7 +139,7 @@ export default function LaporanClient({
   const displayCount = viewTab === 'RIWAYAT' ? displayTrx.length : bukuBesar.length;
 
   return (
-    <div className="flex flex-col w-full max-w-7xl mx-auto pb-12 font-sans print:max-w-none print:w-full print:bg-white print:text-black">
+    <div className="flex flex-col w-full max-w-[1600px] mx-auto pb-12 font-sans print:max-w-none print:w-full print:bg-white print:text-black">
       {/* HEADER PRINT ONLY */}
       <div className="hidden print:block mb-8 text-center border-b-2 border-black pb-4">
         <h1 className="text-2xl font-bold uppercase">

@@ -101,7 +101,7 @@ export default function DashboardPelangganPage() {
   }, [products, selectedCategory, searchQuery, stockFilter]);
 
   return (
-    <div className="p-4 sm:px-6 lg:px-8 py-6 max-w-7xl w-full mx-auto space-y-6">
+    <div className="p-4 sm:px-6 lg:px-8 py-6 max-w-[1600px] w-full mx-auto space-y-6">
       {/* Breadcrumb & Page Heading */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div className="space-y-1">

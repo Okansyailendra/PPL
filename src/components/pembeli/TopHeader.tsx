@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   ShoppingCart, 
-  MessageCircle, 
   LogIn, 
   LogOut, 
   LayoutDashboard 
@@ -51,7 +50,7 @@ export default function TopHeader({ initialUser = null }: TopHeaderProps) {
   return (
     <header className="w-full bg-[#465427] text-white sticky top-0 z-50 shadow-sm">
       {/* Top Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Left: Brand wadira. | Warung Madura Digital */}
         <div className="flex items-center gap-3">
           <Link href="/dashboard/pelanggan" className="flex items-center gap-2 group">
@@ -65,18 +64,8 @@ export default function TopHeader({ initialUser = null }: TopHeaderProps) {
           </span>
         </div>
 
-        {/* Right Actions: Tanya Kasir, Keranjang, User Auth */}
+        {/* Right Actions: Keranjang, User Auth */}
         <div className="flex items-center gap-2.5 sm:gap-3">
-          {/* Tanya Kasir WhatsApp */}
-          <a
-            href="https://wa.me/6289516201846?text=Halo%20Toko%20Wadira,%20mau%20tanya%20stok%20barang"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/20 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-colors"
-          >
-            <MessageCircle className="w-3.5 h-3.5 text-[#cbf14e]" />
-            <span>Tanya Kasir</span>
-          </a>
 
           {/* Shortcut Keranjang Belanja */}
           <Link
@@ -142,7 +131,7 @@ export default function TopHeader({ initialUser = null }: TopHeaderProps) {
 
       {/* Desktop Navigation Tabs */}
       <div className="border-t border-white/10 hidden sm:block">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-2">
           <nav className="flex items-center gap-1.5">
             {navLinks.map((link) => {
               const active = isLinkActive(link.href, link.exact);

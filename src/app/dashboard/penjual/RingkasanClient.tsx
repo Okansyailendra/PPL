@@ -35,7 +35,7 @@ export default function RingkasanClient({
   const ownerName = user?.owner_name || 'Helwiyah';
 
   return (
-    <div className="flex flex-col w-full max-w-7xl mx-auto space-y-6">
+    <div className="flex flex-col w-full max-w-[1600px] mx-auto space-y-6">
       {/* 1. Breadcrumb & Header Welcome */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
