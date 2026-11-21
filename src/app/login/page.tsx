@@ -376,15 +376,6 @@ function LoginContent() {
               Tanpa membuat kata sandi baru. Cukup pilih akun Google Anda.
             </p>
 
-            <div className="text-center pb-2">
-              <Link 
-                href="/register" 
-                className="text-xs text-[#4a5829] font-bold hover:underline inline-flex items-center gap-1 transition"
-              >
-                <span>Belum punya akun? Daftar Pelanggan / Warung</span>
-              </Link>
-            </div>
-
             {/* Horizontal Line Divider */}
             <div className="border-t border-neutral-100 my-4" />
 
