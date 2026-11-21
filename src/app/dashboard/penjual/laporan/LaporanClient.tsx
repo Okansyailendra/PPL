@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import type { UserSession, Product, Debt } from '@/types';
 import {
@@ -8,11 +8,15 @@ import {
   PeriodeFilter,
   filterByPeriode,
   hitungRingkasan,
-  hitungLabaRugi,
   hitungPiutang,
   hitungNilaiPersediaan,
   buatBukuBesar,
 } from '@/lib/ledger';
+import {
+  generateFinancialSummary,
+  calculateTransactionProfit,
+  type FinancialSummaryResult,
+} from '@/lib/financial-analytics';
 import { deleteTransaction } from '@/app/actions/transaksi';
 import {
   History,
@@ -25,6 +29,12 @@ import {
   Banknote,
   QrCode,
   CreditCard,
+  TrendingUp,
+  BarChart3,
+  ExternalLink,
+  Layers,
+  ArrowUpRight,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface LaporanClientProps {
@@ -45,8 +55,8 @@ export default function LaporanClient({
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
 
-  // Tab View: Riwayat Transaksi Lengkap vs Buku Besar / Jurnal Kas Manual
-  const [viewTab, setViewTab] = useState<'RIWAYAT' | 'JURNAL'>('RIWAYAT');
+  // Tab View: Riwayat Transaksi Lengkap vs Buku Besar vs Analitik Finansial (ZAKI DEL-7)
+  const [viewTab, setViewTab] = useState<'RIWAYAT' | 'JURNAL' | 'ANALYTICS'>('RIWAYAT');
   const [filterType, setFilterType] = useState<'ALL' | 'IN' | 'OUT'>('ALL');
   const [filterPayment, setFilterPayment] = useState<'ALL' | 'CASH' | 'QRIS' | 'CREDIT'>('ALL');
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -64,10 +74,36 @@ export default function LaporanClient({
 
   // Computations
   const ringkasan = hitungRingkasan(filteredTrx);
-  const labaRugi = hitungLabaRugi(filteredTrx);
   const piutang = hitungPiutang(debts);
   const persediaan = hitungNilaiPersediaan(products);
   const bukuBesar = buatBukuBesar(filteredTrx, 0);
+
+  // Mesin Analitik Finansial & HPP [ZAKI - TASK-79 & DEL-7]
+  const financialSummary = useMemo(() => {
+    return generateFinancialSummary(
+      filteredTrx as any,
+      debts,
+      products,
+      {
+        name: getPeriodeLabel(periode),
+        start_date: customStart || null,
+        end_date: customEnd || null,
+      }
+    );
+  }, [filteredTrx, debts, products, periode, customStart, customEnd]);
+
+  // Map selisih harga jual dengan harga beli modal per transaksi [ZAKI DEL-7]
+  const trxProfitMap = useMemo(() => {
+    const map = new Map<string, { cogs: number; profit: number; margin: number }>();
+    financialSummary.transactions_breakdown.forEach((t) => {
+      map.set(t.transaction_id, {
+        cogs: t.total_cogs,
+        profit: t.gross_profit,
+        margin: t.profit_margin_pct,
+      });
+    });
+    return map;
+  }, [financialSummary]);
 
   // Ringkasan per Metode Pembayaran Penjualan
   const penjualanTrx = filteredTrx.filter((t) => t.type === 'IN');
@@ -136,7 +172,12 @@ export default function LaporanClient({
     day: 'numeric',
   });
 
-  const displayCount = viewTab === 'RIWAYAT' ? displayTrx.length : bukuBesar.length;
+  const displayCount =
+    viewTab === 'RIWAYAT'
+      ? displayTrx.length
+      : viewTab === 'JURNAL'
+      ? bukuBesar.length
+      : financialSummary.top_products.length;
 
   return (
     <div className="flex flex-col w-full max-w-[1600px] mx-auto pb-12 font-sans print:max-w-none print:w-full print:bg-white print:text-black">
@@ -228,39 +269,39 @@ export default function LaporanClient({
       {/* 2. Top Metrics Box (Full-width Lime Green Container) */}
       <div className="bg-[#cbf14e] rounded-2xl p-6 sm:p-7 shadow-xs mt-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
-          {/* Col 1: Kas Masuk / Penjualan */}
+          {/* Col 1: Omset Kotor / Penjualan */}
           <div>
             <div className="border-t border-[#1c240d]/15 pt-2.5 mb-2">
               <span className="text-[10px] sm:text-[11px] font-extrabold tracking-wider text-[#354614] uppercase block">
-                KAS MASUK / PENJUALAN
+                OMSET KOTOR (PENJUALAN)
               </span>
             </div>
             <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-[#1c240d] tracking-tight">
-              Rp {ringkasan.kasMasuk.toLocaleString('id-ID')}
+              Rp {financialSummary.metrics.gross_revenue.toLocaleString('id-ID')}
             </div>
           </div>
 
-          {/* Col 2: Kas Keluar / Kulakan (Red Amount as in mockup) */}
+          {/* Col 2: HPP / Modal Barang (COGS) */}
           <div>
             <div className="border-t border-[#1c240d]/15 pt-2.5 mb-2">
               <span className="text-[10px] sm:text-[11px] font-extrabold tracking-wider text-[#354614] uppercase block">
-                KAS KELUAR / KULAKAN
+                HPP (MODAL BARANG TERJUAL)
               </span>
             </div>
             <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-[#cc1818] tracking-tight">
-              Rp {ringkasan.kasKeluar.toLocaleString('id-ID')}
+              Rp {financialSummary.metrics.cogs.toLocaleString('id-ID')}
             </div>
           </div>
 
-          {/* Col 3: Selisih Kas Bersih */}
+          {/* Col 3: Laba Kotor (Gross Profit) */}
           <div>
             <div className="border-t border-[#1c240d]/15 pt-2.5 mb-2">
               <span className="text-[10px] sm:text-[11px] font-extrabold tracking-wider text-[#354614] uppercase block">
-                SELISIH KAS BERSIH
+                LABA KOTOR ({financialSummary.metrics.gross_profit_margin_pct}%)
               </span>
             </div>
             <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-[#1c240d] tracking-tight">
-              Rp {ringkasan.selisih.toLocaleString('id-ID')}
+              Rp {financialSummary.metrics.gross_profit.toLocaleString('id-ID')}
             </div>
           </div>
 
@@ -272,7 +313,7 @@ export default function LaporanClient({
               </span>
             </div>
             <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-[#1c240d] tracking-tight">
-              Rp {labaRugi.labaBersih.toLocaleString('id-ID')}
+              Rp {financialSummary.metrics.net_profit.toLocaleString('id-ID')}
             </div>
           </div>
         </div>
@@ -337,76 +378,96 @@ export default function LaporanClient({
 
       {/* 3. Middle Section: 2 White Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-        {/* Card 1: Laporan Laba Rugi */}
+        {/* Card 1: Laporan Laba Rugi Berbasis Analisis HPP [DEL-7] */}
         <div className="bg-white rounded-2xl border border-neutral-200 p-6 shadow-xs flex flex-col justify-between">
           <div>
-            <h2 className="text-base font-bold text-neutral-900 mb-4">
-              Laporan laba rugi
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-neutral-900">
+                Laporan laba rugi
+              </h2>
+              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-[#eef5db] text-[#3b4c1a] uppercase">
+                COGS Analitik [DEL-7]
+              </span>
+            </div>
             <div className="space-y-3 text-xs sm:text-sm">
               <div className="flex justify-between items-center py-1">
-                <span className="text-neutral-600">Total penjualan</span>
+                <span className="text-neutral-600">Omset Penjualan Kotor</span>
                 <span className="font-semibold text-neutral-900">
-                  Rp {labaRugi.penjualan.toLocaleString('id-ID')}
+                  Rp {financialSummary.metrics.gross_revenue.toLocaleString('id-ID')}
                 </span>
               </div>
               <div className="flex justify-between items-center py-1 border-t border-neutral-100">
-                <span className="text-neutral-600">Harga pokok (kulakan)</span>
-                <span className="font-semibold text-neutral-900">
-                  - Rp {labaRugi.hpp.toLocaleString('id-ID')}
+                <span className="text-neutral-600">HPP / Modal Terjual (COGS)</span>
+                <span className="font-semibold text-red-600">
+                  - Rp {financialSummary.metrics.cogs.toLocaleString('id-ID')}
                 </span>
               </div>
               <div className="flex justify-between items-center py-1 border-t border-neutral-100">
                 <span className="font-bold text-neutral-900">Laba kotor</span>
-                <span className="font-bold text-neutral-900">
-                  Rp {labaRugi.labaKotor.toLocaleString('id-ID')}
-                </span>
+                <div className="text-right">
+                  <span className="font-bold text-neutral-900 block">
+                    Rp {financialSummary.metrics.gross_profit.toLocaleString('id-ID')}
+                  </span>
+                  <span className="text-[10px] text-neutral-400 font-medium">
+                    Margin: {financialSummary.metrics.gross_profit_margin_pct}%
+                  </span>
+                </div>
               </div>
               <div className="flex justify-between items-center py-1 border-t border-neutral-100">
-                <span className="text-neutral-600">Biaya operasional</span>
-                <span className="font-semibold text-neutral-900">
-                  - Rp {labaRugi.biaya.toLocaleString('id-ID')}
+                <span className="text-neutral-600">Biaya operasional kas keluar</span>
+                <span className="font-semibold text-red-600">
+                  - Rp {financialSummary.metrics.operational_expenses.toLocaleString('id-ID')}
                 </span>
               </div>
-              <div className="flex justify-between items-center py-1 border-t border-neutral-100">
-                <span className="font-bold text-neutral-900">Laba bersih</span>
-                <span className="font-bold text-neutral-900">
-                  Rp {labaRugi.labaBersih.toLocaleString('id-ID')}
-                </span>
+              <div className="flex justify-between items-center py-1 border-t border-neutral-100 bg-[#fbfdf7] -mx-2 px-2 rounded-lg">
+                <span className="font-bold text-[#354614]">Estimasi laba bersih</span>
+                <div className="text-right">
+                  <span className="font-black text-base text-[#354614] block">
+                    Rp {financialSummary.metrics.net_profit.toLocaleString('id-ID')}
+                  </span>
+                  <span className="text-[10px] text-[#465427] font-semibold">
+                    Net Margin: {financialSummary.metrics.net_profit_margin_pct}%
+                  </span>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Card 2: Posisi Piutang & Persediaan */}
+        {/* Card 2: Posisi Piutang & Rekapitulasi Arus Kas [DEL-7] */}
         <div className="bg-white rounded-2xl border border-neutral-200 p-6 shadow-xs flex flex-col justify-between">
           <div>
-            <h2 className="text-base font-bold text-neutral-900 mb-4">
-              Posisi piutang &amp; persediaan
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-neutral-900">
+                Posisi piutang &amp; arus kas
+              </h2>
+              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 uppercase">
+                Cash Flow Riil
+              </span>
+            </div>
             <div className="space-y-3 text-xs sm:text-sm">
               <div className="flex justify-between items-center py-1">
-                <span className="text-neutral-600">Total piutang (kasbon)</span>
-                <span className="font-semibold text-neutral-900">
-                  Rp {piutang.totalAktif.toLocaleString('id-ID')}
+                <span className="text-neutral-600">Piutang belum tertagih (Outstanding)</span>
+                <span className="font-bold text-amber-700">
+                  Rp {financialSummary.metrics.outstanding_receivables.toLocaleString('id-ID')}
                 </span>
               </div>
               <div className="flex justify-between items-center py-1 border-t border-neutral-100">
-                <span className="text-neutral-600">Pelanggan berutang</span>
-                <span className="font-semibold text-neutral-900">
-                  {piutang.jumlahPelanggan} orang
+                <span className="text-neutral-600">Piutang sudah dilunasi</span>
+                <span className="font-semibold text-emerald-700">
+                  Rp {financialSummary.metrics.collected_receivables.toLocaleString('id-ID')}
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-1 border-t border-neutral-100">
+                <span className="text-neutral-600">Arus kas bersih (Net Cash Flow)</span>
+                <span className="font-bold text-neutral-900">
+                  Rp {financialSummary.cash_flow.net_cash_flow.toLocaleString('id-ID')}
                 </span>
               </div>
               <div className="flex justify-between items-center py-1 border-t border-neutral-100">
                 <span className="text-neutral-600">Estimasi nilai persediaan</span>
                 <span className="font-semibold text-neutral-900">
-                  Rp {persediaan.toLocaleString('id-ID')}
-                </span>
-              </div>
-              <div className="flex justify-between items-center py-1 border-t border-neutral-100">
-                <span className="text-neutral-600">Jumlah SKU tersedia</span>
-                <span className="font-semibold text-neutral-900">
-                  {products.length} SKU
+                  Rp {persediaan.toLocaleString('id-ID')} ({products.length} SKU)
                 </span>
               </div>
             </div>
@@ -444,6 +505,18 @@ export default function LaporanClient({
               }`}
             >
               Buku Besar / Jurnal Kas Manual ({bukuBesar.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewTab('ANALYTICS')}
+              className={`px-4 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 ${
+                viewTab === 'ANALYTICS'
+                  ? 'bg-[#cbf14e] text-[#1c240d] shadow-xs'
+                  : 'bg-transparent hover:bg-neutral-50 text-neutral-600 font-medium'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>Analitik Laba &amp; Arus Kas [DEL-7]</span>
             </button>
           </div>
 
@@ -621,13 +694,21 @@ export default function LaporanClient({
                           )}
                         </div>
 
-                        {/* Nilai */}
-                        <div
-                          className={`col-span-2 font-black ${
-                            isSale ? 'text-[#465427]' : 'text-[#cc1818]'
-                          }`}
-                        >
-                          {isSale ? '+' : '-'} Rp {trx.total_amount.toLocaleString('id-ID')}
+                        {/* Nilai Transaksi & Selisih Laba Bersih [ZAKI DEL-7] */}
+                        <div className="col-span-2">
+                          <div
+                            className={`font-black ${
+                              isSale ? 'text-[#465427]' : 'text-[#cc1818]'
+                            }`}
+                          >
+                            {isSale ? '+' : '-'} Rp {trx.total_amount.toLocaleString('id-ID')}
+                          </div>
+                          {isSale && trxProfitMap.has(trx.id) && (
+                            <div className="text-[10px] text-emerald-700 font-semibold mt-0.5 flex flex-wrap items-center gap-1">
+                              <span>Laba: +Rp {trxProfitMap.get(trx.id)!.profit.toLocaleString('id-ID')}</span>
+                              <span className="text-neutral-400">({trxProfitMap.get(trx.id)!.margin}%)</span>
+                            </div>
+                          )}
                         </div>
 
                         {/* Keterangan & Action */}
@@ -742,6 +823,152 @@ export default function LaporanClient({
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* TAB 3: DATA ANALYTICS & REKAPITULASI ARUS KAS [ZAKI DEL-7 & TASK-79] */}
+        {viewTab === 'ANALYTICS' && (
+          <div className="p-6 space-y-6">
+            {/* Top Insight Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-[#fcfdfa] border border-[#d6e5b4] rounded-2xl p-4">
+                <span className="text-[10px] font-extrabold text-[#4a5829] uppercase tracking-wider block">
+                  OMSET KOTOR (REVENUE)
+                </span>
+                <span className="text-xl font-black text-neutral-900 mt-1 block">
+                  Rp {financialSummary.metrics.gross_revenue.toLocaleString('id-ID')}
+                </span>
+                <span className="text-[11px] text-neutral-500 mt-0.5 block">
+                  Penjualan masuk periode ini
+                </span>
+              </div>
+
+              <div className="bg-[#fcfdfa] border border-[#d6e5b4] rounded-2xl p-4">
+                <span className="text-[10px] font-extrabold text-red-700 uppercase tracking-wider block">
+                  COGS / MODAL HPP
+                </span>
+                <span className="text-xl font-black text-red-600 mt-1 block">
+                  Rp {financialSummary.metrics.cogs.toLocaleString('id-ID')}
+                </span>
+                <span className="text-[11px] text-neutral-500 mt-0.5 block">
+                  Harga beli modal barang
+                </span>
+              </div>
+
+              <div className="bg-[#fcfdfa] border border-[#d6e5b4] rounded-2xl p-4">
+                <span className="text-[10px] font-extrabold text-[#3b4c1a] uppercase tracking-wider block">
+                  LABA KOTOR (GROSS PROFIT)
+                </span>
+                <span className="text-xl font-black text-[#354614] mt-1 block">
+                  Rp {financialSummary.metrics.gross_profit.toLocaleString('id-ID')}
+                </span>
+                <span className="text-[11px] text-emerald-700 font-semibold mt-0.5 block">
+                  Margin: {financialSummary.metrics.gross_profit_margin_pct}%
+                </span>
+              </div>
+
+              <div className="bg-[#fcfdfa] border border-[#d6e5b4] rounded-2xl p-4">
+                <span className="text-[10px] font-extrabold text-amber-700 uppercase tracking-wider block">
+                  PIUTANG BELUM TERTAGIH
+                </span>
+                <span className="text-xl font-black text-amber-800 mt-1 block">
+                  Rp {financialSummary.metrics.outstanding_receivables.toLocaleString('id-ID')}
+                </span>
+                <span className="text-[11px] text-neutral-500 mt-0.5 block">
+                  Kasbon pelanggan aktif
+                </span>
+              </div>
+            </div>
+
+            {/* Top Products by Profit */}
+            <div className="bg-white border border-neutral-200/90 rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-[#4a5829]" />
+                    <span>Top 10 Produk Paling Menguntungkan</span>
+                  </h3>
+                  <p className="text-xs text-neutral-500 mt-0.5">
+                    Produk dengan kontribusi margin keuntungan terbesar berdasarkan data penjualan
+                  </p>
+                </div>
+              </div>
+
+              {financialSummary.top_products.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-neutral-200/80 text-[11px] font-extrabold text-neutral-500 uppercase">
+                        <th className="py-2.5 px-3">#</th>
+                        <th className="py-2.5 px-3">Nama Produk</th>
+                        <th className="py-2.5 px-3 text-center">Terjual</th>
+                        <th className="py-2.5 px-3 text-right">Total Omset</th>
+                        <th className="py-2.5 px-3 text-right">Total Modal (HPP)</th>
+                        <th className="py-2.5 px-3 text-right">Total Laba</th>
+                        <th className="py-2.5 px-3 text-right">Margin (%)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-100">
+                      {financialSummary.top_products.map((prod, idx) => (
+                        <tr key={idx} className="hover:bg-neutral-50/60 transition">
+                          <td className="py-3 px-3 font-bold text-neutral-400">{idx + 1}</td>
+                          <td className="py-3 px-3 font-bold text-neutral-900">{prod.name}</td>
+                          <td className="py-3 px-3 text-center text-neutral-600">
+                            {prod.quantity_sold} {prod.unit}
+                          </td>
+                          <td className="py-3 px-3 text-right font-medium text-neutral-800">
+                            Rp {prod.total_revenue.toLocaleString('id-ID')}
+                          </td>
+                          <td className="py-3 px-3 text-right font-medium text-neutral-500">
+                            Rp {prod.total_cogs.toLocaleString('id-ID')}
+                          </td>
+                          <td className="py-3 px-3 text-right font-bold text-emerald-700">
+                            +Rp {prod.total_profit.toLocaleString('id-ID')}
+                          </td>
+                          <td className="py-3 px-3 text-right font-extrabold text-[#354614]">
+                            {prod.profit_margin_pct}%
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-xs text-neutral-400">
+                  Belum ada data produk terjual di periode ini.
+                </div>
+              )}
+            </div>
+
+            {/* REST API Analytics Endpoint Documentation Box */}
+            <div className="bg-[#fbfcf8] border border-[#d6e5b4] rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#cbf14e] text-[#1c240d] flex items-center justify-center shrink-0">
+                  <BarChart3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-extrabold tracking-wider text-[#4a5829] uppercase block">
+                    ENDPOINT DATA ANALYTICS AKTIF [ZAKI - TASK-79]
+                  </span>
+                  <p className="text-xs font-mono font-bold text-neutral-800 mt-0.5">
+                    GET /api/reports/financial-summary?period={periode === 'ALL' ? 'all' : periode.toLowerCase()}
+                  </p>
+                  <p className="text-[11px] text-neutral-500 mt-1">
+                    Menyediakan data JSON otomatis untuk integrasi laporan, audit kasir, dan analitik performa toko.
+                  </p>
+                </div>
+              </div>
+
+              <a
+                href={`/api/reports/financial-summary?period=${periode === 'ALL' ? 'all' : periode.toLowerCase()}`}
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2.5 bg-[#4a5829] hover:bg-[#3d4922] text-[#d5ed70] font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition shrink-0 cursor-pointer"
+              >
+                <span>Uji Output JSON</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
           </div>
         )}
 

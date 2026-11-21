@@ -473,7 +473,12 @@ export async function parseTransactionText(
   if (apiKey) {
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
-      const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-latest'];
+      const candidateModels = [
+        'gemini-flash-lite-latest',
+        'gemini-flash-latest',
+        'gemini-2.5-flash-lite',
+        'gemini-2.5-flash',
+      ];
 
       const promptPayload = `
 Contoh Masukan & Keluaran yang diharapkan:
