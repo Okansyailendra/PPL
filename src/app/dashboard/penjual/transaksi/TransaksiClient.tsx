@@ -23,7 +23,11 @@ import {
   Info,
   Calendar,
   MessageSquare,
-  Printer
+  Printer,
+  CameraOff,
+  AlertCircle,
+  RotateCcw,
+  Loader2
 } from 'lucide-react';
 
 interface TransaksiClientProps {
@@ -104,8 +108,19 @@ export default function TransaksiClient({
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [scannerStatus, setScannerStatus] = useState('');
+  const [cameraLoading, setCameraLoading] = useState(false);
+  const [cameraError, setCameraError] = useState<{
+    type: 'permission' | 'not_found' | 'in_use' | 'unsupported' | 'unknown';
+    title: string;
+    message: string;
+    instruction?: string;
+  } | null>(null);
+  const [cameraRetryCount, setCameraRetryCount] = useState(0);
+  const [videoDevices, setVideoDevices] = useState<{ deviceId: string; label: string }[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
   const [lastScannedToast, setLastScannedToast] = useState<{ name: string; price: number; stock: number; unit: string; qty: number } | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const lastScanTimeRef = useRef<number>(0);
   const lastScannedCodeRef = useRef<string>('');
 
@@ -242,22 +257,116 @@ export default function TransaksiClient({
     }
   };
 
-  // ZXing Camera Barcode Decoder Lifecycle
+  const handleBarcodeDetectedRef = useRef(handleBarcodeDetected);
+  useEffect(() => {
+    handleBarcodeDetectedRef.current = handleBarcodeDetected;
+  });
+
+  // ZXing Camera Barcode Decoder Lifecycle with robust fallback & diagnostic errors
   useEffect(() => {
     let codeReader: any = null;
+    let localStream: MediaStream | null = null;
+    let isCancelled = false;
 
     if (isBarcodeOpen && scannerTab === 'camera') {
       const startCamera = async () => {
         try {
+          setCameraLoading(true);
+          setCameraError(null);
           setScannerStatus('Mengaktifkan kamera...');
-          const { BrowserMultiFormatReader } = await import('@zxing/library');
-          codeReader = new BrowserMultiFormatReader();
+
+          if (!navigator?.mediaDevices?.getUserMedia) {
+            throw new Error('BROWSER_UNSUPPORTED');
+          }
+
+          // Step 1: Detect available video devices
+          let videoInputs: MediaDeviceInfo[] = [];
+          try {
+            const rawDevices = await navigator.mediaDevices.enumerateDevices();
+            videoInputs = rawDevices.filter((d) => d.kind === 'videoinput');
+            const mapped = videoInputs.map((d, idx) => ({
+              deviceId: d.deviceId,
+              label: d.label || `Kamera ${idx + 1}`,
+            }));
+            setVideoDevices(mapped);
+          } catch (enumErr) {
+            console.warn('enumerateDevices error:', enumErr);
+          }
+
+          // Filter out IR / Windows Hello cameras if RGB camera is available
+          const nonIrDevices = videoInputs.filter((d) => {
+            const l = (d.label || '').toLowerCase();
+            return !l.includes('ir') && !l.includes('infrared') && !l.includes('hello');
+          });
+
+          const preferredDeviceId =
+            selectedDeviceId ||
+            (nonIrDevices.length > 0 ? nonIrDevices[0].deviceId : videoInputs[0]?.deviceId);
+
+          // Step 2: Acquire Stream with Multi-Tier Fallback
+          // Tier 1: Try specific deviceId if chosen or detected
+          if (preferredDeviceId) {
+            try {
+              localStream = await navigator.mediaDevices.getUserMedia({
+                video: { deviceId: { exact: preferredDeviceId } },
+                audio: false,
+              });
+            } catch (errTier1: any) {
+              console.warn('Tier 1 (exact deviceId) failed, trying generic:', errTier1);
+            }
+          }
+
+          // Tier 2: Universal { video: true } (Works with default active OS webcam)
+          if (!localStream) {
+            try {
+              localStream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: false,
+              });
+            } catch (errTier2: any) {
+              console.warn('Tier 2 (video: true) failed, trying facingMode:', errTier2);
+              // Tier 3: Ideal facingMode (primarily for mobile phones)
+              try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                  video: { facingMode: { ideal: facingMode } },
+                  audio: false,
+                });
+              } catch (errTier3: any) {
+                // If all tiers fail, throw the most informative error
+                throw errTier2 || errTier3;
+              }
+            }
+          }
+
+          if (isCancelled) {
+            localStream?.getTracks().forEach((t) => t.stop());
+            return;
+          }
+
+          streamRef.current = localStream;
 
           if (videoRef.current) {
-            codeReader.decodeFromConstraints(
-              { video: { facingMode: { ideal: facingMode } } },
+            videoRef.current.srcObject = localStream;
+            videoRef.current.setAttribute('playsinline', 'true');
+            videoRef.current.muted = true;
+            try {
+              await videoRef.current.play();
+            } catch (playErr) {
+              console.warn('video.play() warning:', playErr);
+            }
+          }
+
+          // Step 3: Load ZXing multi format reader & decode continuously
+          const { BrowserMultiFormatReader } = await import('@zxing/library');
+          if (isCancelled) return;
+
+          codeReader = new BrowserMultiFormatReader();
+
+          if (videoRef.current && localStream) {
+            codeReader.decodeFromStream(
+              localStream,
               videoRef.current,
-              (result: any, err: any) => {
+              (result: any, _err: any) => {
                 if (result) {
                   const text = result.getText();
                   if (text) {
@@ -268,19 +377,59 @@ export default function TransaksiClient({
                     lastScannedCodeRef.current = text;
                     lastScanTimeRef.current = now;
                     playBeep();
-                    handleBarcodeDetected(text);
+                    handleBarcodeDetectedRef.current(text);
                   }
                 }
               }
-            ).catch((err: any) => {
-              console.log('ZXing scan error:', err);
-            });
-
-            setScannerStatus('Arahkan kamera ke barcode produk...');
+            );
           }
+
+          setCameraLoading(false);
+          setScannerStatus('Arahkan kamera ke barcode produk...');
         } catch (err: any) {
+          if (isCancelled) return;
           console.error('Camera access error:', err);
-          setScannerStatus('Tidak dapat mengakses kamera. Pastikan izin kamera telah diberikan.');
+          setCameraLoading(false);
+
+          const errName = err.name || 'Error';
+          const errMsg = err.message || '';
+
+          if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+            setCameraError({
+              type: 'permission',
+              title: 'Izin Kamera Belum Aktif / Diblokir Sistem',
+              message: `Akses kamera ditolak oleh browser atau Windows (${errName}: ${errMsg || 'Permission denied'}).`,
+              instruction: '1. Pastikan opsi Camera di pop-up browser sudah "Allow". 2. Jika di Windows: Buka Settings > Privacy & security > Camera, pastikan "Let desktop apps access your camera" dalam posisi ON untuk Google Chrome.'
+            });
+          } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+            setCameraError({
+              type: 'not_found',
+              title: 'Kamera Tidak Ditemukan',
+              message: 'Perangkat kamera / webcam tidak terdeteksi di komputer Anda.',
+              instruction: 'Pastikan webcam sudah dicolokkan ke port USB atau gunakan opsi tab "Input / Barcode Gun".'
+            });
+          } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
+            setCameraError({
+              type: 'in_use',
+              title: 'Kamera Sedang Digunakan',
+              message: 'Kamera sedang dipakai oleh aplikasi lain (seperti Zoom, Google Meet, OBS, atau tab lain).',
+              instruction: 'Tutup aplikasi lain yang sedang menggunakan kamera, lalu klik Coba Lagi.'
+            });
+          } else if (err.message === 'BROWSER_UNSUPPORTED') {
+            setCameraError({
+              type: 'unsupported',
+              title: 'Browser Tidak Mendukung Kamera',
+              message: 'Browser Anda tidak mendukung WebRTC / getUserMedia.',
+              instruction: 'Gunakan browser Google Chrome, Edge, atau Firefox versi terbaru.'
+            });
+          } else {
+            setCameraError({
+              type: 'unknown',
+              title: 'Kamera Gagal Diaktifkan',
+              message: `Kendala video stream: [${errName}] ${errMsg || 'Gagal terhubung ke webcam'}.`,
+              instruction: 'Coba refresh halaman atau periksa pengaturan kamera di Windows Settings.'
+            });
+          }
         }
       };
 
@@ -288,10 +437,18 @@ export default function TransaksiClient({
     }
 
     return () => {
+      isCancelled = true;
       if (codeReader) {
         try {
           codeReader.reset();
         } catch {}
+      }
+      if (localStream) {
+        localStream.getTracks().forEach((t) => t.stop());
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
       }
       if (videoRef.current && videoRef.current.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
@@ -299,7 +456,7 @@ export default function TransaksiClient({
         videoRef.current.srcObject = null;
       }
     };
-  }, [isBarcodeOpen, scannerTab, facingMode, products, mode]);
+  }, [isBarcodeOpen, scannerTab, selectedDeviceId, facingMode, cameraRetryCount]);
 
   // Filtered Products
   const filteredProducts = useMemo(() => {
@@ -1484,22 +1641,121 @@ export default function TransaksiClient({
               {/* Tab 1: Kamera Langsung (Screenshot 3) */}
               {scannerTab === 'camera' && (
                 <div className="space-y-3">
+                  {videoDevices.length > 1 && (
+                    <div className="flex items-center justify-between gap-2 bg-neutral-100 px-3 py-1.5 rounded-xl text-xs">
+                      <span className="font-semibold text-neutral-700">Pilih Kamera:</span>
+                      <select
+                        value={selectedDeviceId}
+                        onChange={(e) => setSelectedDeviceId(e.target.value)}
+                        className="bg-white border border-neutral-300 rounded-lg text-xs px-2 py-1 text-neutral-800 font-medium max-w-[220px] truncate"
+                      >
+                        <option value="">Otomatis (Rekomendasi)</option>
+                        {videoDevices.map((dev) => (
+                          <option key={dev.deviceId} value={dev.deviceId}>
+                            {dev.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                   <div className="relative w-full h-56 bg-[#182012] rounded-2xl overflow-hidden flex items-center justify-center border border-neutral-800">
                     <video
                       ref={videoRef}
-                      className="w-full h-full object-cover"
+                      className={`w-full h-full object-cover transition-opacity duration-300 ${
+                        cameraLoading || cameraError ? 'opacity-0' : 'opacity-100'
+                      }`}
                       playsInline
                       muted
                       autoPlay
                     />
 
-                    {/* Viewfinder frame & Green Laser Scanning Line */}
-                    <div className="absolute inset-x-8 top-1/2 h-0.5 bg-[#cbf14e] shadow-[0_0_8px_#cbf14e] pointer-events-none animate-pulse" />
-                    <div className="absolute inset-0 border-2 border-dashed border-[#cbf14e]/60 pointer-events-none rounded-2xl m-6" />
+                    {/* State 1: Loading camera */}
+                    {cameraLoading && !cameraError && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 bg-[#182012] p-4 text-center z-10">
+                        <Loader2 className="w-8 h-8 text-[#cbf14e] animate-spin" />
+                        <div>
+                          <p className="text-xs font-bold text-white">Menghubungkan ke kamera...</p>
+                          <p className="text-[11px] text-neutral-400 mt-0.5">Mohon izinkan akses kamera jika browser memintanya.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* State 2: Camera Error / Permission Blocked / Missing */}
+                    {cameraError && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#151c10] p-4 text-center z-20 overflow-y-auto">
+                        <div className="w-10 h-10 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center mb-2 shrink-0">
+                          <CameraOff className="w-5 h-5" />
+                        </div>
+                        <p className="text-xs font-bold text-white mb-1">
+                          {cameraError.title}
+                        </p>
+                        <p className="text-[11px] text-neutral-300 max-w-xs leading-relaxed mb-2.5">
+                          {cameraError.message}
+                        </p>
+                        {cameraError.instruction && (
+                          <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 mb-3 max-w-xs text-left">
+                            <p className="text-[10px] text-neutral-300 leading-snug">
+                              💡 <span className="font-semibold text-neutral-200">Solusi:</span> {cameraError.instruction}
+                            </p>
+                          </div>
+                        )}
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setCameraRetryCount((c) => c + 1)}
+                            className="px-3.5 py-1.5 bg-[#cbf14e] hover:bg-[#bef03b] text-[#1c240d] text-[11px] font-bold rounded-lg flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Coba Lagi</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setScannerTab('manual')}
+                            className="px-3.5 py-1.5 bg-white/10 hover:bg-white/20 text-white text-[11px] font-medium rounded-lg transition cursor-pointer"
+                          >
+                            Input / Barcode Gun
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* State 3: Active Camera Viewfinder & Laser */}
+                    {!cameraLoading && !cameraError && (
+                      <>
+                        {/* Viewfinder frame & Green Laser Scanning Line */}
+                        <div className="absolute inset-x-8 top-1/2 h-0.5 bg-[#cbf14e] shadow-[0_0_8px_#cbf14e] pointer-events-none animate-pulse" />
+                        <div className="absolute inset-0 border-2 border-dashed border-[#cbf14e]/60 pointer-events-none rounded-2xl m-6" />
+
+                        {/* Bottom-left Badge: Arah kamera langsung */}
+                        <div className="absolute bottom-3 left-3 px-3 py-1 bg-black/60 backdrop-blur-xs rounded-full text-[11px] font-medium text-[#cbf14e] flex items-center gap-1.5 border border-white/10">
+                          <ScanBarcode className="w-3.5 h-3.5" />
+                          <span>Arah kamera langsung</span>
+                        </div>
+
+                        {/* Camera switcher */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (videoDevices.length > 1) {
+                              const curIdx = videoDevices.findIndex((d) => d.deviceId === selectedDeviceId);
+                              const nextIdx = (curIdx + 1) % videoDevices.length;
+                              setSelectedDeviceId(videoDevices[nextIdx].deviceId);
+                            } else {
+                              setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
+                            }
+                          }}
+                          className="absolute top-3 right-3 p-2 bg-black/60 hover:bg-black/80 rounded-full text-white text-xs backdrop-blur-xs transition cursor-pointer"
+                          title={videoDevices.length > 1 ? "Ganti Kamera (Beralih Kamera)" : "Ganti Kamera Depan/Belakang"}
+                        >
+                          <SwitchCamera className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
 
                     {/* Floating Toast Notification on Successful Scan */}
                     {lastScannedToast && (
-                      <div className="absolute top-3 inset-x-4 bg-emerald-600/95 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-lg flex items-center gap-2 animate-bounce z-10">
+                      <div className="absolute top-3 inset-x-4 bg-emerald-600/95 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-lg flex items-center gap-2 animate-bounce z-30">
                         <CheckCircle2 className="w-4 h-4 text-white shrink-0" />
                         <div className="truncate flex-1">
                           <p className="truncate leading-tight">
@@ -1511,23 +1767,24 @@ export default function TransaksiClient({
                         </div>
                       </div>
                     )}
-
-                    {/* Bottom-left Badge: Arah kamera langsung */}
-                    <div className="absolute bottom-3 left-3 px-3 py-1 bg-black/60 backdrop-blur-xs rounded-full text-[11px] font-medium text-[#cbf14e] flex items-center gap-1.5 border border-white/10">
-                      <ScanBarcode className="w-3.5 h-3.5" />
-                      <span>Arah kamera langsung</span>
-                    </div>
-
-                    {/* Camera switcher */}
-                    <button
-                      type="button"
-                      onClick={() => setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'))}
-                      className="absolute top-3 right-3 p-2 bg-black/60 hover:bg-black/80 rounded-full text-white text-xs backdrop-blur-xs transition cursor-pointer"
-                      title="Ganti Kamera Depan/Belakang"
-                    >
-                      <SwitchCamera className="w-3.5 h-3.5" />
-                    </button>
                   </div>
+
+                  {scannerStatus && !cameraError && (
+                    <div
+                      className={`p-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 border ${
+                        scannerStatus.startsWith('✅')
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                          : scannerStatus.startsWith('⚠️')
+                          ? 'bg-amber-50 border-amber-200 text-amber-800'
+                          : scannerStatus.startsWith('❌')
+                          ? 'bg-red-50 border-red-200 text-red-800'
+                          : 'bg-neutral-50 border-neutral-200 text-neutral-700'
+                      }`}
+                    >
+                      <Info className="w-4 h-4 shrink-0" />
+                      <span className="leading-snug">{scannerStatus}</span>
+                    </div>
+                  )}
 
                   <div>
                     <p className="text-xs font-bold text-neutral-900">

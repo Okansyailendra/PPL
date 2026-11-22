@@ -78,6 +78,24 @@ export default function LaporanClient({
   const persediaan = hitungNilaiPersediaan(products);
   const bukuBesar = buatBukuBesar(filteredTrx, 0);
 
+  const getPeriodeLabel = (p: PeriodeFilter) => {
+    switch (p) {
+      case 'ALL':
+        return 'Semua waktu';
+      case 'THIS_MONTH':
+        return 'Bulan ini';
+      case 'LAST_MONTH':
+        return 'Bulan lalu';
+      case 'LAST_3_MONTHS':
+        return '3 bulan terakhir';
+      case 'CUSTOM':
+        if (customStart && customEnd) {
+          return `${new Date(customStart).toLocaleDateString('id-ID')} - ${new Date(customEnd).toLocaleDateString('id-ID')}`;
+        }
+        return 'Kustom';
+    }
+  };
+
   // Mesin Analitik Finansial & HPP [ZAKI - TASK-79 & DEL-7]
   const financialSummary = useMemo(() => {
     return generateFinancialSummary(
@@ -147,24 +165,6 @@ export default function LaporanClient({
     }
   };
 
-  const getPeriodeLabel = (p: PeriodeFilter) => {
-    switch (p) {
-      case 'ALL':
-        return 'Semua waktu';
-      case 'THIS_MONTH':
-        return 'Bulan ini';
-      case 'LAST_MONTH':
-        return 'Bulan lalu';
-      case 'LAST_3_MONTHS':
-        return '3 bulan terakhir';
-      case 'CUSTOM':
-        if (customStart && customEnd) {
-          return `${new Date(customStart).toLocaleDateString('id-ID')} - ${new Date(customEnd).toLocaleDateString('id-ID')}`;
-        }
-        return 'Kustom';
-    }
-  };
-
   const todayStr = new Date().toLocaleDateString('id-ID', {
     weekday: 'long',
     year: 'numeric',
@@ -176,8 +176,8 @@ export default function LaporanClient({
     viewTab === 'RIWAYAT'
       ? displayTrx.length
       : viewTab === 'JURNAL'
-      ? bukuBesar.length
-      : financialSummary.top_products.length;
+        ? bukuBesar.length
+        : financialSummary.top_products.length;
 
   return (
     <div className="flex flex-col w-full max-w-[1600px] mx-auto pb-12 font-sans print:max-w-none print:w-full print:bg-white print:text-black">
@@ -487,33 +487,30 @@ export default function LaporanClient({
             <button
               type="button"
               onClick={() => setViewTab('RIWAYAT')}
-              className={`px-4 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                viewTab === 'RIWAYAT'
-                  ? 'bg-[#cbf14e] text-[#1c240d] shadow-xs'
-                  : 'bg-transparent hover:bg-neutral-50 text-neutral-600 font-medium'
-              }`}
+              className={`px-4 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${viewTab === 'RIWAYAT'
+                ? 'bg-[#cbf14e] text-[#1c240d] shadow-xs'
+                : 'bg-transparent hover:bg-neutral-50 text-neutral-600 font-medium'
+                }`}
             >
               Riwayat Transaksi Lengkap ({displayTrx.length})
             </button>
             <button
               type="button"
               onClick={() => setViewTab('JURNAL')}
-              className={`px-4 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                viewTab === 'JURNAL'
-                  ? 'bg-[#cbf14e] text-[#1c240d] shadow-xs'
-                  : 'bg-transparent hover:bg-neutral-50 text-neutral-600 font-medium'
-              }`}
+              className={`px-4 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${viewTab === 'JURNAL'
+                ? 'bg-[#cbf14e] text-[#1c240d] shadow-xs'
+                : 'bg-transparent hover:bg-neutral-50 text-neutral-600 font-medium'
+                }`}
             >
               Buku Besar / Jurnal Kas Manual ({bukuBesar.length})
             </button>
             <button
               type="button"
               onClick={() => setViewTab('ANALYTICS')}
-              className={`px-4 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 ${
-                viewTab === 'ANALYTICS'
-                  ? 'bg-[#cbf14e] text-[#1c240d] shadow-xs'
-                  : 'bg-transparent hover:bg-neutral-50 text-neutral-600 font-medium'
-              }`}
+              className={`px-4 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 ${viewTab === 'ANALYTICS'
+                ? 'bg-[#cbf14e] text-[#1c240d] shadow-xs'
+                : 'bg-transparent hover:bg-neutral-50 text-neutral-600 font-medium'
+                }`}
             >
               <BarChart3 className="w-3.5 h-3.5" />
               <span>Analitik Laba &amp; Arus Kas [DEL-7]</span>
@@ -528,33 +525,30 @@ export default function LaporanClient({
                 <button
                   type="button"
                   onClick={() => setFilterType('ALL')}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                    filterType === 'ALL'
-                      ? 'bg-[#cbf14e] text-[#1c240d] font-bold shadow-2xs'
-                      : 'hover:bg-neutral-50 text-neutral-600 font-medium'
-                  }`}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${filterType === 'ALL'
+                    ? 'bg-[#cbf14e] text-[#1c240d] font-bold shadow-2xs'
+                    : 'hover:bg-neutral-50 text-neutral-600 font-medium'
+                    }`}
                 >
                   Semua
                 </button>
                 <button
                   type="button"
                   onClick={() => setFilterType('IN')}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                    filterType === 'IN'
-                      ? 'bg-[#cbf14e] text-[#1c240d] font-bold shadow-2xs'
-                      : 'hover:bg-neutral-50 text-neutral-600 font-medium'
-                  }`}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${filterType === 'IN'
+                    ? 'bg-[#cbf14e] text-[#1c240d] font-bold shadow-2xs'
+                    : 'hover:bg-neutral-50 text-neutral-600 font-medium'
+                    }`}
                 >
                   Penjualan
                 </button>
                 <button
                   type="button"
                   onClick={() => setFilterType('OUT')}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                    filterType === 'OUT'
-                      ? 'bg-[#cbf14e] text-[#1c240d] font-bold shadow-2xs'
-                      : 'hover:bg-neutral-50 text-neutral-600 font-medium'
-                  }`}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${filterType === 'OUT'
+                    ? 'bg-[#cbf14e] text-[#1c240d] font-bold shadow-2xs'
+                    : 'hover:bg-neutral-50 text-neutral-600 font-medium'
+                    }`}
                 >
                   Kulakan
                 </button>
@@ -565,44 +559,40 @@ export default function LaporanClient({
                 <button
                   type="button"
                   onClick={() => setFilterPayment('ALL')}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                    filterPayment === 'ALL'
-                      ? 'bg-[#1c240d] text-white font-bold shadow-2xs'
-                      : 'hover:bg-neutral-50 text-neutral-600 font-medium'
-                  }`}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${filterPayment === 'ALL'
+                    ? 'bg-[#1c240d] text-white font-bold shadow-2xs'
+                    : 'hover:bg-neutral-50 text-neutral-600 font-medium'
+                    }`}
                 >
                   Semua Cara Bayar
                 </button>
                 <button
                   type="button"
                   onClick={() => setFilterPayment('CASH')}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
-                    filterPayment === 'CASH'
-                      ? 'bg-[#1c240d] text-white font-bold shadow-2xs'
-                      : 'hover:bg-neutral-50 text-neutral-600 font-medium'
-                  }`}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${filterPayment === 'CASH'
+                    ? 'bg-[#1c240d] text-white font-bold shadow-2xs'
+                    : 'hover:bg-neutral-50 text-neutral-600 font-medium'
+                    }`}
                 >
                   <span>Tunai</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setFilterPayment('QRIS')}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
-                    filterPayment === 'QRIS'
-                      ? 'bg-[#1c240d] text-white font-bold shadow-2xs'
-                      : 'hover:bg-neutral-50 text-neutral-600 font-medium'
-                  }`}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${filterPayment === 'QRIS'
+                    ? 'bg-[#1c240d] text-white font-bold shadow-2xs'
+                    : 'hover:bg-neutral-50 text-neutral-600 font-medium'
+                    }`}
                 >
                   <span>QRIS</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setFilterPayment('CREDIT')}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
-                    filterPayment === 'CREDIT'
-                      ? 'bg-[#1c240d] text-white font-bold shadow-2xs'
-                      : 'hover:bg-neutral-50 text-neutral-600 font-medium'
-                  }`}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${filterPayment === 'CREDIT'
+                    ? 'bg-[#1c240d] text-white font-bold shadow-2xs'
+                    : 'hover:bg-neutral-50 text-neutral-600 font-medium'
+                    }`}
                 >
                   <span>Kasbon</span>
                 </button>
@@ -658,9 +648,8 @@ export default function LaporanClient({
                         {/* Jenis */}
                         <div className="col-span-2">
                           <span
-                            className={`px-2.5 py-0.5 rounded-md font-bold text-[10px] ${
-                              isSale ? 'bg-[#eef5db] text-[#465427]' : 'bg-amber-50 text-amber-700'
-                            }`}
+                            className={`px-2.5 py-0.5 rounded-md font-bold text-[10px] ${isSale ? 'bg-[#eef5db] text-[#465427]' : 'bg-amber-50 text-amber-700'
+                              }`}
                           >
                             {isSale ? 'Penjualan' : 'Kulakan'}
                           </span>
@@ -672,22 +661,21 @@ export default function LaporanClient({
                             {trx.payment_method === 'CASH'
                               ? 'Tunai'
                               : trx.payment_method === 'QRIS'
-                              ? 'QRIS'
-                              : trx.payment_method === 'ONLINE'
-                              ? 'Online'
-                              : trx.payment_method === 'TRANSFER'
-                              ? 'Transfer'
-                              : 'Kasbon'}
+                                ? 'QRIS'
+                                : trx.payment_method === 'ONLINE'
+                                  ? 'Online'
+                                  : trx.payment_method === 'TRANSFER'
+                                    ? 'Transfer'
+                                    : 'Kasbon'}
                           </span>
                           {trx.payment_status && (
                             <span
-                              className={`block text-[10px] font-bold mt-0.5 ${
-                                trx.payment_status === 'PAID' || trx.payment_status === 'SETTLEMENT'
-                                  ? 'text-emerald-700'
-                                  : trx.payment_status === 'PENDING'
+                              className={`block text-[10px] font-bold mt-0.5 ${trx.payment_status === 'PAID' || trx.payment_status === 'SETTLEMENT'
+                                ? 'text-emerald-700'
+                                : trx.payment_status === 'PENDING'
                                   ? 'text-amber-700'
                                   : 'text-red-600'
-                              }`}
+                                }`}
                             >
                               {trx.payment_status}
                             </span>
@@ -697,9 +685,8 @@ export default function LaporanClient({
                         {/* Nilai Transaksi & Selisih Laba Bersih [ZAKI DEL-7] */}
                         <div className="col-span-2">
                           <div
-                            className={`font-black ${
-                              isSale ? 'text-[#465427]' : 'text-[#cc1818]'
-                            }`}
+                            className={`font-black ${isSale ? 'text-[#465427]' : 'text-[#cc1818]'
+                              }`}
                           >
                             {isSale ? '+' : '-'} Rp {trx.total_amount.toLocaleString('id-ID')}
                           </div>
