@@ -25,7 +25,6 @@ export default function Header({ user }: HeaderProps) {
     { label: 'Copilot AI', href: '/dashboard/penjual/chat' },
     { label: 'Piutang & kasbon', href: '/dashboard/penjual/piutang' },
     { label: 'Stok & restock', href: '/dashboard/penjual/stok' },
-    { label: 'Scanner AI', href: '/dashboard/penjual/scan' },
   ];
 
   const isLinkActive = (href: string, exact?: boolean) => {

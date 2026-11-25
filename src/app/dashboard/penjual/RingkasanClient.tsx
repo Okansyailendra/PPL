@@ -220,13 +220,6 @@ export default function RingkasanClient({
               <span>{products.length === 0 ? 'Tambah barang pertama' : 'Tambah barang inventaris'}</span>
             </Link>
           </div>
-          <p className="text-[11px] text-neutral-600 mt-6 pt-4 border-t border-[#54652d]/15">
-            Atau gunakan{' '}
-            <Link href="/dashboard/penjual/scan" className="font-bold text-[#54652d] hover:underline">
-              Scanner AI
-            </Link>{' '}
-            untuk membaca nota supplier.
-          </p>
         </div>
 
         {/* Right Column: Rekomendasi Copilot AI */}

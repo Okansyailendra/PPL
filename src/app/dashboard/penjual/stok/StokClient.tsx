@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, FormEvent, ChangeEvent, type ReactNode } from 'react';
+import { useState, useRef, useEffect, FormEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import {
   Package,
@@ -9,7 +9,6 @@ import {
   Plus,
   Barcode,
   Camera,
-  Upload,
   X,
   Check,
   Edit2,
@@ -72,8 +71,7 @@ export default function StokClient({ initialProducts = [], initialCategories = [
   // Barcode scanner states
   const [barcodeInput, setBarcodeInput] = useState('');
   const [scannerStatus, setScannerStatus] = useState('');
-  const [scannerTab, setScannerTab] = useState<'camera' | 'manual' | 'photo'>('camera');
-  const [scanAiLoading, setScanAiLoading] = useState(false);
+  const [scannerTab, setScannerTab] = useState<'camera' | 'manual'>('camera');
   const [scannedBarcode, setScannedBarcode] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -296,36 +294,6 @@ export default function StokClient({ initialProducts = [], initialCategories = [
     if (!barcodeInput.trim()) return;
     handleBarcodeDetected(barcodeInput.trim());
     setBarcodeInput('');
-  };
-
-  const handleBarcodePhotoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setScanAiLoading(true);
-    setScannerStatus('AI sedang menganalisis foto produk/barcode...');
-
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      try {
-        const res = await fetch('/api/scan', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: reader.result })
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-
-        setIsBarcodeModalOpen(false);
-        setIsAddModalOpen(true);
-        setSuccessMessage('AI berhasil membaca info produk dari foto!');
-      } catch (err: any) {
-        alert('Gagal mendeteksi barcode dari foto: ' + err.message);
-      } finally {
-        setScanAiLoading(false);
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
   // Add Product Submit
@@ -1258,7 +1226,7 @@ export default function StokClient({ initialProducts = [], initialCategories = [
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 3: Barcode Scanner Modal (Camera / Manual / Photo AI) */}
+      {/* MODAL 3: Barcode Scanner Modal (Camera / Manual) */}
       {/* ========================================================================= */}
       {isBarcodeModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
@@ -1304,17 +1272,6 @@ export default function StokClient({ initialProducts = [], initialCategories = [
               >
                 <Barcode className="w-3.5 h-3.5" />
                 <span>Ketik Manual</span>
-              </button>
-              <button
-                onClick={() => setScannerTab('photo')}
-                className={`px-3 py-2 text-xs font-bold border-b-2 transition flex items-center gap-1.5 ${
-                  scannerTab === 'photo'
-                    ? 'border-[#465427] text-[#465427]'
-                    : 'border-transparent text-neutral-500 hover:text-neutral-800'
-                }`}
-              >
-                <Upload className="w-3.5 h-3.5" />
-                <span>Unggah Foto AI</span>
               </button>
             </div>
 
@@ -1362,36 +1319,6 @@ export default function StokClient({ initialProducts = [], initialCategories = [
                     Cari atau Daftarkan Produk
                   </button>
                 </form>
-              )}
-
-              {scannerTab === 'photo' && (
-                <div className="space-y-4 text-center">
-                  <div className="border-2 border-dashed border-neutral-300 rounded-2xl p-8 hover:border-[#cbf14e] transition bg-neutral-50/50">
-                    <Upload className="w-8 h-8 text-neutral-400 mx-auto mb-2" />
-                    <p className="text-xs font-bold text-neutral-800 mb-1">
-                      Pilih atau foto kemasan produk
-                    </p>
-                    <p className="text-[11px] text-neutral-500 mb-4">
-                      AI Gemini akan membaca nama barang, merek, dan barcode otomatis.
-                    </p>
-                    <label className="inline-flex items-center gap-2 px-4 py-2 bg-[#465427] hover:bg-[#39441f] text-white text-xs font-bold rounded-xl cursor-pointer transition shadow-xs">
-                      <span>Pilih Foto</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={handleBarcodePhotoUpload}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-                  {scanAiLoading && (
-                    <div className="flex items-center justify-center gap-2 text-xs font-bold text-[#465427]">
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>{scannerStatus}</span>
-                    </div>
-                  )}
-                </div>
               )}
             </div>
           </div>

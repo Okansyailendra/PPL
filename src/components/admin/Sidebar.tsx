@@ -26,8 +26,7 @@ export default function Sidebar({ user, isOpen = false, onClose }: SidebarProps)
     { href: '/dashboard/penjual/laporan', label: 'Buku Besar & Laporan', icon: 'receipt_long' },
     { href: '/dashboard/penjual/chat', label: 'Copilot AI Chat', icon: 'smart_toy', badge: 'Online' },
     { href: '/dashboard/penjual/piutang', label: 'Buku Piutang & Kasbon', icon: 'menu_book' },
-    { href: '/dashboard/penjual/stok', label: 'Stok & Restock', icon: 'inventory_2' },
-    { href: '/dashboard/penjual/scan', label: 'Scanner AI (Foto)', icon: 'document_scanner', badge: 'New' }
+    { href: '/dashboard/penjual/stok', label: 'Stok & Restock', icon: 'inventory_2' }
   ];
 
   return (
