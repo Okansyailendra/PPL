@@ -57,7 +57,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const trxList = allTrx || [];
+    const trxList = (allTrx || []).filter((t: any) => t.category !== 'SCAN_STRUK_PELANGGAN');
     let filtered = trxList;
 
     if (search) {

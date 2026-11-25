@@ -18,7 +18,9 @@ export default async function LaporanPage() {
         supabase.from('products').select('*').eq('umkm_id', user.id),
         supabase.from('debts').select('*').eq('umkm_id', user.id)
       ]);
-      if (trxRes.data) transactions = trxRes.data;
+      if (trxRes.data) {
+        transactions = trxRes.data.filter((t: any) => t.category !== 'SCAN_STRUK_PELANGGAN');
+      }
       if (prodRes.data) products = prodRes.data;
       if (debtRes.data) debts = debtRes.data;
     } catch (e) {

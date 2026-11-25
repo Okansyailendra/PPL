@@ -13,6 +13,35 @@ export const CANDIDATE_MODELS = [
 
 export interface FallbackOptions {
   systemInstruction?: string;
+  responseMimeType?: string;
+}
+
+export async function generateContentWithFallback(
+  contents: any,
+  options: FallbackOptions = {}
+): Promise<{ text: string; modelName: string }> {
+  let lastError: any = null;
+
+  for (const modelName of CANDIDATE_MODELS) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction: options.systemInstruction,
+        generationConfig: options.responseMimeType
+          ? { responseMimeType: options.responseMimeType }
+          : undefined,
+      });
+
+      const result = await model.generateContent(contents);
+      const response = await result.response;
+      return { text: response.text(), modelName };
+    } catch (err: any) {
+      console.warn(`Model ${modelName} failed, trying next candidate:`, err.message || err);
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error('Semua model AI sedang sibuk. Silakan coba sesaat lagi.');
 }
 
 export async function startChatWithFallback(

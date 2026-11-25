@@ -167,3 +167,22 @@ export interface ParsedTransactionResponse {
   rawInput: string;
   engine: 'GEMINI_LLM' | 'HEURISTIC_RULE_FALLBACK';
 }
+
+export interface ScannedReceiptItem {
+  name: string;
+  quantity: number;
+  unit: string;
+  price: number;
+  subtotal: number;
+}
+
+export interface CustomerScannedReceipt {
+  id: string;
+  store_name: string;
+  purchase_date: string;
+  payment_method: 'CASH' | 'QRIS' | 'CREDIT' | 'ONLINE' | 'TRANSFER';
+  total_amount: number;
+  items: ScannedReceiptItem[];
+  notes?: string | null;
+  created_at: string;
+}

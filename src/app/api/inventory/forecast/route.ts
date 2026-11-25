@@ -34,7 +34,9 @@ export async function GET(req: Request) {
     }
 
     const products = (prodRes.data || []) as Product[];
-    const transactions = (trxRes.data || []) as Transaction[];
+    const transactions = ((trxRes.data || []) as Transaction[]).filter(
+      (t) => t.category !== 'SCAN_STRUK_PELANGGAN'
+    );
 
     // 2. Evaluasi algoritma per produk
     const analyses = products.map((product) => {

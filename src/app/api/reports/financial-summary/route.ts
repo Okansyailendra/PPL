@@ -139,7 +139,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const allTransactions = (trxRes.data || []) as TransactionRecord[];
+    const allTransactions = ((trxRes.data || []) as TransactionRecord[]).filter(
+      (t) => t.category !== 'SCAN_STRUK_PELANGGAN'
+    );
     const allProducts = (prodRes.data || []) as Product[];
     const allDebts = (debtRes.data || []) as Debt[];
 

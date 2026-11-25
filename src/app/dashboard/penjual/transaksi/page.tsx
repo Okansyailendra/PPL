@@ -34,7 +34,11 @@ export default async function TransaksiPage() {
 
       if (prodRes.data) products = prodRes.data as Product[];
       if (catRes.data) categories = catRes.data as Category[];
-      if (trxRes.data) recentTransactions = trxRes.data as Transaction[];
+      if (trxRes.data) {
+        recentTransactions = (trxRes.data as Transaction[]).filter(
+          (t) => t.category !== 'SCAN_STRUK_PELANGGAN'
+        );
+      }
     } catch (e) {
       console.error('Error fetching data for transaksi page:', e);
     }

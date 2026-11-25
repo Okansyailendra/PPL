@@ -36,10 +36,12 @@ export async function GET(req: Request) {
     );
   }
 
-  const normalized = (data || []).map((t: any) => ({
-    ...t,
-    items: typeof t.items === 'string' ? JSON.parse(t.items) : t.items || [],
-  }));
+  const normalized = (data || [])
+    .filter((t: any) => t.category !== 'SCAN_STRUK_PELANGGAN')
+    .map((t: any) => ({
+      ...t,
+      items: typeof t.items === 'string' ? JSON.parse(t.items) : t.items || [],
+    }));
 
   return NextResponse.json({
     success: true,
