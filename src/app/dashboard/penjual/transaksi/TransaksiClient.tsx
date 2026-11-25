@@ -5,6 +5,10 @@ import Link from 'next/link';
 import type { UserSession, Product, Transaction, Category } from '@/types';
 import { createSaleTransaction, createRestockTransaction } from '@/app/actions/transaksi';
 import { linkWa, normalisasiNomor } from '@/lib/penagih';
+import PrintableReceiptPortal, {
+  CustomerReceiptView,
+  type PrintableReceiptProps,
+} from '@/components/ui/PrintableReceiptPortal';
 import {
   Search,
   ScanBarcode,
@@ -91,6 +95,7 @@ export default function TransaksiClient({
   const [errorMessage, setErrorMessage] = useState('');
   const [successData, setSuccessData] = useState<{
     transactionId: string;
+    createdAt: string;
     totalAmount: number;
     items: { name: string; quantity: number; price: number; unit?: string }[];
     paymentMethod: 'CASH' | 'QRIS' | 'CREDIT';
@@ -99,7 +104,6 @@ export default function TransaksiClient({
     customerPhone?: string;
     cashReceived?: number;
     change?: number;
-    updatedStocks?: { name: string; newStock: number; unit: string }[];
   } | null>(null);
 
   // Barcode Scanner Modal States
@@ -587,6 +591,7 @@ export default function TransaksiClient({
         // Show Success Modal
         setSuccessData({
           transactionId: res.transactionId || 'TRX-' + Date.now().toString().slice(-6),
+          createdAt: new Date().toISOString(),
           totalAmount,
           items: cart.map((c) => ({
             name: c.product.name,
@@ -600,7 +605,6 @@ export default function TransaksiClient({
           customerPhone: customerPhone.trim() || undefined,
           cashReceived: paymentMethod === 'CASH' && numCashReceived > 0 ? numCashReceived : totalAmount,
           change: paymentMethod === 'CASH' && numCashReceived > 0 ? changeAmount : 0,
-          updatedStocks: res.updatedStocks,
         });
 
         const newTrx: Transaction = {
@@ -657,6 +661,7 @@ export default function TransaksiClient({
 
         setSuccessData({
           transactionId: res.transactionId || 'KUL-' + Date.now().toString().slice(-6),
+          createdAt: new Date().toISOString(),
           totalAmount,
           items: cart.map((c) => ({
             name: c.product.name,
@@ -1894,150 +1899,111 @@ export default function TransaksiClient({
       )}
 
       {/* 8. Success Receipt Modal */}
-      {successData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white rounded-3xl border border-neutral-200 p-6 w-full max-w-md shadow-2xl relative">
-            <div className="text-center mb-4">
-              <div className="w-14 h-14 bg-[#eef5db] text-[#465427] rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
-                <CheckCircle2 className="w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-extrabold text-neutral-900">
-                Transaksi Berhasil!
-              </h3>
-              <p className="text-xs text-neutral-500 mt-1">
-                Stok otomatis berkurang dan dicatat ke Buku Besar.
-              </p>
-            </div>
+      {successData && (() => {
+        const formattedDate =
+          new Date(successData.createdAt).toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }) + ' WIB';
 
-            {/* Receipt Card */}
-            <div className="p-4 bg-[#fbfcfa] rounded-2xl border border-neutral-200 text-xs space-y-2 mb-4">
-              <div className="flex justify-between text-neutral-500 pb-2 border-b border-neutral-100">
-                <span>ID Transaksi:</span>
-                <span className="font-mono font-bold text-neutral-800">
-                  #{successData.transactionId.slice(-6).toUpperCase()}
-                </span>
-              </div>
+        const activeReceipt: PrintableReceiptProps = {
+          storeName: user?.store_name || user?.warung_name || 'Toko Wadira',
+          storeSubtitle: 'Warung Madura & Layanan Digital',
+          storeAddress: user?.address || 'Jl. Mangga Raya No. 28, Perumnas Kamal',
+          storePhone: user?.phone_number
+            ? `WhatsApp: ${user.phone_number}`
+            : 'WhatsApp: 0895-1620-1846',
+          receiptNumber: `#${successData.transactionId.slice(-8).toUpperCase()}`,
+          dateLabel: formattedDate,
+          cashierName: user?.owner_name || 'Kasir Toko Wadira',
+          customerName: successData.customerName || null,
+          customerPhone: successData.customerPhone || null,
+          items: successData.items,
+          totalAmount: successData.totalAmount,
+          paymentMethodLabel:
+            successData.paymentMethod === 'CASH'
+              ? 'Tunai (CASH)'
+              : successData.paymentMethod === 'QRIS'
+              ? 'QRIS'
+              : `Kasbon (${successData.customerName || 'Pelanggan'})`,
+          paymentStatus: successData.paymentStatus,
+          cashReceived:
+            successData.paymentMethod === 'CASH'
+              ? successData.cashReceived || successData.totalAmount
+              : undefined,
+          change:
+            successData.paymentMethod === 'CASH'
+              ? successData.change || 0
+              : undefined,
+        };
 
-              {/* Items List */}
-              <div className="space-y-1.5 py-1">
-                {successData.items.map((i, idx) => (
-                  <div key={idx} className="flex justify-between items-center">
-                    <span className="font-medium text-neutral-800">
-                      {i.name} &times; {i.quantity} {i.unit || 'Pcs'}
-                    </span>
-                    <span className="font-bold text-neutral-900">
-                      Rp {(i.quantity * i.price).toLocaleString('id-ID')}
-                    </span>
+        return (
+          <>
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn print:hidden">
+              <div className="bg-white rounded-3xl border border-neutral-200 p-6 w-full max-w-md shadow-2xl relative max-h-[92vh] flex flex-col">
+                <div className="text-center mb-4 shrink-0">
+                  <div className="w-12 h-12 bg-[#eef5db] text-[#465427] rounded-full flex items-center justify-center mx-auto mb-2.5 shadow-inner">
+                    <CheckCircle2 className="w-7 h-7" />
                   </div>
-                ))}
-              </div>
+                  <h3 className="text-xl font-extrabold text-neutral-900">
+                    Transaksi Berhasil!
+                  </h3>
+                </div>
 
-              {/* Total & Payment Method */}
-              <div className="pt-2 border-t border-neutral-100 space-y-1">
-                <div className="flex justify-between font-bold text-sm text-[#465427]">
-                  <span>Total Transaksi:</span>
-                  <span>Rp {successData.totalAmount.toLocaleString('id-ID')}</span>
+                {/* Struk Pelanggan (Preview di layar) */}
+                <div className="overflow-y-auto mb-4">
+                  <CustomerReceiptView receipt={activeReceipt} variant="screen" />
                 </div>
-                <div className="flex justify-between text-neutral-500">
-                  <span>Metode:</span>
-                  <span className="font-bold text-neutral-800">
-                    {successData.paymentMethod === 'CASH'
-                      ? 'Tunai (CASH)'
-                      : successData.paymentMethod === 'QRIS'
-                      ? 'QRIS'
-                      : `Kasbon (${successData.customerName || 'Pelanggan'})`}
-                  </span>
-                </div>
-                <div className="flex justify-between text-neutral-500">
-                  <span>Status Pembayaran:</span>
-                  <span
-                    className={`font-bold ${
-                      successData.paymentStatus === 'PAID'
-                        ? 'text-emerald-700'
-                        : successData.paymentStatus === 'PENDING'
-                        ? 'text-amber-700'
-                        : 'text-red-600'
-                    }`}
-                  >
-                    {successData.paymentStatus}
-                  </span>
-                </div>
-                {successData.paymentMethod === 'CASH' && (
-                  <>
-                    <div className="flex justify-between text-neutral-500">
-                      <span>Uang Diterima:</span>
-                      <span className="font-semibold text-neutral-900">
-                        Rp {(successData.cashReceived || successData.totalAmount).toLocaleString('id-ID')}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-[#465427] font-bold">
-                      <span>Kembalian:</span>
-                      <span>
-                        Rp {(successData.change || 0).toLocaleString('id-ID')}
-                      </span>
-                    </div>
-                  </>
-                )}
-              </div>
 
-              {/* Stock update notification */}
-              {successData.updatedStocks && successData.updatedStocks.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-neutral-100 text-[11px] text-neutral-500">
-                  <span className="font-bold text-[#465427] block mb-0.5">Sisa Stok Diperbarui:</span>
-                  {successData.updatedStocks.map((s, idx) => (
-                    <span
-                      key={idx}
-                      className="inline-block mr-2 text-[10px] bg-[#eef5db] text-[#465427] px-1.5 py-0.5 rounded font-bold"
+                {/* Actions (khusus kasir di layar, tidak ikut tercetak) */}
+                <div className="space-y-2 shrink-0">
+                  {successData.customerPhone && (
+                    <button
+                      type="button"
+                      onClick={handleSendWaReceipt}
+                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
                     >
-                      {s.name}: {s.newStock} {s.unit}
-                    </span>
-                  ))}
+                      <MessageSquare className="w-4 h-4" />
+                      <span>Kirim Struk via WhatsApp</span>
+                    </button>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Printer className="w-4 h-4" />
+                      <span>Cetak Struk</span>
+                    </button>
+                    <Link
+                      href="/dashboard/penjual/laporan"
+                      className="py-2.5 bg-[#eef5db] hover:bg-[#e4efcd] text-[#465427] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors text-center"
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span>Ke Pembukuan</span>
+                    </Link>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setSuccessData(null)}
+                    className="w-full py-2.5 bg-[#cbf14e] hover:bg-[#bef03b] text-[#1c240d] rounded-xl text-xs font-bold transition-colors cursor-pointer mt-1"
+                  >
+                    Transaksi Baru (+ Input Lagi)
+                  </button>
                 </div>
-              )}
-            </div>
-
-            {/* Actions */}
-            <div className="space-y-2">
-              {successData.customerPhone && (
-                <button
-                  type="button"
-                  onClick={handleSendWaReceipt}
-                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  <span>Kirim Struk via WhatsApp</span>
-                </button>
-              )}
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="py-2.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>Cetak Struk</span>
-                </button>
-                <Link
-                  href="/dashboard/penjual/laporan"
-                  className="py-2.5 bg-[#eef5db] hover:bg-[#e4efcd] text-[#465427] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors text-center"
-                >
-                  <FileText className="w-4 h-4" />
-                  <span>Ke Pembukuan</span>
-                </Link>
               </div>
-
-              <button
-                type="button"
-                onClick={() => setSuccessData(null)}
-                className="w-full py-2.5 bg-[#cbf14e] hover:bg-[#bef03b] text-[#1c240d] rounded-xl text-xs font-bold transition-colors cursor-pointer mt-1"
-              >
-                Transaksi Baru (+ Input Lagi)
-              </button>
             </div>
-          </div>
-        </div>
-      )}
+
+            <PrintableReceiptPortal receipt={activeReceipt} />
+          </>
+        );
+      })()}
     </div>
   );
 }

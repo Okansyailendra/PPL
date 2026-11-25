@@ -4,6 +4,10 @@ import React, { useState, useEffect, useRef, ChangeEvent, DragEvent } from 'reac
 import Link from 'next/link';
 import Footer from '@/components/pembeli/Footer';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import PrintableReceiptPortal, {
+  CustomerReceiptView,
+  type PrintableReceiptProps,
+} from '@/components/ui/PrintableReceiptPortal';
 import {
   FileText,
   Search,
@@ -1366,271 +1370,152 @@ export default function StrukPelangganPage() {
       <Footer />
 
       {/* Modal Detail Struk Hasil Scan */}
-      {selectedScanned && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between shrink-0">
-              <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider">
-                Arsip Struk Belanja Pelanggan
-              </span>
-              <button
-                type="button"
-                onClick={() => setSelectedScanned(null)}
-                className="p-1 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {selectedScanned && (() => {
+        const scannedPrintData: PrintableReceiptProps = {
+          storeName: selectedScanned.store_name,
+          storeSubtitle: 'Arsip Struk Belanja Pelanggan',
+          receiptNumber: `#${selectedScanned.id}`,
+          dateLabel: formatDate(selectedScanned.purchase_date),
+          items: selectedScanned.items,
+          totalAmount: selectedScanned.total_amount,
+          paymentMethodLabel: selectedScanned.payment_method,
+          notes: selectedScanned.notes || null,
+          footerTitle: '*** ARSIP STRUK BELANJA ***',
+          footerNote: 'Tersimpan di data riwayat belanja pelanggan Wadira.',
+        };
 
-            <div className="overflow-y-auto p-6 bg-[#fafaf7] rounded-2xl border border-neutral-200 font-mono text-neutral-800 text-xs space-y-4 shadow-inner">
-              <div className="text-center space-y-1">
-                <h3 className="text-lg font-black tracking-tight text-neutral-950 font-sans">
-                  {selectedScanned.store_name}
-                </h3>
-                <p className="text-[11px] text-neutral-500 font-sans">
-                  Arsip Hasil Scan Struk Fisik
-                </p>
-              </div>
+        return (
+          <>
+            <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 print:hidden">
+              <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+                <div className="flex items-center justify-between shrink-0">
+                  <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider">
+                    Arsip Struk Belanja Pelanggan
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedScanned(null)}
+                    className="p-1 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
 
-              <div className="border-t border-dashed border-neutral-300 my-2" />
+                <div className="overflow-y-auto">
+                  <CustomerReceiptView receipt={scannedPrintData} variant="screen" />
+                </div>
 
-              <div className="space-y-1 text-[11px]">
-                <div className="flex justify-between">
-                  <span className="text-neutral-500">No. Arsip</span>
-                  <span className="font-bold text-neutral-900">#{selectedScanned.id}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-neutral-500">Tanggal Belanja</span>
-                  <span>{formatDate(selectedScanned.purchase_date)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-neutral-500">Metode Bayar</span>
-                  <span className="font-bold uppercase">{selectedScanned.payment_method}</span>
-                </div>
-                {selectedScanned.notes && (
-                  <div className="flex justify-between gap-4">
-                    <span className="text-neutral-500 shrink-0">Catatan</span>
-                    <span className="text-right">{selectedScanned.notes}</span>
+                <div className="space-y-2 shrink-0 pt-1">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#4a5829] hover:bg-[#3d4922] text-[#e8f699] font-bold text-xs shadow-xs transition cursor-pointer"
+                    >
+                      <Printer className="w-4 h-4" />
+                      <span>Cetak Struk</span>
+                    </button>
+                    <a
+                      href={`https://wa.me/?text=${getWaScannedReceiptMessage(selectedScanned)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      <span>Bagikan WA</span>
+                    </a>
                   </div>
-                )}
-              </div>
-
-              <div className="border-t border-dashed border-neutral-300 my-2" />
-
-              <div className="space-y-2 text-[11px]">
-                {selectedScanned.items.map((it, idx) => (
-                  <div key={idx} className="space-y-0.5">
-                    <div className="font-bold text-neutral-900">{it.name}</div>
-                    <div className="flex justify-between text-neutral-600 pl-2">
-                      <span>
-                        {it.quantity} {it.unit || 'pcs'} × {formatRupiah(it.price)}
-                      </span>
-                      <span className="font-semibold text-neutral-900">
-                        {formatRupiah(it.subtotal)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="border-t border-dashed border-neutral-300 my-2" />
-
-              <div className="flex justify-between text-sm font-black text-neutral-950">
-                <span>TOTAL BELANJA</span>
-                <span>{formatRupiah(selectedScanned.total_amount)}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedScanned(null)}
+                    className="w-full py-2 rounded-xl text-neutral-600 hover:bg-neutral-100 font-bold text-xs transition cursor-pointer"
+                  >
+                    Tutup
+                  </button>
+                </div>
               </div>
             </div>
-
-            <div className="space-y-2 shrink-0 pt-1">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#4a5829] hover:bg-[#3d4922] text-[#e8f699] font-bold text-xs shadow-xs transition cursor-pointer"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>Cetak Struk</span>
-                </button>
-                <a
-                  href={`https://wa.me/?text=${getWaScannedReceiptMessage(selectedScanned)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  <span>Bagikan WA</span>
-                </a>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedScanned(null)}
-                className="w-full py-2 rounded-xl text-neutral-600 hover:bg-neutral-100 font-bold text-xs transition cursor-pointer"
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            <PrintableReceiptPortal receipt={scannedPrintData} />
+          </>
+        );
+      })()}
 
       {/* Modal Digital Receipt (Struk Thermal Wadira) */}
-      {selectedTrx && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between shrink-0">
-              <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider">
-                Struk Digital Resmi
-              </span>
-              <button
-                type="button"
-                onClick={() => setSelectedTrx(null)}
-                className="p-1 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {selectedTrx && (() => {
+        const trxPrintData: PrintableReceiptProps = {
+          storeName: 'WADIRA',
+          storeSubtitle: 'Warung Madura & Layanan Digital',
+          storeAddress: 'Jl. Mangga Raya No. 28, Perumnas Kamal',
+          storePhone: 'WhatsApp: 0895-1620-1846',
+          receiptNumber: `#${selectedTrx.id.slice(0, 16)}`,
+          dateLabel: formatDate(selectedTrx.created_at),
+          customerName: selectedTrx.customer_name || 'Umum',
+          customerPhone: selectedTrx.customer_phone || null,
+          cashierName: 'Kasir Toko Wadira',
+          items: selectedTrx.items || [],
+          totalAmount: selectedTrx.total_amount,
+          shippingCost: Number(selectedTrx.shipping_cost || 0),
+          paymentMethodLabel: selectedTrx.payment_method,
+          paymentStatus: selectedTrx.payment_status || 'PAID (LUNAS)',
+        };
 
-            <div
-              id="printable-receipt"
-              className="overflow-y-auto p-6 bg-[#fafaf7] rounded-2xl border border-neutral-200 font-mono text-neutral-800 text-xs space-y-4 shadow-inner"
-            >
-              <div className="text-center space-y-1">
-                <h3 className="text-lg font-black tracking-tight text-neutral-950 font-sans">
-                  WADIRA
-                </h3>
-                <p className="text-[11px] text-neutral-600 font-sans">
-                  Warung Madura &amp; Layanan Digital
-                </p>
-                <p className="text-[10px] text-neutral-500">
-                  Jl. Mangga Raya No. 28, Perumnas Kamal
-                </p>
-                <p className="text-[10px] text-neutral-500">WhatsApp: 0895-1620-1846</p>
-              </div>
-
-              <div className="border-t border-dashed border-neutral-300 my-2" />
-
-              <div className="space-y-1 text-[11px]">
-                <div className="flex justify-between">
-                  <span className="text-neutral-500">No. Nota</span>
-                  <span className="font-bold text-neutral-900">#{selectedTrx.id.slice(0, 16)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-neutral-500">Waktu</span>
-                  <span>{formatDate(selectedTrx.created_at)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-neutral-500">Pelanggan</span>
-                  <span className="font-bold">{selectedTrx.customer_name || 'Umum'}</span>
-                </div>
-                {selectedTrx.customer_phone && (
-                  <div className="flex justify-between">
-                    <span className="text-neutral-500">No. HP</span>
-                    <span>{selectedTrx.customer_phone}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-neutral-500">Kasir</span>
-                  <span>Kasir Toko Wadira</span>
-                </div>
-              </div>
-
-              <div className="border-t border-dashed border-neutral-300 my-2" />
-
-              <div className="space-y-2 text-[11px]">
-                {selectedTrx.items && selectedTrx.items.length > 0 ? (
-                  selectedTrx.items.map((it, idx) => (
-                    <div key={idx} className="space-y-0.5">
-                      <div className="font-bold text-neutral-900">{it.name}</div>
-                      <div className="flex justify-between text-neutral-600 pl-2">
-                        <span>
-                          {it.quantity} {it.unit || 'x'} × {formatRupiah(it.price)}
-                        </span>
-                        <span className="font-semibold text-neutral-900">
-                          {formatRupiah(it.subtotal || it.price * it.quantity)}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="italic text-neutral-400">Rincian belanja tersimpan di kasir</div>
-                )}
-              </div>
-
-              <div className="border-t border-dashed border-neutral-300 my-2" />
-
-              <div className="space-y-1.5 text-[11px]">
-                <div className="flex justify-between text-neutral-600">
-                  <span>Subtotal Belanja</span>
-                  <span>{formatRupiah(selectedTrx.total_amount)}</span>
-                </div>
-                {Number(selectedTrx.shipping_cost || 0) > 0 && (
-                  <div className="flex justify-between text-neutral-600">
-                    <span>Ongkos Kirim</span>
-                    <span>{formatRupiah(Number(selectedTrx.shipping_cost))}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-sm font-black text-neutral-950 pt-1 border-t border-neutral-300">
-                  <span>TOTAL AKHIR</span>
-                  <span>{formatRupiah(selectedTrx.total_amount)}</span>
-                </div>
-                <div className="flex justify-between text-neutral-600 pt-1">
-                  <span>Metode Pembayaran</span>
-                  <span className="font-bold uppercase">{selectedTrx.payment_method}</span>
-                </div>
-                <div className="flex justify-between text-neutral-600">
-                  <span>Status Transaksi</span>
-                  <span className="font-bold text-emerald-700 uppercase">
-                    {selectedTrx.payment_status || 'PAID (LUNAS)'}
+        return (
+          <>
+            <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 print:hidden">
+              <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+                <div className="flex items-center justify-between shrink-0">
+                  <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider">
+                    Struk Digital Resmi
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTrx(null)}
+                    className="p-1 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="overflow-y-auto">
+                  <CustomerReceiptView receipt={trxPrintData} variant="screen" />
+                </div>
+
+                <div className="space-y-2 shrink-0 pt-1">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#4a5829] hover:bg-[#3d4922] text-[#e8f699] font-bold text-xs shadow-xs transition cursor-pointer"
+                    >
+                      <Printer className="w-4 h-4" />
+                      <span>Cetak Struk</span>
+                    </button>
+
+                    <a
+                      href={`https://wa.me/6289516201846?text=${getWaReceiptMessage(selectedTrx)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      <span>Kirim ke WhatsApp</span>
+                    </a>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTrx(null)}
+                    className="w-full py-2 rounded-xl text-neutral-600 hover:bg-neutral-100 font-bold text-xs transition cursor-pointer"
+                  >
+                    Tutup
+                  </button>
                 </div>
               </div>
-
-              <div className="border-t border-dashed border-neutral-300 my-2" />
-
-              <div className="text-center text-[10px] text-neutral-500 space-y-1 pt-1 font-sans">
-                <p className="font-bold text-neutral-700">
-                  *** TERIMA KASIH TELAH BERBELANJA ***
-                </p>
-                <p>Barang yang sudah dibeli dapat ditukar jika kemasan rusak saat diterima.</p>
-                <p className="text-[9px] text-neutral-400 pt-1">
-                  Wadira Digital POS • warungppl.local
-                </p>
-              </div>
             </div>
-
-            <div className="space-y-2 shrink-0 pt-1">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#4a5829] hover:bg-[#3d4922] text-[#e8f699] font-bold text-xs shadow-xs transition cursor-pointer"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>Cetak Struk</span>
-                </button>
-
-                <a
-                  href={`https://wa.me/6289516201846?text=${getWaReceiptMessage(selectedTrx)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  <span>Kirim ke WhatsApp</span>
-                </a>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setSelectedTrx(null)}
-                className="w-full py-2 rounded-xl text-neutral-600 hover:bg-neutral-100 font-bold text-xs transition cursor-pointer"
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            <PrintableReceiptPortal receipt={trxPrintData} />
+          </>
+        );
+      })()}
 
       {/* Confirm Delete Modal */}
       <ConfirmDialog
