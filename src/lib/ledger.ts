@@ -4,6 +4,8 @@ export interface Transaction {
   transaction_date?: string;
   type: 'IN' | 'OUT';
   category?: string;
+  customer_name?: string | null;
+  customer_phone?: string | null;
   payment_method: 'CASH' | 'QRIS' | 'CREDIT' | 'ONLINE' | 'TRANSFER';
   payment_status?: 'PENDING' | 'PAID' | 'SETTLEMENT' | 'UNPAID' | 'EXPIRE' | 'CANCEL' | 'FAILED';
   total_amount: number;
@@ -58,17 +60,44 @@ export function filterByPeriode(
   });
 }
 
-export function hitungRingkasan(transactions: Transaction[]) {
-  const isCashOrSettled = (t: Transaction) =>
-    t.payment_method === 'CASH' ||
-    (t.payment_method === 'QRIS' && t.payment_status !== 'PENDING' && t.payment_status !== 'CANCEL' && t.payment_status !== 'EXPIRE' && t.payment_status !== 'FAILED');
+export function isConfirmedTransaction(t: {
+  category?: string;
+  payment_method?: string;
+  payment_status?: string;
+}): boolean {
+  if (t.category === 'SCAN_STRUK_PELANGGAN') return false;
+  if (t.payment_status === 'CANCEL' || t.payment_status === 'EXPIRE' || t.payment_status === 'FAILED') {
+    return false;
+  }
+  if (t.payment_method === 'CREDIT' && t.payment_status === 'PENDING') {
+    return false;
+  }
+  return true;
+}
 
-  const masuk = transactions
-    .filter(t => t.type === 'IN' && isCashOrSettled(t))
+export function isDirectPaidTransaction(t: {
+  payment_method?: string;
+  payment_status?: string;
+}): boolean {
+  if (t.payment_method === 'CREDIT') return false;
+  return (
+    t.payment_status !== 'PENDING' &&
+    t.payment_status !== 'UNPAID' &&
+    t.payment_status !== 'CANCEL' &&
+    t.payment_status !== 'EXPIRE' &&
+    t.payment_status !== 'FAILED'
+  );
+}
+
+export function hitungRingkasan(transactions: Transaction[]) {
+  const validTrx = transactions.filter(isConfirmedTransaction);
+
+  const masuk = validTrx
+    .filter(t => t.type === 'IN' && isDirectPaidTransaction(t))
     .reduce((sum, t) => sum + t.total_amount, 0);
     
-  const keluar = transactions
-    .filter(t => t.type === 'OUT' && isCashOrSettled(t))
+  const keluar = validTrx
+    .filter(t => t.type === 'OUT' && isDirectPaidTransaction(t))
     .reduce((sum, t) => sum + t.total_amount, 0);
     
   return {
@@ -79,18 +108,20 @@ export function hitungRingkasan(transactions: Transaction[]) {
 }
 
 export function hitungLabaRugi(transactions: Transaction[]) {
+  const validTrx = transactions.filter(isConfirmedTransaction);
+
   // Asumsi: penjualan adalah transaksi IN (kategori PENJUALAN atau kosong)
-  const penjualan = transactions
+  const penjualan = validTrx
     .filter(t => t.type === 'IN' && (t.category === 'PENJUALAN' || !t.category))
     .reduce((sum, t) => sum + t.total_amount, 0);
     
   // Asumsi: HPP (Harga Pokok Penjualan) adalah transaksi OUT untuk stok (kulakan)
-  const hpp = transactions
+  const hpp = validTrx
     .filter(t => t.type === 'OUT' && (t.category === 'KULAKAN' || (t.items && t.items.length > 0 && !t.category)))
     .reduce((sum, t) => sum + t.total_amount, 0);
     
   // Biaya operasional (OUT tanpa item atau dikategorikan BIAYA_OPERASIONAL)
-  const biaya = transactions
+  const biaya = validTrx
     .filter(t => t.type === 'OUT' && (t.category === 'BIAYA_OPERASIONAL' || (!t.category && (!t.items || t.items.length === 0))))
     .reduce((sum, t) => sum + t.total_amount, 0);
     
@@ -107,14 +138,16 @@ export function hitungLabaRugi(transactions: Transaction[]) {
 }
 
 export function hitungPiutang(debts: any[]) {
-  const aktif = debts.filter(d => d.status === 'UNPAID');
-  const total = aktif.reduce((sum, d) => sum + d.amount, 0);
+  const aktif = debts.filter(d => d.status === 'UNPAID' || d.status === 'PARTIAL');
+  const getRem = (d: any) => Number(d.remaining_amount ?? (d.amount - (d.paid_amount || 0)));
+  const total = aktif.reduce((sum, d) => sum + getRem(d), 0);
   
   const perPelanggan = aktif.reduce((acc, curr) => {
+    const rem = getRem(curr);
     if (!acc[curr.customer_name]) {
       acc[curr.customer_name] = { total: 0, count: 0, telat: false };
     }
-    acc[curr.customer_name].total += curr.amount;
+    acc[curr.customer_name].total += rem;
     acc[curr.customer_name].count += 1;
     
     const dueDate = new Date(curr.due_date).getTime();
@@ -148,8 +181,8 @@ export interface BukuBesarRow {
 }
 
 export function buatBukuBesar(transactions: Transaction[], saldoAwal: number = 0): BukuBesarRow[] {
-  // Urutkan kronologis
-  const sorted = [...transactions].sort((a, b) => {
+  // Urutkan kronologis dan abaikan transaksi yang belum disetujui / dibatalkan
+  const sorted = transactions.filter(isConfirmedTransaction).sort((a, b) => {
     const dateA = new Date(a.transaction_date || a.created_at).getTime();
     const dateB = new Date(b.transaction_date || b.created_at).getTime();
     return dateA - dateB;
@@ -161,13 +194,7 @@ export function buatBukuBesar(transactions: Transaction[], saldoAwal: number = 0
   sorted.forEach(t => {
     let masuk = 0;
     let keluar = 0;
-    const isDirectPaid =
-      t.payment_method === 'CASH' ||
-      (t.payment_method === 'QRIS' &&
-        t.payment_status !== 'PENDING' &&
-        t.payment_status !== 'CANCEL' &&
-        t.payment_status !== 'EXPIRE' &&
-        t.payment_status !== 'FAILED');
+    const isDirectPaid = isDirectPaidTransaction(t);
     
     if (t.type === 'IN') {
       masuk = t.total_amount;

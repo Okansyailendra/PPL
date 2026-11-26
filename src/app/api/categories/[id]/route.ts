@@ -9,9 +9,6 @@ function unauthorized() {
   );
 }
 
-/**
- * GET /api/categories/[id]
- */
 export async function GET(
   req: Request,
   context: { params: Promise<{ id: string }> }
@@ -37,9 +34,6 @@ export async function GET(
   return NextResponse.json({ success: true, data });
 }
 
-/**
- * PUT /api/categories/[id]
- */
 export async function PUT(
   req: Request,
   context: { params: Promise<{ id: string }> }
@@ -121,9 +115,6 @@ export async function PUT(
   }
 }
 
-/**
- * DELETE /api/categories/[id]
- */
 export async function DELETE(
   req: Request,
   context: { params: Promise<{ id: string }> }

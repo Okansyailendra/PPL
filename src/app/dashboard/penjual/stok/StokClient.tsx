@@ -45,14 +45,12 @@ export default function StokClient({ initialProducts = [], initialCategories = [
   const [filter, setFilter] = useState<'ALL' | 'LOW'>('ALL');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
-  // Category modal states
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryDesc, setNewCategoryDesc] = useState('');
   const [categoryLoading, setCategoryLoading] = useState(false);
   const [categoryError, setCategoryError] = useState('');
   
-  // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
@@ -64,11 +62,9 @@ export default function StokClient({ initialProducts = [], initialCategories = [
   const [successMessage, setSuccessMessage] = useState('');
   const [confirmDialog, setConfirmDialog] = useState<ConfirmState | null>(null);
 
-  // Supplier WA order states
   const [agenPhone, setAgenPhone] = useState('');
   const [previewOrderMsg, setPreviewOrderMsg] = useState('');
 
-  // Barcode scanner states
   const [barcodeInput, setBarcodeInput] = useState('');
   const [scannerStatus, setScannerStatus] = useState('');
   const [scannerTab, setScannerTab] = useState<'camera' | 'manual'>('camera');
@@ -353,7 +349,6 @@ export default function StokClient({ initialProducts = [], initialCategories = [
     }
   };
 
-  // Quick adjust stock (+1 / -1)
   const handleQuickAdjustStock = async (product: Product, delta: number) => {
     const res = await adjustProductStock(product.id, delta);
     if (res?.success && res.newStock !== undefined) {
@@ -363,7 +358,6 @@ export default function StokClient({ initialProducts = [], initialCategories = [
     }
   };
 
-  // Delete product
   const handleDelete = (product: Product) => {
     const cleanName = product.name.replace(/\s*\[.*?\]/g, '').trim();
     setConfirmDialog({
@@ -391,14 +385,12 @@ export default function StokClient({ initialProducts = [], initialCategories = [
     });
   };
 
-  // Open Edit Modal helper
   const openEditModal = (product: Product) => {
     setSelectedProduct(product);
     setErrorMessage('');
     setIsEditModalOpen(true);
   };
 
-  // Generate WA Restock order
   const handleOpenRestockOrder = () => {
     const msg = buatPesanOrder({
       agen: 'Agen / Supplier',

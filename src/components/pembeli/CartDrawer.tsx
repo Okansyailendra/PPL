@@ -19,7 +19,10 @@ import {
   Phone, 
   User, 
   FileText,
-  Lock
+  Lock,
+  Clock,
+  Calendar,
+  BookOpen
 } from 'lucide-react';
 
 export default function CartDrawer() {
@@ -41,7 +44,12 @@ export default function CartDrawer() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerNote, setCustomerNote] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris' | 'kasbon'>('cash');
+  const [kasbonDueDate, setKasbonDueDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().split('T')[0];
+  });
   const [validationError, setValidationError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -113,6 +121,21 @@ export default function CartDrawer() {
       return;
     }
 
+    if (paymentMethod === 'kasbon') {
+      if (!customerPhone.trim()) {
+        setValidationError('Nomor WhatsApp / HP wajib diisi untuk pengajuan kasbon.');
+        return;
+      }
+      if (fulfillmentType === 'delivery' && !customerAddress.trim()) {
+        setValidationError('Alamat pengiriman wajib diisi.');
+        return;
+      }
+      if (!kasbonDueDate) {
+        setValidationError('Rencana tanggal pelunasan wajib diisi.');
+        return;
+      }
+    }
+
     setValidationError('');
     setIsSubmitting(true);
 
@@ -150,6 +173,7 @@ export default function CartDrawer() {
         })),
         fulfillmentType,
         paymentMethod,
+        dueDate: paymentMethod === 'kasbon' ? kasbonDueDate : undefined,
       };
 
       const res = await fetch('/api/orders', {
@@ -164,7 +188,20 @@ export default function CartDrawer() {
       }
 
       generatedOrderId = resJson.orderId || '';
+
+      if (paymentMethod === 'kasbon') {
+        setIsSubmitting(false);
+        clearCart();
+        setIsCartOpen(false);
+        router.push('/dashboard/pelanggan/kasbon');
+        return;
+      }
     } catch (err: any) {
+      if (paymentMethod === 'kasbon') {
+        setValidationError(err?.message || 'Gagal mengajukan kasbon pesanan.');
+        setIsSubmitting(false);
+        return;
+      }
       console.warn('Pencatatan order ke database gagal, tetap membuka WhatsApp:', err);
     }
 
@@ -379,23 +416,43 @@ ${generatedOrderId ? `✅ _Pesanan sudah tercatat di sistem kasir Toko Wadira (\
                   </div>
                 )}
 
-                {/* Nama Pemesan */}
-                <div>
-                  <label className="block text-[11px] font-bold text-neutral-700 mb-1">
-                    Nama Pemesan <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <User className="w-4 h-4 text-neutral-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      placeholder="Cth: Bu Siti / Pak Budi"
-                      value={customerName}
-                      onChange={(e) => {
-                        setCustomerName(e.target.value);
-                        if (validationError) setValidationError('');
-                      }}
-                      className="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-neutral-200 focus:outline-hidden focus:ring-2 focus:ring-[#d4f952] focus:border-neutral-900 bg-white"
-                    />
+                {/* Nama & No HP Pemesan */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-neutral-700 mb-1">
+                      Nama Pemesan <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <User className="w-4 h-4 text-neutral-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="Cth: Pak Budi"
+                        value={customerName}
+                        onChange={(e) => {
+                          setCustomerName(e.target.value);
+                          if (validationError) setValidationError('');
+                        }}
+                        className="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-neutral-200 focus:outline-hidden focus:ring-2 focus:ring-[#d4f952] focus:border-neutral-900 bg-white"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-neutral-700 mb-1">
+                      No. WhatsApp / HP {paymentMethod === 'kasbon' && <span className="text-red-500">*</span>}
+                    </label>
+                    <div className="relative">
+                      <Phone className="w-4 h-4 text-neutral-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="tel"
+                        placeholder="08xxxxxxxxxx"
+                        value={customerPhone}
+                        onChange={(e) => {
+                          setCustomerPhone(e.target.value);
+                          if (validationError) setValidationError('');
+                        }}
+                        className="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-neutral-200 focus:outline-hidden focus:ring-2 focus:ring-[#d4f952] focus:border-neutral-900 bg-white"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -424,7 +481,7 @@ ${generatedOrderId ? `✅ _Pesanan sudah tercatat di sistem kasir Toko Wadira (\
                       type="button"
                       onClick={() => {
                         setFulfillmentType('delivery');
-                        setPaymentMethod('qris');
+                        if (paymentMethod === 'cash') setPaymentMethod('qris');
                       }}
                       className={`flex flex-col items-center justify-center p-2.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
                         fulfillmentType === 'delivery'
@@ -464,22 +521,44 @@ ${generatedOrderId ? `✅ _Pesanan sudah tercatat di sistem kasir Toko Wadira (\
                 )}
 
                 {/* Pilihan Metode Bayar */}
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-bold text-slate-600">
                     Metode Pembayaran
                   </label>
                   {fulfillmentType === 'delivery' ? (
-                    <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs">
-                      <div className="flex items-center gap-1.5 font-bold text-emerald-900">
-                        <CreditCard className="w-4 h-4 text-emerald-700" />
-                        <span>Transfer / QRIS (Non-Tunai)</span>
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod('qris')}
+                          className={`flex flex-col items-center justify-center p-2 rounded-xl text-[11px] font-bold border transition text-center cursor-pointer ${
+                            paymentMethod === 'qris'
+                              ? 'bg-[#d4f952] border-[#c4ec3e] text-neutral-950 shadow-xs'
+                              : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+                          }`}
+                        >
+                          <CreditCard className="w-4 h-4 mb-0.5 text-neutral-900" />
+                          <span>Transfer / QRIS</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod('kasbon')}
+                          className={`flex flex-col items-center justify-center p-2 rounded-xl text-[11px] font-bold border transition text-center cursor-pointer ${
+                            paymentMethod === 'kasbon'
+                              ? 'bg-[#d4f952] border-[#c4ec3e] text-neutral-950 shadow-xs'
+                              : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+                          }`}
+                        >
+                          <BookOpen className="w-4 h-4 mb-0.5 text-neutral-900" />
+                          <span>Kasbon (Izin)</span>
+                        </button>
                       </div>
-                      <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
-                        Metode tunai/COD ditiadakan untuk pengiriman. Total belanja + tarif ojol dikonfirmasi kasir sebelum Anda transfer.
+                      <p className="text-[10px] text-slate-500 leading-relaxed">
+                        Tunai/COD ditiadakan untuk pengiriman ojol lokal. Ongkir dikonfirmasi via WA.
                       </p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       <button
                         type="button"
                         onClick={() => setPaymentMethod('cash')}
@@ -490,7 +569,7 @@ ${generatedOrderId ? `✅ _Pesanan sudah tercatat di sistem kasir Toko Wadira (\
                         }`}
                       >
                         <Banknote className="w-4 h-4 mb-0.5 text-neutral-900" />
-                        <span>Tunai di Warung</span>
+                        <span>Tunai</span>
                       </button>
                       <button
                         type="button"
@@ -502,8 +581,43 @@ ${generatedOrderId ? `✅ _Pesanan sudah tercatat di sistem kasir Toko Wadira (\
                         }`}
                       >
                         <CreditCard className="w-4 h-4 mb-0.5 text-neutral-900" />
-                        <span>Transfer / QRIS</span>
+                        <span>QRIS</span>
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('kasbon')}
+                        className={`flex flex-col items-center justify-center p-2 rounded-xl text-[11px] font-bold border transition text-center cursor-pointer ${
+                          paymentMethod === 'kasbon'
+                            ? 'bg-[#d4f952] border-[#c4ec3e] text-neutral-950 shadow-xs'
+                            : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+                        }`}
+                      >
+                        <BookOpen className="w-4 h-4 mb-0.5 text-neutral-900" />
+                        <span>Kasbon (Izin)</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'kasbon' && (
+                    <div className="p-2.5 rounded-xl bg-[#eef5db] border border-[#d6e5b4] space-y-2 text-[11px]">
+                      <div className="text-[#354614] font-medium leading-relaxed">
+                        Pengajuan kasbon belanja ini membutuhkan persetujuan kasir warung terlebih dahulu.
+                      </div>
+                      <div>
+                        <label className="block font-bold text-[#2b3617] mb-1">
+                          Rencana Pelunasan *
+                        </label>
+                        <div className="relative">
+                          <Calendar className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="date"
+                            min={new Date().toISOString().split('T')[0]}
+                            value={kasbonDueDate}
+                            onChange={(e) => setKasbonDueDate(e.target.value)}
+                            className="w-full text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-[#c9dcb0] bg-white focus:outline-hidden"
+                          />
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -562,11 +676,22 @@ ${generatedOrderId ? `✅ _Pesanan sudah tercatat di sistem kasir Toko Wadira (\
               disabled={isSubmitting}
               className="w-full py-4 px-4 bg-[#d4f952] hover:bg-[#c4ec3e] border border-[#c4ec3e] text-neutral-950 font-black text-sm rounded-xl flex items-center justify-center gap-2.5 shadow-xs active:scale-[0.99] transition cursor-pointer disabled:opacity-60"
             >
-              <Send className={`w-4 h-4 ${isSubmitting ? 'animate-pulse' : ''}`} />
-              <span>{isSubmitting ? 'Mencatat Pesanan & Menyiapkan WhatsApp...' : 'Kirim Pesanan ke WhatsApp Toko Wadira'}</span>
+              {paymentMethod === 'kasbon' ? (
+                <>
+                  <Clock className={`w-4 h-4 ${isSubmitting ? 'animate-spin' : ''}`} />
+                  <span>{isSubmitting ? 'Mengirim Pengajuan Kasbon...' : 'Ajukan Kasbon Pesanan Ini'}</span>
+                </>
+              ) : (
+                <>
+                  <Send className={`w-4 h-4 ${isSubmitting ? 'animate-pulse' : ''}`} />
+                  <span>{isSubmitting ? 'Mencatat Pesanan & Menyiapkan WhatsApp...' : 'Kirim Pesanan ke WhatsApp Toko Wadira'}</span>
+                </>
+              )}
             </button>
             <p className="text-[11px] text-center text-neutral-400">
-              Format rincian belanja otomatis disiapkan untuk dikirim ke chat WhatsApp kasir Wadira.
+              {paymentMethod === 'kasbon'
+                ? 'Pengajuan kasbon tercatat di Buku Piutang kasir dan statusnya dapat dipantau di halaman Kasbon.'
+                : 'Format rincian belanja otomatis disiapkan untuk dikirim ke chat WhatsApp kasir Wadira.'}
             </p>
           </div>
         )}

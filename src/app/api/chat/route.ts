@@ -7,7 +7,6 @@ import type { ChatMessage } from '@/types';
 
 export async function POST(req: NextRequest) {
   try {
-    // 1. Rate Limiting Protection (Maksimal 25 request per menit)
     const rateLimitCheck = applyRateLimit(req, {
       limit: 25,
       windowMs: 60 * 1000,
@@ -17,7 +16,6 @@ export async function POST(req: NextRequest) {
       return rateLimitCheck.response;
     }
 
-    // 2. Autentikasi Pengguna: Hanya merchant/penjual yang berhak mengakses asisten AI toko
     const user = await getCurrentUser();
     if (!user?.id) {
       return NextResponse.json(
@@ -42,26 +40,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get the latest message
     const prompt = messages[messages.length - 1].content;
-    
-    // ======== MULAI IMPLEMENTASI RAG ========
     const userId = user.id;
 
-    // Ambil data stok barang dari database
     const { data: products } = await supabase
       .from('products')
       .select('name, stock, price, unit')
       .eq('umkm_id', userId);
 
-    // Ambil data pelanggan yang kasbon dari database
     const { data: debts } = await supabase
       .from('debts')
       .select('customer_name, amount, status, due_date')
       .eq('umkm_id', userId)
       .eq('status', 'UNPAID');
 
-    // Susun Konteks (Prompt Engineering / RAG System Instructions)
     const contextData = `
 INFORMASI TOKO / UMKM:
 - Nama Toko: ${user.store_name || user.warung_name || 'Toko Anda'}
@@ -79,7 +71,7 @@ Selalu gunakan data "INFORMASI TOKO", "DATA STOK BARANG", dan "DATA PIUTANG" di 
 Gunakan bahasa Indonesia yang santai, ramah, dan sehari-hari (seperti mengobrol di WhatsApp).
 Jika ditanya tentang sisa stok atau tagihan pelanggan, langsung sebutkan detail dari data di atas.
 `;
-    // ======== MULAI IMPLEMENTASI TOOLS RAG ========
+
     const tools = [{
       functionDeclarations: [
         {
@@ -115,7 +107,6 @@ Jika ditanya tentang sisa stok atau tagihan pelanggan, langsung sebutkan detail 
       if (name === 'kurangi_stok') {
         const { nama_barang, jumlah_terjual, metode_pembayaran } = args;
         
-        // Cari barang di database
         const { data: item } = await supabase
           .from('products')
           .select('*')
@@ -126,13 +117,11 @@ Jika ditanya tentang sisa stok atau tagihan pelanggan, langsung sebutkan detail 
         if (item) {
           const newStock = Math.max(0, item.stock - jumlah_terjual);
           
-          // 1. Kurangi stok barang
           await supabase
             .from('products')
             .update({ stock: newStock })
             .eq('id', item.id);
             
-          // 2. Catat ke tabel transactions agar masuk Buku Besar
           const totalAmount = item.price * jumlah_terjual;
           await supabase
             .from('transactions')
@@ -172,7 +161,6 @@ Jika ditanya tentang sisa stok atau tagihan pelanggan, langsung sebutkan detail 
       }
       return null;
     };
-    // ======== SELESAI IMPLEMENTASI TOOLS RAG ========
     
     // Format history percakapan untuk Gemini
     // Gemini mewajibkan turn pertama di history adalah role 'user'

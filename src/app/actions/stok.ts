@@ -127,7 +127,6 @@ export async function adjustProductStock(productId: string, delta: number) {
     return { error: 'Sesi telah berakhir. Silakan login kembali.' };
   }
 
-  // Get current stock
   const { data: product, error: fetchErr } = await supabase
     .from('products')
     .select('stock')

@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { getCurrentUser } from '@/lib/auth';
 import type { Product, Transaction, Category } from '@/types';
+import { isConfirmedTransaction } from '@/lib/ledger';
 import TransaksiClient from './TransaksiClient';
 
 export const dynamic = 'force-dynamic';
@@ -35,9 +36,7 @@ export default async function TransaksiPage() {
       if (prodRes.data) products = prodRes.data as Product[];
       if (catRes.data) categories = catRes.data as Category[];
       if (trxRes.data) {
-        recentTransactions = (trxRes.data as Transaction[]).filter(
-          (t) => t.category !== 'SCAN_STRUK_PELANGGAN'
-        );
+        recentTransactions = (trxRes.data as Transaction[]).filter(isConfirmedTransaction);
       }
     } catch (e) {
       console.error('Error fetching data for transaksi page:', e);

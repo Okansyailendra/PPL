@@ -68,7 +68,7 @@ CREATE TABLE public.debts (
   type TEXT NOT NULL DEFAULT 'BARANG' CHECK (type IN ('BARANG', 'PINJAMAN_TUNAI')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   due_date TIMESTAMP WITH TIME ZONE NOT NULL,
-  status TEXT NOT NULL DEFAULT 'UNPAID' CHECK (status IN ('UNPAID', 'PARTIAL', 'PAID')),
+  status TEXT NOT NULL DEFAULT 'UNPAID' CHECK (status IN ('PENDING_APPROVAL', 'UNPAID', 'PARTIAL', 'PAID', 'REJECTED')),
   notes TEXT,
   related_trx_id TEXT
 );

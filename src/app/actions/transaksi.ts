@@ -47,14 +47,12 @@ export async function createSaleTransaction(input: CreateSaleInput) {
     return { error: 'Keranjang belanja kosong. Pilih minimal 1 barang.' };
   }
 
-  // Validasi jumlah dan harga
   for (const item of items) {
     if (!item.productId || item.quantity <= 0 || item.price < 0) {
       return { error: `Data barang "${item.name || 'Barang'}" tidak valid.` };
     }
   }
 
-  // 1. Ambil data produk terbaru dari database untuk verifikasi stok
   const productIds = items.map(i => i.productId);
   const { data: dbProducts, error: fetchErr } = await supabase
     .from('products')
@@ -67,10 +65,8 @@ export async function createSaleTransaction(input: CreateSaleInput) {
     return { error: 'Gagal memverifikasi stok barang dari database.' };
   }
 
-  // Peta produk
   const productMap = new Map((dbProducts as any[]).map((p: any) => [p.id, p]));
 
-  // Validasi ketersediaan stok
   for (const item of items) {
     const p = productMap.get(item.productId);
     if (!p) {
@@ -83,10 +79,8 @@ export async function createSaleTransaction(input: CreateSaleInput) {
     }
   }
 
-  // Hitung total belanja
   const totalAmount = items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
 
-  // 2. Kurangi stok masing-masing barang di database
   const updatedStocks: { id: string; name: string; newStock: number; unit: string }[] = [];
   for (const item of items) {
     const p = productMap.get(item.productId)!;
@@ -106,7 +100,6 @@ export async function createSaleTransaction(input: CreateSaleInput) {
     updatedStocks.push({ id: p.id, name: p.name, newStock, unit: p.unit });
   }
 
-  // 3. Jika metode kredit/kasbon, buat piutang di tabel debts
   let createdDebtId: string | null = null;
   if (paymentMethod === 'CREDIT') {
     if (!customerName || !customerName.trim()) {
@@ -115,7 +108,7 @@ export async function createSaleTransaction(input: CreateSaleInput) {
 
     const finalDueDate = dueDate 
       ? new Date(dueDate).toISOString() 
-      : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // Default 7 hari
+      : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
     const itemsSummary = items.map(i => `${i.name} (${i.quantity})`).join(', ');
 
@@ -141,13 +134,11 @@ export async function createSaleTransaction(input: CreateSaleInput) {
 
     if (debtErr) {
       console.error('Error creating debt for credit sale:', debtErr);
-      // Catatan: tidak membatalkan penjualan jika utang gagal, namun beri log
     } else if (newDebt) {
       createdDebtId = newDebt.id;
     }
   }
 
-  // 4. Catat transaksi ke tabel transactions (Masuk Buku Besar & Pembukuan)
   const trxItems = items.map(item => {
     const prod = productMap.get(item.productId);
     return {
@@ -197,7 +188,6 @@ export async function createSaleTransaction(input: CreateSaleInput) {
     };
   }
 
-  // 5. Update relasi debt ke transaction jika kasbon
   if (createdDebtId && newTrx?.id) {
     await supabase
       .from('debts')
@@ -205,7 +195,6 @@ export async function createSaleTransaction(input: CreateSaleInput) {
       .eq('id', createdDebtId);
   }
 
-  // Revalidate cache agar dashboard, stok, dan buku besar langsung terupdate
   revalidatePath('/dashboard/penjual');
   revalidatePath('/dashboard/penjual/transaksi');
   revalidatePath('/dashboard/penjual/stok');
@@ -257,7 +246,6 @@ export async function createRestockTransaction(input: {
   const productMap = new Map((dbProducts as any[]).map((p: any) => [p.id, p]));
   const totalAmount = items.reduce((sum, item) => sum + (item.quantity * item.costPrice), 0);
 
-  // Tambah stok barang
   for (const item of items) {
     const p = productMap.get(item.productId);
     if (p) {
@@ -273,7 +261,6 @@ export async function createRestockTransaction(input: {
     }
   }
 
-  // Catat transaksi kas keluar (KULAKAN)
   const trxItems = items.map(item => ({
     productId: item.productId,
     name: item.name,
@@ -321,14 +308,10 @@ export async function createRestockTransaction(input: {
   };
 }
 
-/**
- * Hapus transaksi dan kembalikan stok (opsional bila salah input)
- */
 export async function deleteTransaction(transactionId: string, revertStock: boolean = true) {
   const user = await getUser();
   if (!user) return { error: 'Sesi akun berakhir.' };
 
-  // Ambil transaksi lama
   const { data: trx, error: fetchErr } = await supabase
     .from('transactions')
     .select('*')
@@ -340,7 +323,6 @@ export async function deleteTransaction(transactionId: string, revertStock: bool
     return { error: 'Transaksi tidak ditemukan.' };
   }
 
-  // Jika revertStock aktif dan tipe penjualan, kembalikan stok
   if (revertStock && trx.items && Array.isArray(trx.items)) {
     for (const item of trx.items) {
       if (item.productId && item.quantity) {
@@ -353,8 +335,8 @@ export async function deleteTransaction(transactionId: string, revertStock: bool
 
         if (p) {
           const restoredStock = trx.type === 'IN' 
-            ? p.stock + item.quantity  // Kembalikan stok yang sebelumnya dikurangi
-            : Math.max(0, p.stock - item.quantity); // Kurangi kembali stok yang sebelumnya ditambah
+            ? p.stock + item.quantity
+            : Math.max(0, p.stock - item.quantity);
 
           await supabase
             .from('products')
@@ -366,12 +348,10 @@ export async function deleteTransaction(transactionId: string, revertStock: bool
     }
   }
 
-  // Hapus catatan debt jika ada
   if (trx.debt_id) {
     await supabase.from('debts').delete().eq('id', trx.debt_id).eq('umkm_id', user.id);
   }
 
-  // Hapus transaksi
   const { error: delErr } = await supabase
     .from('transactions')
     .delete()
@@ -389,4 +369,128 @@ export async function deleteTransaction(transactionId: string, revertStock: bool
   revalidatePath('/dashboard/penjual/piutang');
 
   return { success: true, message: 'Transaksi berhasil dibatalkan dan stok telah disesuaikan kembali.' };
+}
+
+/**
+ * Mengonfirmasi status pembayaran transaksi PENDING (misal pesanan online CASH/QRIS) menjadi PAID (Lunas) atau CANCEL
+ */
+export async function confirmTransactionPayment(
+  transactionId: string,
+  nextStatus: 'PAID' | 'CANCEL' = 'PAID'
+) {
+  const user = await getUser();
+  if (!user) return { error: 'Sesi akun berakhir. Silakan login kembali.' };
+
+  const { data: trx, error: fetchErr } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('id', transactionId)
+    .eq('umkm_id', user.id)
+    .single();
+
+  if (fetchErr || !trx) {
+    return { error: 'Transaksi tidak ditemukan.' };
+  }
+
+  if (trx.payment_method === 'CREDIT') {
+    return { error: 'Untuk transaksi kasbon, kelola persetujuan/pelunasan melalui menu Piutang / Kasbon.' };
+  }
+
+  if (trx.payment_status === 'PAID' || trx.payment_status === 'SETTLEMENT') {
+    return { error: 'Transaksi ini sudah berstatus lunas.' };
+  }
+
+  if (trx.payment_status !== 'PENDING') {
+    return { error: `Status transaksi (${trx.payment_status}) tidak dapat dikonfirmasi lagi.` };
+  }
+
+  const trxItems = Array.isArray(trx.items)
+    ? trx.items
+    : typeof trx.items === 'string'
+    ? JSON.parse(trx.items)
+    : [];
+
+  if (nextStatus === 'PAID' && trx.payment_method === 'ONLINE' && trx.type === 'IN') {
+    // Midtrans online checkout belum memotong stok saat token dibuat -> verifikasi & potong stok sekarang
+    const productIds = trxItems.map((it: any) => it.productId || it.id).filter(Boolean);
+    if (productIds.length > 0) {
+      const { data: dbProducts } = await supabase
+        .from('products')
+        .select('id, name, stock, unit')
+        .in('id', productIds)
+        .eq('umkm_id', user.id);
+
+      const prodMap = new Map<string, any>((dbProducts || []).map((p: any) => [p.id, p]));
+      for (const item of trxItems) {
+        const pid = item.productId || item.id;
+        const p = pid ? prodMap.get(pid) : null;
+        const qty = Math.max(1, Math.round(Number(item.quantity) || 1));
+        if (p && Number(p.stock) < qty) {
+          return {
+            error: `Stok "${p.name}" tidak mencukupi (tersisa ${p.stock} ${p.unit || 'pcs'}, dipesan ${qty}).`,
+          };
+        }
+      }
+
+      for (const item of trxItems) {
+        const pid = item.productId || item.id;
+        const p = pid ? prodMap.get(pid) : null;
+        if (p) {
+          const qty = Math.max(1, Math.round(Number(item.quantity) || 1));
+          await supabase
+            .from('products')
+            .update({ stock: Math.max(0, Number(p.stock) - qty) })
+            .eq('id', p.id)
+            .eq('umkm_id', user.id);
+        }
+      }
+    }
+  } else if (nextStatus === 'CANCEL' && trx.payment_method !== 'ONLINE' && trx.type === 'IN') {
+    // Pesanan reguler (/api/orders) sudah memotong stok saat dibuat -> kembalikan stok jika dibatalkan
+    for (const item of trxItems) {
+      const pid = item.productId || item.id;
+      const qty = Math.max(1, Math.round(Number(item.quantity) || 1));
+      if (pid && qty) {
+        const { data: p } = await supabase
+          .from('products')
+          .select('stock')
+          .eq('id', pid)
+          .eq('umkm_id', user.id)
+          .single();
+
+        if (p) {
+          await supabase
+            .from('products')
+            .update({ stock: Number(p.stock) + qty })
+            .eq('id', pid)
+            .eq('umkm_id', user.id);
+        }
+      }
+    }
+  }
+
+  const { error: updateErr } = await supabase
+    .from('transactions')
+    .update({ payment_status: nextStatus })
+    .eq('id', transactionId)
+    .eq('umkm_id', user.id);
+
+  if (updateErr) {
+    return { error: 'Gagal memperbarui status pembayaran: ' + updateErr.message };
+  }
+
+  revalidatePath('/dashboard/penjual');
+  revalidatePath('/dashboard/penjual/transaksi');
+  revalidatePath('/dashboard/penjual/laporan');
+  revalidatePath('/dashboard/penjual/stok');
+  revalidatePath('/dashboard/pelanggan/struk');
+
+  return {
+    success: true,
+    newStatus: nextStatus,
+    message:
+      nextStatus === 'PAID'
+        ? 'Pembayaran transaksi berhasil dikonfirmasi LUNAS!'
+        : 'Pesanan dibatalkan dan stok telah dikembalikan.',
+  };
 }

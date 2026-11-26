@@ -14,9 +14,6 @@ function unauthorized() {
   );
 }
 
-/**
- * GET /api/products/[id]
- */
 export async function GET(
   req: Request,
   context: { params: Promise<{ id: string }> }
@@ -45,9 +42,6 @@ export async function GET(
   });
 }
 
-/**
- * PUT /api/products/[id]
- */
 export async function PUT(
   req: Request,
   context: { params: Promise<{ id: string }> }
@@ -174,9 +168,6 @@ export async function PUT(
   }
 }
 
-/**
- * DELETE /api/products/[id]
- */
 export async function DELETE(
   req: Request,
   context: { params: Promise<{ id: string }> }

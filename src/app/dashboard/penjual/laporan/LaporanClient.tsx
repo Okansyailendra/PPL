@@ -17,7 +17,8 @@ import {
   calculateTransactionProfit,
   type FinancialSummaryResult,
 } from '@/lib/financial-analytics';
-import { deleteTransaction } from '@/app/actions/transaksi';
+import { deleteTransaction, confirmTransactionPayment } from '@/app/actions/transaksi';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import {
   History,
   Printer,
@@ -35,6 +36,10 @@ import {
   Layers,
   ArrowUpRight,
   CheckCircle2,
+  Clock,
+  Check,
+  AlertCircle,
+  X,
 } from 'lucide-react';
 
 interface LaporanClientProps {
@@ -55,24 +60,29 @@ export default function LaporanClient({
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
 
-  // Tab View: Riwayat Transaksi Lengkap vs Buku Besar vs Analitik Finansial (ZAKI DEL-7)
   const [viewTab, setViewTab] = useState<'RIWAYAT' | 'JURNAL' | 'ANALYTICS'>('RIWAYAT');
   const [filterType, setFilterType] = useState<'ALL' | 'IN' | 'OUT'>('ALL');
   const [filterPayment, setFilterPayment] = useState<'ALL' | 'CASH' | 'QRIS' | 'CREDIT'>('ALL');
+  const [onlyPending, setOnlyPending] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmTarget, setConfirmTarget] = useState<Transaction | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Filter transactions
   const filteredTrx = filterByPeriode(transactions, periode, customStart, customEnd);
 
-  // Specific Type & Payment Method Filter for Riwayat view
+  const pendingOrdersCount = filteredTrx.filter(
+    (t) => t.payment_status === 'PENDING' && t.payment_method !== 'CREDIT'
+  ).length;
+
   const displayTrx = filteredTrx.filter((t) => {
+    if (onlyPending && (t.payment_status !== 'PENDING' || t.payment_method === 'CREDIT')) return false;
     if (filterType === 'IN' && t.type !== 'IN') return false;
     if (filterType === 'OUT' && t.type !== 'OUT') return false;
     if (filterPayment !== 'ALL' && t.payment_method !== filterPayment) return false;
     return true;
   });
 
-  // Computations
   const ringkasan = hitungRingkasan(filteredTrx);
   const piutang = hitungPiutang(debts);
   const persediaan = hitungNilaiPersediaan(products);
@@ -96,7 +106,6 @@ export default function LaporanClient({
     }
   };
 
-  // Mesin Analitik Finansial & HPP [ZAKI - TASK-79 & DEL-7]
   const financialSummary = useMemo(() => {
     return generateFinancialSummary(
       filteredTrx as any,
@@ -110,7 +119,6 @@ export default function LaporanClient({
     );
   }, [filteredTrx, debts, products, periode, customStart, customEnd]);
 
-  // Map selisih harga jual dengan harga beli modal per transaksi [ZAKI DEL-7]
   const trxProfitMap = useMemo(() => {
     const map = new Map<string, { cogs: number; profit: number; margin: number }>();
     financialSummary.transactions_breakdown.forEach((t) => {
@@ -123,14 +131,26 @@ export default function LaporanClient({
     return map;
   }, [financialSummary]);
 
-  // Ringkasan per Metode Pembayaran Penjualan
+  // Ringkasan per Metode Pembayaran Penjualan (hanya transaksi yang sudah lunas / tidak pending)
   const penjualanTrx = filteredTrx.filter((t) => t.type === 'IN');
   const totalTunaiMasuk = penjualanTrx
-    .filter((t) => t.payment_method === 'CASH')
+    .filter(
+      (t) =>
+        t.payment_method === 'CASH' &&
+        t.payment_status !== 'PENDING' &&
+        t.payment_status !== 'FAILED' &&
+        t.payment_status !== 'CANCEL'
+    )
     .reduce((sum, t) => sum + t.total_amount, 0);
 
   const totalQrisMasuk = penjualanTrx
-    .filter((t) => t.payment_method === 'QRIS' && t.payment_status !== 'FAILED' && t.payment_status !== 'CANCEL')
+    .filter(
+      (t) =>
+        (t.payment_method === 'QRIS' || t.payment_method === 'ONLINE' || t.payment_method === 'TRANSFER') &&
+        t.payment_status !== 'PENDING' &&
+        t.payment_status !== 'FAILED' &&
+        t.payment_status !== 'CANCEL'
+    )
     .reduce((sum, t) => sum + t.total_amount, 0);
 
   const totalKasbon = penjualanTrx
@@ -139,6 +159,31 @@ export default function LaporanClient({
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleConfirmPayment = async () => {
+    if (!confirmTarget || isConfirming) return;
+    setIsConfirming(true);
+    setFeedback(null);
+    try {
+      const res = await confirmTransactionPayment(confirmTarget.id, 'PAID');
+      if (res.error) {
+        setFeedback({ type: 'error', text: res.error });
+      } else {
+        setTransactions((prev) =>
+          prev.map((t) => (t.id === confirmTarget.id ? { ...t, payment_status: 'PAID' } : t))
+        );
+        setFeedback({
+          type: 'success',
+          text: res.message || `Pembayaran #${confirmTarget.id.slice(-6).toUpperCase()} berhasil dikonfirmasi LUNAS!`,
+        });
+      }
+    } catch (err: any) {
+      setFeedback({ type: 'error', text: 'Gagal mengonfirmasi pembayaran: ' + err.message });
+    } finally {
+      setIsConfirming(false);
+      setConfirmTarget(null);
+    }
   };
 
   const handleDeleteTrx = async (trxId: string) => {
@@ -265,6 +310,32 @@ export default function LaporanClient({
           </Link>
         </div>
       </div>
+
+      {feedback && (
+        <div
+          className={`mt-4 p-3.5 rounded-xl border text-xs font-medium flex items-center justify-between gap-2 print:hidden ${
+            feedback.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {feedback.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+            )}
+            <span>{feedback.text}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setFeedback(null)}
+            className="p-0.5 rounded hover:bg-black/5 cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* 2. Top Metrics Box (Full-width Lime Green Container) */}
       <div className="bg-[#cbf14e] rounded-2xl p-6 sm:p-7 shadow-xs mt-6">
@@ -597,6 +668,21 @@ export default function LaporanClient({
                   <span>Kasbon</span>
                 </button>
               </div>
+
+              {pendingOrdersCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setOnlyPending((prev) => !prev)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
+                    onlyPending
+                      ? 'bg-amber-400 border-amber-500 text-neutral-950'
+                      : 'bg-amber-50 border-amber-200 text-amber-900 hover:bg-amber-100'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Menunggu Lunas ({pendingOrdersCount})</span>
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -640,8 +726,9 @@ export default function LaporanClient({
                         {/* Transaksi Date & ID */}
                         <div className="col-span-3">
                           <p className="font-semibold text-neutral-900">{dateStr}</p>
-                          <p className="text-[10px] text-neutral-400 font-mono mt-0.5">
+                          <p className="text-[10px] text-neutral-500 font-mono mt-0.5 truncate">
                             #{trx.id.slice(-6).toUpperCase()}
+                            {trx.customer_name ? ` • ${trx.customer_name}` : ''}
                           </p>
                         </div>
 
@@ -706,15 +793,30 @@ export default function LaporanClient({
                               : trx.category || 'Transaksi Umum'}
                           </div>
 
-                          <button
-                            type="button"
-                            disabled={deletingId === trx.id}
-                            onClick={() => handleDeleteTrx(trx.id)}
-                            className="text-neutral-400 hover:text-red-600 transition-colors p-1 print:hidden cursor-pointer shrink-0"
-                            title="Batalkan transaksi dan kembalikan stok"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center gap-1.5 shrink-0 print:hidden">
+                            {trx.payment_status === 'PENDING' && trx.payment_method !== 'CREDIT' && (
+                              <button
+                                type="button"
+                                disabled={isConfirming}
+                                onClick={() => setConfirmTarget(trx)}
+                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 transition shadow-2xs cursor-pointer disabled:opacity-50"
+                                title="Konfirmasi pembayaran pesanan menjadi LUNAS"
+                              >
+                                <Check className="w-3 h-3 stroke-[3]" />
+                                <span>Tandai Lunas</span>
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              disabled={deletingId === trx.id}
+                              onClick={() => handleDeleteTrx(trx.id)}
+                              className="text-neutral-400 hover:text-red-600 transition-colors p-1 cursor-pointer"
+                              title="Batalkan transaksi dan kembalikan stok"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -722,7 +824,6 @@ export default function LaporanClient({
                 })}
               </div>
             ) : (
-              /* Empty State matching Image 0 */
               <div className="p-8 sm:p-10 flex items-start gap-4">
                 <div className="w-12 h-12 rounded-xl bg-[#eef5db] text-[#465427] flex items-center justify-center shrink-0">
                   <FileText className="w-6 h-6 stroke-[1.75]" />
@@ -795,7 +896,6 @@ export default function LaporanClient({
                 ))}
               </div>
             ) : (
-              /* Empty State matching Image 1 */
               <div className="p-8 sm:p-10 flex items-start gap-4">
                 <div className="w-12 h-12 rounded-xl bg-[#eef5db] text-[#465427] flex items-center justify-center shrink-0">
                   <BookOpen className="w-6 h-6 stroke-[1.75]" />
@@ -974,6 +1074,24 @@ export default function LaporanClient({
         <br />
         Angka bergantung pada kelengkapan pencatatan transaksi kasir.
       </div>
+
+      <ConfirmDialog
+        open={Boolean(confirmTarget)}
+        title="Konfirmasi Pembayaran Lunas?"
+        description={
+          confirmTarget
+            ? `Pesanan #${confirmTarget.id.slice(-6).toUpperCase()}${
+                confirmTarget.customer_name ? ` atas nama ${confirmTarget.customer_name}` : ''
+              } sebesar Rp ${confirmTarget.total_amount.toLocaleString('id-ID')} akan ditandai LUNAS (PAID) dan tercatat di kas masuk.`
+            : undefined
+        }
+        confirmLabel={isConfirming ? 'Memproses...' : 'Ya, Tandai Lunas'}
+        tone="primary"
+        onConfirm={handleConfirmPayment}
+        onCancel={() => {
+          if (!isConfirming) setConfirmTarget(null);
+        }}
+      />
 
       {/* PRINT CSS STYLES */}
       <style jsx global>{`

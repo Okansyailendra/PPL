@@ -223,7 +223,7 @@ CREATE TABLE `debts` (
   `type` enum('BARANG','PINJAMAN_TUNAI') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'BARANG',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `due_date` datetime NOT NULL,
-  `status` enum('UNPAID','PARTIAL','PAID') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'UNPAID',
+  `status` enum('PENDING_APPROVAL','UNPAID','PARTIAL','PAID','REJECTED') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'UNPAID',
   `notes` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `related_trx_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),

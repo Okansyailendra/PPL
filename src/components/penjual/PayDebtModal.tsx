@@ -110,7 +110,7 @@ export default function PayDebtModal({ debt, isOpen, onClose, onSuccess }: PayDe
                 <p className="font-extrabold text-neutral-900 text-sm">{debt.customer_name}</p>
               </div>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#eef5db] text-[#465427] border border-[#d6e5b4]">
-                {debt.type === 'PINJAMAN_TUNAI' ? 'Pinjaman Tunai' : 'Kasbon Barang'}
+                Kasbon Barang
               </span>
             </div>
 

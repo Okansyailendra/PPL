@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { getCurrentUser } from '@/lib/auth';
 import type { Product, Debt } from '@/types';
+import { isConfirmedTransaction } from '@/lib/ledger';
 import LaporanClient from './LaporanClient';
 
 export const dynamic = 'force-dynamic';
@@ -19,7 +20,7 @@ export default async function LaporanPage() {
         supabase.from('debts').select('*').eq('umkm_id', user.id)
       ]);
       if (trxRes.data) {
-        transactions = trxRes.data.filter((t: any) => t.category !== 'SCAN_STRUK_PELANGGAN');
+        transactions = trxRes.data.filter(isConfirmedTransaction);
       }
       if (prodRes.data) products = prodRes.data;
       if (debtRes.data) debts = debtRes.data;

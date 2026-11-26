@@ -78,19 +78,29 @@ export async function GET(req: Request) {
       });
     }
 
-    // Hitung ringkasan
+    // Hitung ringkasan kasbon
     const totalRemaining = filtered.reduce((acc, curr) => {
-      if (curr.status === 'PAID') return acc;
-      const rem = Number(curr.remaining_amount ?? (curr.amount - (curr.paid_amount || 0)));
-      return acc + rem;
+      if (curr.status === 'UNPAID' || curr.status === 'PARTIAL') {
+        const rem = Number(curr.remaining_amount ?? (curr.amount - (curr.paid_amount || 0)));
+        return acc + rem;
+      }
+      return acc;
     }, 0);
+
+    const totalPending = filtered.reduce((acc, curr) => {
+      if (curr.status === 'PENDING_APPROVAL') {
+        return acc + Number(curr.amount || 0);
+      }
+      return acc;
+    }, 0);
+
+    const pendingCount = filtered.filter((d) => d.status === 'PENDING_APPROVAL').length;
 
     const totalPaid = filtered.reduce((acc, curr) => {
       if (curr.status === 'PAID') return acc + Number(curr.amount || 0);
       return acc + Number(curr.paid_amount || 0);
     }, 0);
 
-    // Ambil payment logs terkait untuk riwayat mutasi
     let paymentLogs: any[] = [];
     if (filtered.length > 0) {
       const debtIds = filtered.map((d) => d.id);
@@ -109,8 +119,9 @@ export async function GET(req: Request) {
       requireLogin: !currentUser && !search && !phone,
       summary: {
         totalRemaining,
+        totalPending,
+        pendingCount,
         totalPaid,
-        limit: 500000,
         count: filtered.length,
       },
     });

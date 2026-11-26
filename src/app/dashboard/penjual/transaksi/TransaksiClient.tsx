@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import type { UserSession, Product, Transaction, Category } from '@/types';
-import { createSaleTransaction, createRestockTransaction } from '@/app/actions/transaksi';
+import { createSaleTransaction, createRestockTransaction, confirmTransactionPayment } from '@/app/actions/transaksi';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { linkWa, normalisasiNomor } from '@/lib/penagih';
 import PrintableReceiptPortal, {
   CustomerReceiptView,
@@ -64,23 +65,18 @@ export default function TransaksiClient({
     setCategoriesList(initialCategories);
   }, [initialCategories]);
 
-  // Mode: Penjualan (Stok Berkurang) vs Kulakan (Stok Bertambah)
   const [mode, setMode] = useState<'SALE' | 'RESTOCK'>('SALE');
 
-  // Search & Filter
   const [search, setSearch] = useState('');
   const [filterStock, setFilterStock] = useState<'ALL' | 'READY' | 'LOW'>('ALL');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
-  // Cart State
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'QRIS' | 'CREDIT'>('CASH');
   const [qrisStatus, setQrisStatus] = useState<'PAID' | 'PENDING'>('PAID');
 
-  // Cash payment details
   const [cashReceived, setCashReceived] = useState<string>('');
 
-  // Credit / Kasbon details
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [dueDate, setDueDate] = useState(() => {
@@ -90,9 +86,11 @@ export default function TransaksiClient({
   });
   const [notes, setNotes] = useState('');
 
-  // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [confirmPendingTrx, setConfirmPendingTrx] = useState<Transaction | null>(null);
+  const [isConfirmingPending, setIsConfirmingPending] = useState(false);
+  const [pendingActionNotice, setPendingActionNotice] = useState<string>('');
   const [successData, setSuccessData] = useState<{
     transactionId: string;
     createdAt: string;
@@ -106,7 +104,6 @@ export default function TransaksiClient({
     change?: number;
   } | null>(null);
 
-  // Barcode Scanner Modal States
   const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
   const [scannerTab, setScannerTab] = useState<'camera' | 'manual'>('camera');
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
@@ -129,13 +126,11 @@ export default function TransaksiClient({
   const lastScannedCodeRef = useRef<string>('');
 
 
-  // Gabungan kategori master dari database + kategori produk yang ada (Deduplikasi ID & Nama)
   const allCategoryOptions = useMemo(() => {
     const list: { id: string; name: string; count: number }[] = [];
     const idMap = new Map<string, { id: string; name: string; count: number }>();
     const nameMap = new Map<string, { id: string; name: string; count: number }>();
 
-    // 1. Kategori resmi dari database
     (categoriesList || []).forEach((c) => {
       if (!c?.id || !c?.name) return;
       const lower = c.name.toLowerCase().trim();
@@ -147,7 +142,6 @@ export default function TransaksiClient({
       }
     });
 
-    // 2. Hitung jumlah produk per kategori & tampung jika ada nama kategori manual
     (products || []).forEach((p) => {
       if (p.category) {
         const lower = p.category.toLowerCase().trim();
@@ -167,7 +161,6 @@ export default function TransaksiClient({
     return list;
   }, [categoriesList, products]);
 
-  // Audio Beep Feedback
   const playBeep = () => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -183,11 +176,10 @@ export default function TransaksiClient({
       osc.start();
       osc.stop(ctx.currentTime + 0.1);
     } catch {
-      // Audio context might be restricted before interaction
+      // Audio context might be restricted before user interaction
     }
   };
 
-  // Add to cart with atomic functional state update
   const addToCart = (product: Product): { success: boolean; newQty: number } => {
     setErrorMessage('');
     let resultQty = 1;
@@ -283,7 +275,6 @@ export default function TransaksiClient({
             throw new Error('BROWSER_UNSUPPORTED');
           }
 
-          // Step 1: Detect available video devices
           let videoInputs: MediaDeviceInfo[] = [];
           try {
             const rawDevices = await navigator.mediaDevices.enumerateDevices();
@@ -307,8 +298,6 @@ export default function TransaksiClient({
             selectedDeviceId ||
             (nonIrDevices.length > 0 ? nonIrDevices[0].deviceId : videoInputs[0]?.deviceId);
 
-          // Step 2: Acquire Stream with Multi-Tier Fallback
-          // Tier 1: Try specific deviceId if chosen or detected
           if (preferredDeviceId) {
             try {
               localStream = await navigator.mediaDevices.getUserMedia({
@@ -316,11 +305,10 @@ export default function TransaksiClient({
                 audio: false,
               });
             } catch (errTier1: any) {
-              console.warn('Tier 1 (exact deviceId) failed, trying generic:', errTier1);
+              console.warn('Exact deviceId failed, trying generic:', errTier1);
             }
           }
 
-          // Tier 2: Universal { video: true } (Works with default active OS webcam)
           if (!localStream) {
             try {
               localStream = await navigator.mediaDevices.getUserMedia({
@@ -328,15 +316,12 @@ export default function TransaksiClient({
                 audio: false,
               });
             } catch (errTier2: any) {
-              console.warn('Tier 2 (video: true) failed, trying facingMode:', errTier2);
-              // Tier 3: Ideal facingMode (primarily for mobile phones)
               try {
                 localStream = await navigator.mediaDevices.getUserMedia({
                   video: { facingMode: { ideal: facingMode } },
                   audio: false,
                 });
               } catch (errTier3: any) {
-                // If all tiers fail, throw the most informative error
                 throw errTier2 || errTier3;
               }
             }
@@ -360,7 +345,6 @@ export default function TransaksiClient({
             }
           }
 
-          // Step 3: Load ZXing multi format reader & decode continuously
           const { BrowserMultiFormatReader } = await import('@zxing/library');
           if (isCancelled) return;
 
@@ -480,7 +464,6 @@ export default function TransaksiClient({
     });
   }, [products, search, filterStock, selectedCategory]);
 
-  // Cart Calculations
   const totalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const totalAmount = cart.reduce((sum, item) => {
     const price = mode === 'SALE' ? item.product.price : (item.product.cost_price || item.product.price * 0.8);
@@ -491,7 +474,6 @@ export default function TransaksiClient({
   const changeAmount = Math.max(0, numCashReceived - totalAmount);
   const isCashInsufficient = paymentMethod === 'CASH' && numCashReceived > 0 && numCashReceived < totalAmount;
 
-  // Update Qty
   const updateQuantity = (productId: string, newQty: number) => {
     setErrorMessage('');
     if (newQty <= 0) {
@@ -510,19 +492,16 @@ export default function TransaksiClient({
     setCart(cart.map((c) => (c.product.id === productId ? { ...c, quantity: newQty } : c)));
   };
 
-  // Remove from cart
   const removeFromCart = (productId: string) => {
     setCart(cart.filter((c) => c.product.id !== productId));
   };
 
-  // Clear cart
   const clearCart = () => {
     setCart([]);
     setCashReceived('');
     setErrorMessage('');
   };
 
-  // Submit Transaction
   const handleCheckout = async () => {
     if (cart.length === 0) {
       setErrorMessage('Keranjang belanja masih kosong.');
@@ -575,7 +554,6 @@ export default function TransaksiClient({
           return;
         }
 
-        // Update local products state with updated stocks
         if (res.updatedStocks) {
           const stockUpdates = new Map(res.updatedStocks.map((u) => [u.id, u.newStock]));
           setProducts((prev) =>
@@ -588,7 +566,6 @@ export default function TransaksiClient({
           );
         }
 
-        // Show Success Modal
         setSuccessData({
           transactionId: res.transactionId || 'TRX-' + Date.now().toString().slice(-6),
           createdAt: new Date().toISOString(),
@@ -630,7 +607,6 @@ export default function TransaksiClient({
         setCustomerName('');
         setCustomerPhone('');
       } else {
-        // Restock Mode
         const payload = {
           items: cart.map((c) => ({
             productId: c.product.id,
@@ -682,7 +658,6 @@ export default function TransaksiClient({
     }
   };
 
-  // Barcode Manual Form Handler
   const handleBarcodeSubmit = (code: string) => {
     if (!code.trim()) return;
     playBeep();
@@ -690,7 +665,6 @@ export default function TransaksiClient({
     setBarcodeInput('');
   };
 
-  // WhatsApp receipt sender
   const handleSendWaReceipt = () => {
     if (!successData) return;
     const phone = successData.customerPhone || '';
@@ -728,6 +702,31 @@ export default function TransaksiClient({
   };
 
   const storeDisplayName = user?.store_name || user?.warung_name || 'HalwiyahStore';
+
+  const handleConfirmPendingOrder = async () => {
+    if (!confirmPendingTrx || isConfirmingPending) return;
+    setIsConfirmingPending(true);
+    setErrorMessage('');
+    try {
+      const res = await confirmTransactionPayment(confirmPendingTrx.id, 'PAID');
+      if (res.error) {
+        setErrorMessage(res.error);
+      } else {
+        setRecentTransactions((prev) =>
+          prev.map((t) => (t.id === confirmPendingTrx.id ? { ...t, payment_status: 'PAID' } : t))
+        );
+        setPendingActionNotice(
+          res.message || `Transaksi #${confirmPendingTrx.id.slice(-6).toUpperCase()} dikonfirmasi LUNAS!`
+        );
+        setTimeout(() => setPendingActionNotice(''), 4000);
+      }
+    } catch (err: any) {
+      setErrorMessage('Gagal mengonfirmasi pelunasan: ' + err.message);
+    } finally {
+      setIsConfirmingPending(false);
+      setConfirmPendingTrx(null);
+    }
+  };
 
   return (
     <div className="flex flex-col w-full max-w-[1600px] mx-auto pb-12 font-sans">
@@ -1176,7 +1175,6 @@ export default function TransaksiClient({
                   })}
                 </div>
               ) : (
-                /* Cart Empty State matching screenshots */
                 <div className="py-12 flex flex-col items-center justify-center text-center">
                   <ShoppingCart className="w-8 h-8 text-neutral-300 stroke-[1.5] mb-2" />
                   <p className="text-xs sm:text-sm font-semibold text-neutral-800">
@@ -1506,6 +1504,13 @@ export default function TransaksiClient({
         </div>
 
         {/* Recent Transactions List if any */}
+        {pendingActionNotice && (
+          <div className="mt-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-medium text-emerald-800 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{pendingActionNotice}</span>
+          </div>
+        )}
+
         {recentTransactions.length > 0 && (
           <div className="mt-4 pt-3 border-t border-neutral-100 overflow-x-auto">
             <table className="w-full text-left text-xs">
@@ -1515,19 +1520,26 @@ export default function TransaksiClient({
                   <th className="py-2 font-medium">Tipe</th>
                   <th className="py-2 font-medium">Item</th>
                   <th className="py-2 font-medium">Metode</th>
-                  <th className="py-2 font-medium text-right">Total</th>
+                  <th className="py-2 font-medium text-right">Total &amp; Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
-                {recentTransactions.slice(0, 4).map((trx) => (
+                {recentTransactions.slice(0, 6).map((trx) => (
                   <tr key={trx.id} className="text-neutral-800">
                     <td className="py-2.5 text-neutral-500 font-medium">
-                      {new Date(trx.transaction_date || trx.created_at).toLocaleString('id-ID', {
-                        day: '2-digit',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                      <div>
+                        {new Date(trx.transaction_date || trx.created_at).toLocaleString('id-ID', {
+                          day: '2-digit',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </div>
+                      {trx.customer_name && (
+                        <div className="text-[10px] text-neutral-400 truncate max-w-[120px]">
+                          {trx.customer_name}
+                        </div>
+                      )}
                     </td>
                     <td className="py-2.5">
                       <span
@@ -1551,6 +1563,8 @@ export default function TransaksiClient({
                           ? 'Tunai'
                           : trx.payment_method === 'QRIS'
                           ? 'QRIS'
+                          : trx.payment_method === 'ONLINE'
+                          ? 'Online'
                           : 'Kasbon'}
                       </span>
                       {trx.payment_status && (
@@ -1568,7 +1582,18 @@ export default function TransaksiClient({
                       )}
                     </td>
                     <td className="py-2.5 text-right font-bold text-neutral-900">
-                      Rp {trx.total_amount.toLocaleString('id-ID')}
+                      <div className="flex items-center justify-end gap-2">
+                        <span>Rp {trx.total_amount.toLocaleString('id-ID')}</span>
+                        {trx.payment_status === 'PENDING' && trx.payment_method !== 'CREDIT' && (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmPendingTrx(trx)}
+                            className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold transition cursor-pointer shrink-0"
+                          >
+                            Tandai Lunas
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1576,6 +1601,24 @@ export default function TransaksiClient({
             </table>
           </div>
         )}
+
+        <ConfirmDialog
+          open={Boolean(confirmPendingTrx)}
+          title="Konfirmasi Pembayaran Lunas?"
+          description={
+            confirmPendingTrx
+              ? `Pesanan #${confirmPendingTrx.id.slice(-6).toUpperCase()}${
+                  confirmPendingTrx.customer_name ? ` (${confirmPendingTrx.customer_name})` : ''
+                } senilai Rp ${confirmPendingTrx.total_amount.toLocaleString('id-ID')} akan ditandai LUNAS (PAID).`
+              : undefined
+          }
+          confirmLabel={isConfirmingPending ? 'Memproses...' : 'Ya, Tandai Lunas'}
+          tone="primary"
+          onConfirm={handleConfirmPendingOrder}
+          onCancel={() => {
+            if (!isConfirmingPending) setConfirmPendingTrx(null);
+          }}
+        />
       </div>
 
       {/* 6. Footer */}

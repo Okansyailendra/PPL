@@ -288,6 +288,14 @@ export function generateFinancialSummary(
   >();
 
   for (const trx of transactions) {
+    if (
+      trx.payment_status === 'CANCEL' ||
+      trx.payment_status === 'EXPIRE' ||
+      trx.payment_status === 'FAILED' ||
+      (trx.payment_method === 'CREDIT' && trx.payment_status === 'PENDING')
+    ) {
+      continue;
+    }
     const trxAnalysis = calculateTransactionProfit(trx, catalogMap);
     analyzedTrxs.push(trxAnalysis);
 
@@ -338,8 +346,10 @@ export function generateFinancialSummary(
 
       // Klasifikasi Arus Kas Masuk berdasarkan metode pembayaran
       if (trx.payment_method === 'CASH') {
-        cashSales += trx.total_amount;
-      } else if (trx.payment_method === 'QRIS') {
+        if (trx.payment_status !== 'PENDING' && trx.payment_status !== 'UNPAID') {
+          cashSales += trx.total_amount;
+        }
+      } else if (trx.payment_method === 'QRIS' || trx.payment_method === 'ONLINE' || trx.payment_method === 'TRANSFER') {
         if (trx.payment_status === 'PAID' || trx.payment_status === 'SETTLEMENT') {
           qrisSales += trx.total_amount;
         }
@@ -363,6 +373,9 @@ export function generateFinancialSummary(
   let collectedReceivables = 0;
 
   for (const debt of debts) {
+    if (debt.status === 'PENDING_APPROVAL' || debt.status === 'REJECTED') {
+      continue;
+    }
     const amt = Number(debt.amount) || 0;
     const paid = Number(debt.paid_amount) || 0;
     const remaining = Number(debt.remaining_amount) || Math.max(0, amt - paid);

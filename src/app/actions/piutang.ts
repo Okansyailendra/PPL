@@ -30,7 +30,7 @@ export async function addDebt(formData: FormData) {
   const customer_phone = (formData.get('customer_phone') as string) || '';
   const amount = parseInt((formData.get('amount') as string) || '0', 10);
   const due_date = formData.get('due_date') as string;
-  const type = ((formData.get('type') as string) || 'BARANG') as 'BARANG' | 'PINJAMAN_TUNAI';
+  const type = 'BARANG';
   const notes = (formData.get('notes') as string) || '';
 
   if (!customer_name || !amount || amount <= 0 || !due_date) {
@@ -64,28 +64,6 @@ export async function addDebt(formData: FormData) {
     return { error: 'Gagal menyimpan catatan kasbon: ' + error.message };
   }
 
-  // Jika pinjaman uang tunai, catat sebagai transaksi pengeluaran (OUT) di buku kas
-  if (type === 'PINJAMAN_TUNAI') {
-    try {
-      await supabase.from('transactions').insert([
-        {
-          umkm_id: user.id,
-          type: 'OUT',
-          category: 'PINJAMAN_KASBON',
-          payment_method: 'CASH',
-          payment_status: 'PAID',
-          total_amount: amount,
-          items: [{ name: `Pinjaman Tunai: ${customer_name}`, quantity: 1, price: amount, subtotal: amount }],
-          debt_id: debtId,
-          transaction_date: now,
-          created_at: now,
-        }
-      ]);
-    } catch (trxErr) {
-      console.warn('Gagal mencatat transaksi OUT kasbon tunai:', trxErr);
-    }
-  }
-
   revalidatePath('/dashboard/penjual/piutang');
   revalidatePath('/dashboard/penjual');
   return { success: true, debtId };
@@ -98,13 +76,6 @@ export interface PayDebtInput {
   notes?: string;
 }
 
-/**
- * [Zaki] Pencatatan bayar kasbon (cicil sebagian / bayar lunas)
- * - Memperbarui paid_amount dan remaining_amount di debts
- * - Memperbarui status: 'UNPAID' | 'PARTIAL' | 'PAID'
- * - Mencatat riwayat pembayaran ke tabel payment_logs
- * - Mencatat transaksi pemasukan kas (IN) ke tabel transactions
- */
 export async function recordDebtPayment(input: PayDebtInput) {
   const user = await getUser();
   if (!user) {
@@ -117,7 +88,6 @@ export async function recordDebtPayment(input: PayDebtInput) {
     return { error: 'ID kasbon dan nominal pembayaran valid (>0) wajib diisi.' };
   }
 
-  // 1. Ambil data kasbon saat ini
   const { data: debt, error: fetchErr } = await supabase
     .from('debts')
     .select('*')
@@ -144,7 +114,6 @@ export async function recordDebtPayment(input: PayDebtInput) {
 
   const now = new Date().toISOString();
 
-  // 2. Update data debts
   const { error: updateErr } = await supabase
     .from('debts')
     .update({
@@ -160,7 +129,6 @@ export async function recordDebtPayment(input: PayDebtInput) {
     return { error: 'Gagal memperbarui kasbon: ' + updateErr.message };
   }
 
-  // 3. Catat riwayat di payment_logs
   const logId = crypto.randomUUID();
   const { error: logErr } = await supabase
     .from('payment_logs')
@@ -181,7 +149,6 @@ export async function recordDebtPayment(input: PayDebtInput) {
     console.error('Error inserting payment_logs:', logErr);
   }
 
-  // 4. Catat transaksi pemasukan kas (IN) ke Buku Kas
   try {
     await supabase.from('transactions').insert([
       {
@@ -241,7 +208,7 @@ export async function getPaymentLogs(debtId: string) {
   return { success: true, logs: (data || []) as PaymentLog[] };
 }
 
-export async function toggleDebtStatus(debtId: string, currentStatus: 'UNPAID' | 'PARTIAL' | 'PAID') {
+export async function toggleDebtStatus(debtId: string, currentStatus: Debt['status']) {
   const user = await getUser();
   if (!user) {
     return { error: 'Sesi telah berakhir. Silakan login kembali.' };
@@ -279,7 +246,6 @@ export async function toggleDebtStatus(debtId: string, currentStatus: 'UNPAID' |
   }
 
   if (isNowPaid) {
-    // Buat log pembayaran penuh
     await supabase.from('payment_logs').insert([
       {
         id: crypto.randomUUID(),
@@ -305,7 +271,6 @@ export async function deleteDebt(debtId: string) {
     return { error: 'Sesi telah berakhir. Silakan login kembali.' };
   }
 
-  // Hapus log pembayaran terkait terlebih dahulu
   await supabase
     .from('payment_logs')
     .delete()
@@ -378,7 +343,7 @@ export async function updateDebt(formData: FormData) {
   const customer_phone = (formData.get('customer_phone') as string) || '';
   const amount = parseInt((formData.get('amount') as string) || '0', 10);
   const due_date = formData.get('due_date') as string;
-  const type = ((formData.get('type') as string) || 'BARANG') as 'BARANG' | 'PINJAMAN_TUNAI';
+  const type = 'BARANG';
   const notes = (formData.get('notes') as string) || '';
 
   if (!id || !customer_name || !amount || !due_date) {
@@ -421,4 +386,159 @@ export async function updateDebt(formData: FormData) {
   revalidatePath('/dashboard/penjual/piutang');
   revalidatePath('/dashboard/penjual');
   return { success: true };
+}
+
+export async function approveDebt(debtId: string) {
+  const user = await getUser();
+  if (!user) {
+    return { error: 'Sesi akun tidak ditemukan. Silakan login kembali.' };
+  }
+
+  const { data: debt, error: fetchErr } = await supabase
+    .from('debts')
+    .select('*')
+    .eq('id', debtId)
+    .eq('umkm_id', user.id)
+    .single();
+
+  if (fetchErr || !debt) {
+    return { error: 'Catatan pengajuan kasbon tidak ditemukan.' };
+  }
+
+  if (debt.status !== 'PENDING_APPROVAL') {
+    return { error: 'Pengajuan kasbon ini sudah diproses sebelumnya.' };
+  }
+
+  // Jika pengajuan kasbon berasal dari checkout keranjang online, verifikasi & potong stok barang terlebih dahulu
+  if (debt.related_trx_id) {
+    const { data: relatedTrx } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('id', debt.related_trx_id)
+      .eq('umkm_id', user.id)
+      .single();
+
+    if (relatedTrx && relatedTrx.payment_status === 'PENDING') {
+      const trxItems = Array.isArray(relatedTrx.items) ? relatedTrx.items : [];
+      const productIds = trxItems.map((it: any) => it.productId || it.id).filter(Boolean);
+
+      if (productIds.length > 0) {
+        const { data: dbProducts, error: prodErr } = await supabase
+          .from('products')
+          .select('*')
+          .in('id', productIds)
+          .eq('umkm_id', user.id);
+
+        if (prodErr || !dbProducts) {
+          return { error: 'Gagal memverifikasi stok barang pesanan kasbon.' };
+        }
+
+        const productMap = new Map<string, any>((dbProducts as any[]).map((p: any) => [p.id, p]));
+
+        for (const item of trxItems) {
+          const pid = item.productId || item.id;
+          if (!pid) continue;
+          const dbProd = productMap.get(pid);
+          const qty = Math.max(1, Math.round(Number(item.quantity) || 1));
+          if (!dbProd) {
+            return { error: `Produk "${item.name}" sudah tidak tersedia di katalog.` };
+          }
+          if (Number(dbProd.stock) < qty) {
+            return {
+              error: `Stok "${dbProd.name}" tidak mencukupi (tersisa ${dbProd.stock} ${dbProd.unit || 'pcs'}, diminta ${qty}). Persetujuan dibatalkan.`,
+            };
+          }
+        }
+
+        for (const item of trxItems) {
+          const pid = item.productId || item.id;
+          const dbProd = pid ? productMap.get(pid) : null;
+          if (dbProd) {
+            const qty = Math.max(1, Math.round(Number(item.quantity) || 1));
+            const newStock = Math.max(0, Number(dbProd.stock) - qty);
+            await supabase
+              .from('products')
+              .update({ stock: newStock })
+              .eq('id', dbProd.id)
+              .eq('umkm_id', user.id);
+          }
+        }
+      }
+
+      await supabase
+        .from('transactions')
+        .update({ payment_status: 'UNPAID' })
+        .eq('id', relatedTrx.id)
+        .eq('umkm_id', user.id);
+    }
+  }
+
+  const { error: updateErr } = await supabase
+    .from('debts')
+    .update({
+      status: 'UNPAID',
+    })
+    .eq('id', debtId)
+    .eq('umkm_id', user.id);
+
+  if (updateErr) {
+    return { error: 'Gagal menyetujui kasbon: ' + updateErr.message };
+  }
+
+  revalidatePath('/dashboard/penjual/piutang');
+  revalidatePath('/dashboard/penjual/stok');
+  revalidatePath('/dashboard/penjual/laporan');
+  revalidatePath('/dashboard/penjual/transaksi');
+  revalidatePath('/dashboard/penjual');
+  revalidatePath('/dashboard/pelanggan/kasbon');
+  revalidatePath('/dashboard/pelanggan/struk');
+  return { success: true, message: `Kasbon atas nama "${debt.customer_name}" berhasil disetujui!` };
+}
+
+export async function rejectDebt(debtId: string, reason?: string) {
+  const user = await getUser();
+  if (!user) {
+    return { error: 'Sesi akun tidak ditemukan. Silakan login kembali.' };
+  }
+
+  const { data: debt, error: fetchErr } = await supabase
+    .from('debts')
+    .select('*')
+    .eq('id', debtId)
+    .eq('umkm_id', user.id)
+    .single();
+
+  if (fetchErr || !debt) {
+    return { error: 'Catatan pengajuan kasbon tidak ditemukan.' };
+  }
+
+  const rejectNote = reason?.trim() ? `[DITOLAK ADMIN: ${reason.trim()}]` : '[DITOLAK ADMIN]';
+  const updatedNotes = debt.notes ? `${debt.notes} ${rejectNote}` : rejectNote;
+
+  const { error: updateErr } = await supabase
+    .from('debts')
+    .update({
+      status: 'REJECTED',
+      notes: updatedNotes,
+    })
+    .eq('id', debtId)
+    .eq('umkm_id', user.id);
+
+  if (updateErr) {
+    return { error: 'Gagal menolak pengajuan kasbon: ' + updateErr.message };
+  }
+
+  if (debt.related_trx_id) {
+    await supabase
+      .from('transactions')
+      .update({ payment_status: 'CANCEL' })
+      .eq('id', debt.related_trx_id)
+      .eq('umkm_id', user.id);
+  }
+
+  revalidatePath('/dashboard/penjual/piutang');
+  revalidatePath('/dashboard/penjual/laporan');
+  revalidatePath('/dashboard/pelanggan/kasbon');
+  revalidatePath('/dashboard/pelanggan/struk');
+  return { success: true, message: `Pengajuan kasbon "${debt.customer_name}" telah ditolak.` };
 }

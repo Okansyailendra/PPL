@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getAuthenticatedCashier } from '@/lib/auth';
 import { evaluateRestockRule, extractProductSalesPeriods } from '@/lib/stock-algorithm';
+import { isConfirmedTransaction } from '@/lib/ledger';
 import type { Product, Transaction } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -35,7 +36,7 @@ export async function GET(req: Request) {
 
     const products = (prodRes.data || []) as Product[];
     const transactions = ((trxRes.data || []) as Transaction[]).filter(
-      (t) => t.category !== 'SCAN_STRUK_PELANGGAN'
+      isConfirmedTransaction
     );
 
     // 2. Evaluasi algoritma per produk

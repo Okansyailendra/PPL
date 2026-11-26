@@ -59,21 +59,17 @@ export default function StrukPelangganPage() {
   const [user, setUser] = useState<UserSession | null>(null);
   const [isLoadingSession, setIsLoadingSession] = useState(true);
 
-  // Active tab: 'scanned' (Struk Hasil Scan) | 'digital' (Nota Digital Warung)
   const [activeTab, setActiveTab] = useState<ActiveTab>('scanned');
 
-  // Saved scanned receipts state
   const [scannedReceipts, setScannedReceipts] = useState<CustomerScannedReceipt[]>([]);
   const [isLoadingScanned, setIsLoadingScanned] = useState(true);
   const [scannedSearch, setScannedSearch] = useState('');
 
-  // Digital warung transactions state
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoadingTrx, setIsLoadingTrx] = useState(true);
   const [requireLogin, setRequireLogin] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Scan & upload states
   const [preview, setPreview] = useState<string | null>(null);
   const [fileName, setFileName] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -83,7 +79,6 @@ export default function StrukPelangganPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  // Editable form state for scanned receipt before saving
   const [storeName, setStoreName] = useState('Toko / Warung');
   const [purchaseDate, setPurchaseDate] = useState<string>(getDefaultDateTimeLocal);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
@@ -94,7 +89,6 @@ export default function StrukPelangganPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Modals
   const [selectedTrx, setSelectedTrx] = useState<Transaction | null>(null);
   const [selectedScanned, setSelectedScanned] = useState<CustomerScannedReceipt | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CustomerScannedReceipt | null>(null);
@@ -1279,6 +1273,21 @@ export default function StrukPelangganPage() {
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
                                 <CheckCircle2 className="w-3 h-3" />
                                 LUNAS
+                              </span>
+                            ) : trx.payment_status === 'CANCEL' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-red-100 text-red-700 border border-red-200">
+                                <X className="w-3 h-3" />
+                                DITOLAK / BATAL
+                              </span>
+                            ) : trx.payment_method === 'CREDIT' && trx.payment_status === 'PENDING' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-100 text-amber-900 border border-amber-200">
+                                <Clock className="w-3 h-3" />
+                                MENUNGGU IZIN KASBON
+                              </span>
+                            ) : trx.payment_method === 'CREDIT' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-orange-100 text-orange-800 border border-orange-200">
+                                <Clock className="w-3 h-3" />
+                                KASBON AKTIF
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-100 text-amber-900 border border-amber-200">

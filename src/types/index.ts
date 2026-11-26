@@ -21,7 +21,7 @@ export interface Debt {
   remaining_amount?: number;
   due_date: string;
   type?: 'BARANG' | 'PINJAMAN_TUNAI';
-  status: 'UNPAID' | 'PARTIAL' | 'PAID';
+  status: 'PENDING_APPROVAL' | 'UNPAID' | 'PARTIAL' | 'PAID' | 'REJECTED';
   notes?: string | null;
   created_at?: string;
   updated_at?: string;

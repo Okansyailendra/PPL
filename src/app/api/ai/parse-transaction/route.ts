@@ -71,13 +71,8 @@ export async function GET(req: NextRequest) {
   });
 }
 
-/**
- * POST /api/ai/parse-transaction
- * Menerima payload teks kasir dan mengembalikan struktur data produk teridentifikasi.
- */
 export async function POST(req: NextRequest) {
   try {
-    // 1. Rate Limiting Protection (Maksimal 60 request per menit)
     const rateLimitCheck = applyRateLimit(req, {
       limit: 60,
       windowMs: 60 * 1000,
@@ -87,7 +82,6 @@ export async function POST(req: NextRequest) {
       return rateLimitCheck.response;
     }
 
-    // 2. Baca Body JSON
     let body: any;
     try {
       body = await req.json();
@@ -127,15 +121,10 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/**
- * Logika Bersama untuk Memproses Parsing Teks Transaksi dengan Database Produk
- */
 async function handleParseRequest(req: NextRequest, text: string, explicitStoreId?: string) {
-  // 1. Dapatkan Sesi Kasir / UMKM Aktif
   const activeUser = await getAuthenticatedCashier(req);
   const targetUmkmId = explicitStoreId || activeUser?.id;
 
-  // 2. Ambil Katalog Produk dari Database untuk Pencocokan Fuzzy
   let catalogProducts: Product[] = [];
   try {
     let query = supabase.from('products').select('*');
@@ -147,7 +136,6 @@ async function handleParseRequest(req: NextRequest, text: string, explicitStoreI
     if (!dbError && dbProducts && dbProducts.length > 0) {
       catalogProducts = dbProducts as Product[];
     } else {
-      // Fallback jika tidak ada produk spesifik umkm, ambil semua produk aktif default warung
       const { data: fallbackProducts } = await supabase.from('products').select('*');
       if (fallbackProducts) {
         catalogProducts = fallbackProducts as Product[];
@@ -157,13 +145,11 @@ async function handleParseRequest(req: NextRequest, text: string, explicitStoreI
     console.warn('[API /api/ai/parse-transaction] Gagal memuat produk database:', dbQueryErr);
   }
 
-  // 3. Jalankan Engine Parser AI (LLM Gemini / Heuristic Fallback + Fuzzy Matching)
   const parseResult = await parseTransactionText(text, {
     catalogProducts,
     storeId: targetUmkmId,
   });
 
-  // 4. Return Output JSON Terstandarisasi
   return NextResponse.json({
     success: true,
     message: `Berhasil mem-parsing ${parseResult.items.length} item transaksi.`,

@@ -3,20 +3,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
-  CreditCard,
   BookOpen,
   CheckCircle2,
   ArrowRight,
-  ArrowUpRight,
   MessageSquare,
   User,
   Receipt,
-  Search,
   RefreshCw,
   LogIn,
-  X,
-  ChevronRight,
-  Phone,
+  Clock,
+  Send,
+  ShoppingBag,
+  XCircle,
 } from 'lucide-react';
 import type { Debt, UserSession } from '@/types';
 
@@ -41,8 +39,6 @@ export default function KasbonPelangganPage() {
 
   // Filter Tab: 'SEMUA' | 'BELANJA' | 'PEMBAYARAN'
   const [activeTab, setActiveTab] = useState<'SEMUA' | 'BELANJA' | 'PEMBAYARAN'>('SEMUA');
-
-  // Search
   const [searchQuery, setSearchQuery] = useState('');
 
   // Sesi User
@@ -122,27 +118,48 @@ export default function KasbonPelangganPage() {
     }
   };
 
-  // Plafon Limit Kasbon (Kredit dari Toko Wadira)
-  const LIMIT_KASBON = 500000;
+  // Kategorisasi Debts
+  const activeDebts = useMemo(() => {
+    return debts.filter((d) => d.status === 'UNPAID' || d.status === 'PARTIAL');
+  }, [debts]);
 
-  // Ringkasan Utang
+  const pendingDebts = useMemo(() => {
+    return debts.filter((d) => d.status === 'PENDING_APPROVAL');
+  }, [debts]);
+
+  const paidDebts = useMemo(() => {
+    return debts.filter((d) => d.status === 'PAID');
+  }, [debts]);
+
+  const rejectedDebts = useMemo(() => {
+    return debts.filter((d) => d.status === 'REJECTED');
+  }, [debts]);
+
+  // Ringkasan Finansial Kasbon
   const totalRemaining = useMemo(() => {
-    return debts.reduce((acc, curr) => {
-      if (curr.status === 'PAID') return acc;
+    return activeDebts.reduce((acc, curr) => {
       const rem = Number(curr.remaining_amount ?? (curr.amount - (curr.paid_amount || 0)));
       return acc + rem;
     }, 0);
-  }, [debts]);
+  }, [activeDebts]);
 
-  const sisaLimit = Math.max(0, LIMIT_KASBON - totalRemaining);
-  const percentageUsed = Math.min(100, Math.round((totalRemaining / LIMIT_KASBON) * 100));
+  const totalPending = useMemo(() => {
+    return pendingDebts.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+  }, [pendingDebts]);
 
-  // Tanggal Jatuh Tempo Terdekat
+  const totalPaid = useMemo(() => {
+    return paidDebts.reduce((acc, curr) => acc + Number(curr.amount || 0), 0) +
+      activeDebts.reduce((acc, curr) => acc + Number(curr.paid_amount || 0), 0);
+  }, [paidDebts, activeDebts]);
+
+  // Tanggal Jatuh Tempo Terdekat dari Kasbon Aktif
   const closestDueDate = useMemo(() => {
-    const activeWithDue = debts.filter((d) => d.status !== 'PAID' && d.due_date);
-    if (activeWithDue.length === 0) return '10 Nov 2026';
-    return formatDate(activeWithDue[0].due_date);
-  }, [debts]);
+    if (activeDebts.length === 0) return '-';
+    const sorted = [...activeDebts].sort(
+      (a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
+    );
+    return formatDate(sorted[0].due_date);
+  }, [activeDebts]);
 
   // Nama & Detail Pelanggan
   const customerDisplayName = useMemo(() => {
@@ -161,7 +178,7 @@ export default function KasbonPelangganPage() {
     return '0895-1620-1846';
   }, [debts, user]);
 
-  // Bangun daftar mutasi riwayat kasbon (Belanja & Pembayaran)
+  // Bangun daftar mutasi riwayat kasbon yang sudah disetujui (Belanja & Pembayaran)
   const ledgerEntries = useMemo(() => {
     const list: {
       id: string;
@@ -169,12 +186,17 @@ export default function KasbonPelangganPage() {
       type: 'belanja' | 'pembayaran';
       title: string;
       subtitle: string;
+      status: string;
       mutation: number;
       remaining: number;
     }[] = [];
 
-    // Urutkan debts dari yang paling awal untuk menghitung saldo berjalan
-    const sortedDebts = [...debts].sort(
+    // Hanya kasbon yang telah disetujui / aktif / lunas yang masuk ke buku saldo
+    const confirmedDebts = debts.filter(
+      (d) => d.status === 'UNPAID' || d.status === 'PARTIAL' || d.status === 'PAID'
+    );
+
+    const sortedDebts = [...confirmedDebts].sort(
       (a, b) => new Date(a.created_at || '').getTime() - new Date(b.created_at || '').getTime()
     );
 
@@ -186,13 +208,13 @@ export default function KasbonPelangganPage() {
         id: `debt-${d.id}`,
         date: d.created_at || '',
         type: 'belanja',
-        title: d.type === 'PINJAMAN_TUNAI' ? 'Pinjaman tunai' : 'Belanja warung',
-        subtitle: d.notes || `WADIRA-${d.id.slice(0, 4).toUpperCase()} • Kebutuhan warung`,
+        title: 'Belanja warung (Disetujui)',
+        subtitle: d.notes || `WADIRA-${d.id.slice(0, 4).toUpperCase()} • Jatuh tempo ${formatDate(d.due_date)}`,
+        status: d.status,
         mutation: Number(d.amount),
         remaining: runningBalance,
       });
 
-      // Cari pembayaran terkait
       const relatedLogs = paymentLogs.filter((l) => l.debt_id === d.id);
       if (relatedLogs.length > 0) {
         for (const l of relatedLogs) {
@@ -203,6 +225,7 @@ export default function KasbonPelangganPage() {
             type: 'pembayaran',
             title: 'Pembayaran kasbon',
             subtitle: `${l.payment_method || 'Tunai'} • diterima kasir Wadira`,
+            status: 'PAID',
             mutation: -Number(l.amount_paid),
             remaining: Math.max(0, runningBalance),
           });
@@ -215,17 +238,16 @@ export default function KasbonPelangganPage() {
           type: 'pembayaran',
           title: 'Pembayaran kasbon',
           subtitle: 'Tunai • diterima kasir Wadira',
+          status: 'PAID',
           mutation: -Number(d.paid_amount),
           remaining: Math.max(0, runningBalance),
         });
       }
     }
 
-    // Urutkan kembali dari yang terbaru di atas untuk tabel
     return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [debts, paymentLogs]);
 
-  // Filter Tab (Semua, Belanja, Pembayaran)
   const filteredLedger = useMemo(() => {
     if (activeTab === 'BELANJA') {
       return ledgerEntries.filter((e) => e.type === 'belanja');
@@ -236,7 +258,6 @@ export default function KasbonPelangganPage() {
     return ledgerEntries;
   }, [ledgerEntries, activeTab]);
 
-  // Rentang Tanggal Riwayat
   const dateRangeText = useMemo(() => {
     if (ledgerEntries.length === 0) return 'Belum ada transaksi';
     const dates = ledgerEntries.map((e) => e.date).filter(Boolean);
@@ -246,7 +267,6 @@ export default function KasbonPelangganPage() {
     return earliest === latest ? earliest : `${earliest} – ${latest}`;
   }, [ledgerEntries]);
 
-  // WhatsApp Link Tanya Pembayaran
   const waPaymentLink = `https://wa.me/6289516201846?text=${encodeURIComponent(
     `Halo Toko Wadira, saya atas nama *${customerDisplayName}* ingin konfirmasi pembayaran kasbon.\n` +
       `Sisa tagihan saya saat ini: ${formatRupiah(totalRemaining)}.\n` +
@@ -265,20 +285,31 @@ export default function KasbonPelangganPage() {
             Kasbon saya, jelas catatannya.
           </h1>
           <p className="text-xs sm:text-sm text-neutral-600">
-            Pantau utang dan sisa limit belanja Anda. Semua tercatat bersama warung tetangga.
+            Pantau tagihan kasbon barang, status persetujuan pesanan keranjang, dan riwayat cicilan Anda di Toko Wadira.
           </p>
         </div>
 
-        {/* Tombol Tanya Pembayaran (Hijau Lime) */}
-        <a
-          href={waPaymentLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#cbf14e] hover:bg-[#bde53f] text-[#1c240d] font-bold text-xs sm:text-sm shadow-xs transition-colors shrink-0 self-start sm:self-auto cursor-pointer"
-        >
-          <ArrowRight className="w-4 h-4" />
-          <span>Tanya pembayaran</span>
-        </a>
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-start sm:self-auto">
+          {/* Tombol Belanja & Ajukan di Keranjang */}
+          <Link
+            href="/dashboard/pelanggan"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#cbf14e] hover:bg-[#bde53f] text-[#1c240d] font-bold text-xs sm:text-sm shadow-xs transition-colors"
+          >
+            <ShoppingBag className="w-4 h-4 stroke-[2.25]" />
+            <span>Belanja Barang</span>
+          </Link>
+
+          {/* Tombol Tanya Pembayaran WhatsApp */}
+          <a
+            href={waPaymentLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-xs sm:text-sm shadow-xs transition-colors cursor-pointer"
+          >
+            <ArrowRight className="w-4 h-4" />
+            <span>Tanya Pembayaran</span>
+          </a>
+        </div>
       </div>
 
       {/* Notifikasi Login jika belum masuk */}
@@ -303,96 +334,145 @@ export default function KasbonPelangganPage() {
         </div>
       )}
 
-      {/* 2. Top 3 Metric Cards Grid */}
+      {/* 2. Top Metric Cards (Tanpa Limit, Berbasis Persetujuan) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Card 1: Limit Kasbon */}
-        <div className="bg-white rounded-2xl border border-neutral-200/80 p-5 shadow-2xs space-y-2">
-          <div className="flex items-center gap-2 text-neutral-500">
-            <CreditCard className="w-4 h-4 text-neutral-600" />
-            <span className="text-[11px] font-bold uppercase tracking-wider">
-              LIMIT KASBON
-            </span>
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-neutral-900 tracking-tight">
-            {formatRupiah(LIMIT_KASBON)}
-          </div>
-          <p className="text-xs text-neutral-500">
-            Plafon kredit dari Toko Wadira.
-          </p>
-        </div>
-
-        {/* Card 2: Pemakaian / Sisa Utang (Merah) */}
+        {/* Card 1: Tagihan Aktif (Merah) */}
         <div className="bg-white rounded-2xl border border-neutral-200/80 p-5 shadow-2xs space-y-2">
           <div className="flex items-center gap-2 text-red-600">
             <BookOpen className="w-4 h-4" />
             <span className="text-[11px] font-bold uppercase tracking-wider">
-              PEMAKAIAN / SISA UTANG
+              TOTAL TAGIHAN AKTIF
             </span>
           </div>
           <div className="text-2xl sm:text-3xl font-black text-red-600 tracking-tight">
             {formatRupiah(totalRemaining)}
           </div>
           <p className="text-xs text-neutral-500">
-            Saldo utang yang belum dibayar.
+            {activeDebts.length > 0
+              ? `${activeDebts.length} kasbon aktif disetujui kasir.`
+              : 'Tidak ada tagihan kasbon aktif saat ini.'}
           </p>
         </div>
 
-        {/* Card 3: Sisa Limit */}
+        {/* Card 2: Menunggu Persetujuan (Kuning / Oranye) */}
         <div className="bg-white rounded-2xl border border-neutral-200/80 p-5 shadow-2xs space-y-2">
-          <div className="flex items-center gap-2 text-neutral-600">
-            <CheckCircle2 className="w-4 h-4 text-neutral-500" />
+          <div className="flex items-center gap-2 text-amber-700">
+            <Clock className="w-4 h-4" />
             <span className="text-[11px] font-bold uppercase tracking-wider">
-              SISA LIMIT
+              MENUNGGU PERSETUJUAN
+            </span>
+          </div>
+          <div className="text-2xl sm:text-3xl font-black text-amber-600 tracking-tight">
+            {formatRupiah(totalPending)}
+          </div>
+          <p className="text-xs text-neutral-500">
+            {pendingDebts.length > 0
+              ? `${pendingDebts.length} pengajuan sedang ditinjau kasir/admin.`
+              : 'Tidak ada pengajuan kasbon yang tertunda.'}
+          </p>
+        </div>
+
+        {/* Card 3: Total Sudah Dilunasi (Hijau) */}
+        <div className="bg-white rounded-2xl border border-neutral-200/80 p-5 shadow-2xs space-y-2">
+          <div className="flex items-center gap-2 text-emerald-700">
+            <CheckCircle2 className="w-4 h-4" />
+            <span className="text-[11px] font-bold uppercase tracking-wider">
+              TOTAL SUDAH DILUNASI
             </span>
           </div>
           <div className="text-2xl sm:text-3xl font-black text-neutral-900 tracking-tight">
-            {formatRupiah(sisaLimit)}
+            {formatRupiah(totalPaid)}
           </div>
           <p className="text-xs text-neutral-500">
-            Limit tersedia untuk belanja berikutnya.
+            Riwayat cicilan & kasbon yang lunas tercatat.
           </p>
         </div>
       </div>
 
-      {/* 3. Progress Bar Card: Pemakaian Limit */}
-      <div className="bg-white rounded-2xl border border-neutral-200/80 p-5 shadow-2xs space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-          <div className="flex items-center gap-2">
-            <span className="text-xs sm:text-sm font-bold text-neutral-900">
-              Pemakaian limit
-            </span>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#eef5db] text-[#465427]">
-              {percentageUsed}% terpakai
-            </span>
+      {/* 3. Section Khusus: Daftar Pengajuan Menunggu Persetujuan */}
+      {pendingDebts.length > 0 && (
+        <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                <Clock className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-amber-950">
+                  Pengajuan Kasbon Anda Menunggu Verifikasi ({pendingDebts.length})
+                </h3>
+                <p className="text-xs text-amber-700">
+                  Kasir Toko Wadira akan meninjau dan memberi persetujuan sebelum dana/barang dapat diambil.
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="text-xs font-medium text-neutral-500">
-            {formatRupiah(totalRemaining)} dari {formatRupiah(LIMIT_KASBON)}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+            {pendingDebts.map((item) => (
+              <div
+                key={item.id}
+                className="bg-white rounded-xl border border-amber-200 p-4 space-y-2.5 shadow-2xs"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold text-neutral-500">
+                    {formatDate(item.created_at)}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                    Menunggu Izin Admin
+                  </span>
+                </div>
+
+                <div className="text-lg font-black text-neutral-900">
+                  {formatRupiah(item.amount)}
+                </div>
+
+                <div className="text-xs text-neutral-600 space-y-1">
+                  <div>
+                    <span className="font-semibold text-neutral-700">Rencana Jatuh Tempo:</span>{' '}
+                    {formatDate(item.due_date)}
+                  </div>
+                  {item.notes && (
+                    <div className="text-[11px] text-neutral-500 italic line-clamp-2">
+                      &ldquo;{item.notes}&rdquo;
+                    </div>
+                  )}
+                </div>
+
+                <a
+                  href={`https://wa.me/6289516201846?text=${encodeURIComponent(
+                    `Halo Toko Wadira, saya atas nama *${item.customer_name}* mengajukan kasbon barang sebesar ${formatRupiah(
+                      item.amount
+                    )} pada ${formatDate(item.created_at)}. Mohon konfirmasi persetujuan. Terima kasih.`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2 px-3 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Send className="w-3 h-3 text-[#465427]" />
+                  <span>Kirim Pesan WhatsApp ke Warung</span>
+                </a>
+              </div>
+            ))}
           </div>
         </div>
-
-        {/* Track Bar */}
-        <div className="w-full bg-neutral-100 rounded-full h-2.5 overflow-hidden">
-          <div
-            className="bg-[#cbf14e] h-full rounded-full transition-all duration-300"
-            style={{ width: `${percentageUsed}%` }}
-          />
-        </div>
-
-        <p className="text-[11px] text-neutral-500 leading-relaxed">
-          Limit bukan saldo uang. Pemakaian baru dicatat setelah disetujui kasir. Pesanan tunai yang masih draf tidak termasuk utang di atas.
-        </p>
-      </div>
+      )}
 
       {/* 4. Main Two-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Riwayat Kasbon (~65%) */}
+        {/* Left Column: Buku Kasbon & Mutasi (~65%) */}
         <div className="lg:col-span-8 space-y-4">
           <div className="bg-white rounded-2xl border border-neutral-200/80 p-5 sm:p-6 shadow-2xs space-y-4">
             {/* Header Riwayat Kasbon & Filter Tabs */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-neutral-100">
-              <h2 className="text-base sm:text-lg font-bold text-neutral-900">
-                Riwayat kasbon
-              </h2>
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-neutral-900">
+                  Buku catatan kasbon
+                </h2>
+                <p className="text-xs text-neutral-500">
+                  Riwayat transaksi belanja tempo dan pelunasan yang telah disetujui.
+                </p>
+              </div>
 
               {/* Tabs: Semua | Belanja | Pembayaran */}
               <div className="flex items-center gap-1 bg-neutral-100 p-1 rounded-xl self-start sm:self-auto">
@@ -444,8 +524,8 @@ export default function KasbonPelangganPage() {
                         {activeTab === 'PEMBAYARAN'
                           ? 'Belum ada riwayat pembayaran yang tercatat.'
                           : activeTab === 'BELANJA'
-                          ? 'Belum ada riwayat belanja tempo/kasbon.'
-                          : 'Tidak ada catatan riwayat kasbon aktif.'}
+                          ? 'Belum ada riwayat belanja tempo/kasbon aktif.'
+                          : 'Tidak ada catatan kasbon aktif yang disetujui.'}
                       </td>
                     </tr>
                   ) : (
@@ -486,21 +566,21 @@ export default function KasbonPelangganPage() {
             {/* Table Footer */}
             <div className="pt-3 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-500">
               <span>
-                {filteredLedger.length} catatan • {dateRangeText}
+                {filteredLedger.length} catatan disetujui • {dateRangeText}
               </span>
               <span>Saldo awal Rp0</span>
             </div>
           </div>
 
-          {/* Callout Banner: Ada catatan yang kurang sesuai? */}
+          {/* Callout Banner: Ketentuan Kasbon Baru */}
           <div className="bg-white rounded-2xl border border-neutral-200/80 p-4 sm:p-5 shadow-2xs flex items-start gap-3.5">
             <MessageSquare className="w-5 h-5 text-[#465427] shrink-0 mt-0.5" />
             <div className="space-y-0.5">
               <h4 className="text-xs sm:text-sm font-bold text-neutral-900">
-                Ada catatan yang kurang sesuai?
+                Cara Kasbon &amp; Pelunasan
               </h4>
               <p className="text-xs text-neutral-500 leading-relaxed">
-                Simpan struk belanja dan hubungi Toko Wadira. Riwayat kasbon hanya dapat diperbarui oleh kasir setelah pembayaran diterima atau koreksi disepakati.
+                Untuk mengajukan kasbon barang secara online, masukkan barang ke Keranjang lalu pilih metode pembayaran <strong>Kasbon / Bayar Tempo</strong> saat checkout (wajib persetujuan kasir), atau ajukan langsung ke kasir saat berbelanja di warung.
               </p>
             </div>
           </div>
@@ -511,23 +591,29 @@ export default function KasbonPelangganPage() {
           {/* Card 1: Pengingat Pembayaran */}
           <div className="bg-white rounded-2xl border border-neutral-200/80 p-5 sm:p-6 shadow-2xs space-y-3">
             <h3 className="text-sm sm:text-base font-bold text-neutral-950">
-              Pengingat pembayaran
+              Pengingat Pembayaran
             </h3>
 
-            {/* Pill Jatuh Tempo */}
-            <div className="pt-1">
-              <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900">
-                Jatuh tempo {closestDueDate}
-              </span>
-            </div>
+            {closestDueDate !== '-' ? (
+              <div className="pt-1">
+                <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900">
+                  Jatuh tempo terdekat: {closestDueDate}
+                </span>
+              </div>
+            ) : (
+              <div className="pt-1">
+                <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                  Semua kasbon aman / tidak ada utang jatuh tempo
+                </span>
+              </div>
+            )}
 
-            {/* Nominal Tagihan Besar Merah */}
             <div className="text-2xl sm:text-3xl font-black text-red-600 tracking-tight pt-1">
               {formatRupiah(totalRemaining)}
             </div>
 
             <p className="text-xs text-neutral-600 leading-relaxed">
-              Bisa dibayar langsung ke warung. Jika perlu mencicil atau mengatur tanggal, kabari Toko Wadira, ya.
+              Bisa dibayar langsung ke kasir warung. Jika ingin mencicil atau mengatur jadwal pelunasan, kabari Toko Wadira, ya.
             </p>
 
             <a
@@ -537,7 +623,7 @@ export default function KasbonPelangganPage() {
               className="w-full py-2.5 px-4 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer mt-2"
             >
               <ArrowRight className="w-3.5 h-3.5 text-neutral-600" />
-              <span>Lihat contoh pengingat</span>
+              <span>Konfirmasi Pelunasan ke Warung</span>
             </a>
           </div>
 
@@ -561,20 +647,42 @@ export default function KasbonPelangganPage() {
               className="w-full py-2.5 px-4 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer mt-2"
             >
               <Receipt className="w-3.5 h-3.5 text-neutral-600" />
-              <span>Lihat struk terakhir</span>
+              <span>Lihat struk belanja</span>
             </Link>
           </div>
         </div>
       </div>
 
-      {/* 5. Footer Sederhana Sesuai Referensi Gambar */}
+      {/* Section Riwayat Pengajuan Ditolak (jika ada) */}
+      {rejectedDebts.length > 0 && (
+        <div className="bg-red-50/70 border border-red-200/80 rounded-2xl p-5 shadow-2xs space-y-3">
+          <div className="flex items-center gap-2 text-red-800">
+            <XCircle className="w-4 h-4 shrink-0" />
+            <h3 className="text-sm font-bold">
+              Pengajuan Kasbon Ditolak ({rejectedDebts.length})
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {rejectedDebts.map((item) => (
+              <div key={item.id} className="bg-white rounded-xl border border-red-200 p-3.5 space-y-1.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-neutral-500">{formatDate(item.created_at)}</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">Ditolak Admin</span>
+                </div>
+                <div className="font-black text-neutral-900 text-sm">{formatRupiah(item.amount)}</div>
+                {item.notes && (
+                  <p className="text-[11px] text-neutral-600 leading-relaxed line-clamp-3">{item.notes}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 5. Footer */}
       <footer className="pt-8 border-t border-neutral-200/60 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-neutral-400">
-        <div>
-          © 2026 Wadira Digital • Toko Wadira
-        </div>
-        <div>
-          Belanja dekat rumah, tetap akrab.
-        </div>
+        <div>© 2026 Wadira Digital • Toko Wadira</div>
+        <div>Belanja dekat rumah, tetap akrab.</div>
       </footer>
     </div>
   );

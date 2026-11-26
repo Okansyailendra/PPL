@@ -26,8 +26,11 @@ export default function RingkasanClient({
   products,
   debts,
 }: RingkasanClientProps) {
-  const unpaidDebts = debts.filter((d) => d.status === 'UNPAID');
-  const totalPiutang = unpaidDebts.reduce((acc, curr) => acc + curr.amount, 0);
+  const unpaidDebts = debts.filter((d) => d.status === 'UNPAID' || d.status === 'PARTIAL');
+  const totalPiutang = unpaidDebts.reduce(
+    (acc, curr) => acc + Number(curr.remaining_amount ?? (curr.amount - (curr.paid_amount || 0))),
+    0
+  );
   const totalNilaiStok = products.reduce((acc, curr) => acc + curr.price * curr.stock, 0);
   const lowStockItems = products.filter((p) => p.stock <= (p.min_stock ?? 5));
 

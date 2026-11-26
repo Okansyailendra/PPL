@@ -6,7 +6,6 @@ import crypto from 'crypto';
 
 export async function POST(req: Request) {
   try {
-    // 0. Rate limiting protection (Maksimal 25 request checkout per menit per IP)
     const rateLimitCheck = applyRateLimit(req, {
       limit: 25,
       windowMs: 60 * 1000,
@@ -33,7 +32,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 1. Ambil data produk resmi dari database untuk mencegah manipulasi harga (Price Tampering)
+    // Ambil data produk resmi untuk validasi integritas harga
     const productIds = items
       .map((it: any) => it.productId || it.id)
       .filter(Boolean);
@@ -103,14 +102,11 @@ export async function POST(req: Request) {
       });
     }
 
-    // Ongkos kirim tidak dibebankan di checkout web (dikonfirmasi langsung oleh penjual via ojol lokal di WhatsApp)
     const shippingCost = 0;
     const grossAmount = itemsTotal;
 
-    // 2. Generate Order ID yang unik (misal: ORDER-timestamp-random)
     const orderId = `ORDER-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 
-    // Siapkan item_details untuk Midtrans menggunakan harga database terverifikasi
     const itemDetails = validatedItems.map((it: any) => ({
       id: it.id,
       price: Math.round(it.price),
@@ -127,7 +123,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // 3. Payload untuk Midtrans Snap Parameter
     const parameter = {
       transaction_details: {
         order_id: orderId,
@@ -151,7 +146,6 @@ export async function POST(req: Request) {
       item_details: itemDetails,
     };
 
-    // 4. Request Snap Token dari Midtrans
     let snapToken = '';
     let redirectUrl = '';
     try {
@@ -160,11 +154,10 @@ export async function POST(req: Request) {
       redirectUrl = transaction.redirect_url;
     } catch (midtransErr: any) {
       console.error('Midtrans Snap Error:', midtransErr?.message || midtransErr);
-      // Jika keys masih placeholder atau sandbox error, berikan simulasi token untuk testing
+      // Fallback simulasi token jika env keys belum dikonfigurasi
       snapToken = `SIMULATED-TOKEN-${orderId}`;
     }
 
-    // 5. Simpan catatan pesanan ke tabel transactions di database warungppl_db
     const nowIso = new Date().toISOString();
     const trxData = {
       id: orderId,

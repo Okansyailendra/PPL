@@ -17,7 +17,6 @@ export async function GET(req: Request) {
     const categoryParam = url.searchParams.get('category')?.trim() || '';
     const stockFilter = url.searchParams.get('stock_filter') || 'all';
 
-    // 1. Ambil data produk dari database
     const { data: rawProducts, error: prodErr } = await supabase
       .from('products')
       .select('*')
@@ -28,7 +27,6 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Gagal mengambil katalog produk' }, { status: 500 });
     }
 
-    // 2. Ambil data kategori dari database
     const { data: rawCategories, error: catErr } = await supabase
       .from('categories')
       .select('*')
@@ -38,7 +36,6 @@ export async function GET(req: Request) {
       console.warn('Warning: Gagal mengambil categories dari db, fallback ke default:', catErr);
     }
 
-    // Format products (sembunyikan modal/cost_price untuk etalase publik)
     let products = (rawProducts || []).map((p: any) => {
       const formatted = formatPublicCatalogProduct(p);
       const stock = Number(formatted.stock) || 0;
@@ -52,7 +49,6 @@ export async function GET(req: Request) {
       };
     });
 
-    // Filter kategori jika diberikan dan bukan 'all'
     if (categoryParam && categoryParam !== 'all') {
       products = products.filter((p: any) => {
         const catIdMatch = p.category_id === categoryParam;
@@ -61,7 +57,6 @@ export async function GET(req: Request) {
       });
     }
 
-    // Filter pencarian
     if (search) {
       products = products.filter((p: any) => {
         const nameMatch = String(p.name || '').toLowerCase().includes(search);
@@ -71,14 +66,12 @@ export async function GET(req: Request) {
       });
     }
 
-    // Filter status stok
     if (stockFilter === 'in_stock') {
       products = products.filter((p: any) => p.stock > 0);
     } else if (stockFilter === 'low_stock') {
       products = products.filter((p: any) => p.isLowStock);
     }
 
-    // Format categories
     const categories = (rawCategories || []).map((c: any) => ({
       id: c.id,
       name: c.name,

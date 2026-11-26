@@ -26,7 +26,6 @@ export async function POST(req: Request) {
     const grossAmount = String(notificationJson.gross_amount || '').trim();
     const signatureKey = String(notificationJson.signature_key || '').trim();
 
-    // 1. Validasi keberadaan field wajib dari Midtrans
     if (!orderId || !statusCode || !grossAmount || !signatureKey) {
       return NextResponse.json(
         { error: 'Field order_id, status_code, gross_amount, dan signature_key wajib disertakan' },
@@ -34,8 +33,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2. Verifikasi Kriptografi Signature SHA-512
-    // SHA512(order_id + status_code + gross_amount + ServerKey)
     const isSignatureValid = verifyMidtransSignature(
       orderId,
       statusCode,
@@ -51,7 +48,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 3. Pastikan transaksi terdaftar di database
     const { data: existingTrx, error: trxErr } = await supabase
       .from('transactions')
       .select('*')
@@ -66,7 +62,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4. Verifikasi nominal tagihan (Gross Amount) tidak dimanipulasi
     const billedAmount = Math.round(Number(existingTrx.total_amount));
     const receivedAmount = Math.round(parseFloat(grossAmount));
     if (billedAmount !== receivedAmount) {
@@ -79,7 +74,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 5. Verifikasi dua arah ke Midtrans Core API jika Server Key asli dikonfigurasi
     let statusResponse: any = notificationJson;
     const isConfiguredKey =
       Boolean(process.env.MIDTRANS_SERVER_KEY) &&
@@ -127,7 +121,7 @@ export async function POST(req: Request) {
       newPaymentStatus = 'FAILED';
     }
 
-    // 6. Idempotency Check: Jika transaksi sebelumnya sudah SETTLEMENT, jangan proses ulang atau kurangi stok ganda
+    // Idempotency: cegah proses ulang jika sudah lunas sebelumnya
     if (existingTrx.payment_status === 'SETTLEMENT') {
       console.log(`[Midtrans Webhook] Transaksi ${orderId} sudah berstatus SETTLEMENT.`);
       return NextResponse.json({
@@ -136,13 +130,11 @@ export async function POST(req: Request) {
       });
     }
 
-    // 7. Update status pembayaran di database
     await supabase
       .from('transactions')
       .update({ payment_status: newPaymentStatus })
       .eq('id', orderId);
 
-    // 8. Jika status berubah menjadi SETTLEMENT (Lunas), kurangi stok barang
     if (newPaymentStatus === 'SETTLEMENT') {
       const items =
         typeof existingTrx.items === 'string'

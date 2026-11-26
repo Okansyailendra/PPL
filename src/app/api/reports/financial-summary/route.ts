@@ -6,6 +6,7 @@ import {
   filterTransactionsByDateRange,
   type TransactionRecord,
 } from '@/lib/financial-analytics';
+import { isConfirmedTransaction } from '@/lib/ledger';
 import type { Product, Debt } from '@/types';
 
 function unauthorized() {
@@ -18,21 +19,6 @@ function unauthorized() {
   );
 }
 
-/**
- * ============================================================================
- * [ZAKI - TASK-79 / TASK-117] DATA ANALYTICS & FINANCIAL SUMMARY ENDPOINT
- * GET /api/reports/financial-summary
- * ============================================================================
- * Menghitung:
- * 1. Omset Kotor (Gross Revenue)
- * 2. COGS (Cost of Goods Sold / HPP) per transaksi & per item
- * 3. Gross Profit (Laba Kotor) & Margin
- * 4. Biaya Operasional & Net Profit (Laba Bersih)
- * 5. Outstanding Receivables (Piutang Kasbon Belum Tertagih)
- * 6. Rekapitulasi Arus Kas Riil (Cash Basis Inflows & Outflows)
- * 7. Tren Analitik Harian & Ranking Produk Paling Menguntungkan
- * ============================================================================
- */
 export async function GET(req: NextRequest) {
   try {
     const user = await getAuthenticatedCashier(req);
@@ -114,7 +100,6 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Eksekusi paralel pembacaan data transaksi, produk, dan kasbon/piutang
     const [trxRes, prodRes, debtRes] = await Promise.all([
       supabase
         .from('transactions')
@@ -140,15 +125,13 @@ export async function GET(req: NextRequest) {
     }
 
     const allTransactions = ((trxRes.data || []) as TransactionRecord[]).filter(
-      (t) => t.category !== 'SCAN_STRUK_PELANGGAN'
+      isConfirmedTransaction
     );
     const allProducts = (prodRes.data || []) as Product[];
     const allDebts = (debtRes.data || []) as Debt[];
 
-    // Saring transaksi berdasarkan rentang tanggal aktif
     const filteredTrx = filterTransactionsByDateRange(allTransactions, startDate, endDate);
 
-    // Jalankan mesin kalkulasi analitik finansial
     const summaryResult = generateFinancialSummary(
       filteredTrx,
       allDebts,

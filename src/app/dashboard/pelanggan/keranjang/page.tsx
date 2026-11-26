@@ -30,6 +30,9 @@ import {
   FileText,
   Lock,
   LogIn,
+  Clock,
+  Calendar,
+  BookOpen,
   X 
 } from 'lucide-react';
 
@@ -61,7 +64,17 @@ function KeranjangContent() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerNote, setCustomerNote] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris' | 'kasbon'>('cash');
+  const [kasbonDueDate, setKasbonDueDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().split('T')[0];
+  });
+  const [kasbonSuccessInfo, setKasbonSuccessInfo] = useState<{
+    orderId: string;
+    totalAmount: number;
+    waUrl: string;
+  } | null>(null);
   const [validationError, setValidationError] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentResult, setPaymentResult] = useState<{ status: 'success' | 'pending' | 'error'; message: string; orderId?: string } | null>(null);
@@ -206,9 +219,101 @@ ${fulfillmentType === 'delivery'
     window.open(waUrl, '_blank');
 
     // Kosongkan keranjang belanja agar saat belanja berikutnya keranjang bersih
+    setKasbonSuccessInfo(null);
     clearCart();
     setOrderSuccess(true);
     setCurrentStep(1);
+  };
+
+  const handleCheckoutKasbon = async () => {
+    if (cart.length === 0 || isProcessingPayment) return;
+
+    if (!customerName.trim()) {
+      setValidationError('Nama Pemesan wajib diisi.');
+      return;
+    }
+    if (!customerPhone.trim()) {
+      setValidationError('Nomor WhatsApp / HP wajib diisi untuk pengajuan kasbon.');
+      return;
+    }
+    if (fulfillmentType === 'delivery' && !customerAddress.trim()) {
+      setValidationError('Alamat Pengantaran wajib diisi untuk pengiriman ke rumah.');
+      return;
+    }
+    if (!kasbonDueDate) {
+      setValidationError('Rencana tanggal pelunasan kasbon wajib dipilih.');
+      return;
+    }
+
+    try {
+      setIsProcessingPayment(true);
+      setValidationError('');
+
+      try {
+        localStorage.setItem(
+          'warung_customer_profile',
+          JSON.stringify({
+            name: customerName.trim(),
+            phone: customerPhone.trim(),
+            address: customerAddress.trim(),
+          })
+        );
+      } catch {
+        // ignore
+      }
+
+      const itemsPayload = cart.map((it) => ({
+        productId: it.product.id,
+        name: `${it.product.name}${it.selectedVariant ? ` (${it.selectedVariant.name})` : ''}`,
+        price: it.selectedVariant ? it.selectedVariant.price : it.product.price,
+        quantity: it.quantity,
+        unit: it.selectedVariant ? it.selectedVariant.name : (it.product.unit || 'pcs'),
+      }));
+
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: itemsPayload,
+          customer: {
+            name: customerName.trim(),
+            phone: customerPhone.trim(),
+            address: customerAddress.trim() || 'Ambil di Warung',
+            note: customerNote.trim(),
+          },
+          fulfillmentType,
+          paymentMethod: 'kasbon',
+          dueDate: kasbonDueDate,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Gagal mengajukan kasbon pesanan.');
+      }
+
+      const itemsText = itemsPayload
+        .map((it, idx) => `${idx + 1}. ${it.name} (${it.quantity} ${it.unit})`)
+        .join('\n');
+      const waMsg = `Halo Kasir ${WARUNG_NAME}, saya atas nama *${customerName.trim()}* (${customerPhone.trim()}) baru saja mengajukan *KASBON BELANJA* (#${data.orderId}):\n\n${itemsText}\n\nTotal: *Rp ${Number(data.totalAmount || grandTotal).toLocaleString('id-ID')}*\nRencana Pelunasan: ${kasbonDueDate}\nMohon tinjauan dan persetujuannya. Terima kasih!`;
+      const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const waUrl = isMobile
+        ? `https://wa.me/${WARUNG_WA_NUMBER}?text=${encodeURIComponent(waMsg)}`
+        : `https://web.whatsapp.com/send?phone=${WARUNG_WA_NUMBER}&text=${encodeURIComponent(waMsg)}`;
+
+      setKasbonSuccessInfo({
+        orderId: data.orderId,
+        totalAmount: Number(data.totalAmount || grandTotal),
+        waUrl,
+      });
+      clearCart();
+      setOrderSuccess(true);
+      setCurrentStep(1);
+    } catch (err: any) {
+      setValidationError(err?.message || 'Gagal mengajukan kasbon pesanan.');
+    } finally {
+      setIsProcessingPayment(false);
+    }
   };
 
   const handlePayWithMidtrans = async () => {
@@ -396,41 +501,85 @@ ${fulfillmentType === 'delivery'
           {/* Empty or Order Success State */}
           {cart.length === 0 ? (
             orderSuccess ? (
-              <div className="bg-white rounded-3xl border border-emerald-200/90 p-8 sm:p-12 text-center max-w-xl mx-auto space-y-5 shadow-xs animate-in zoom-in-95 duration-200">
-                <div className="w-20 h-20 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-xs">
-                  <CheckCircle2 className="w-10 h-10" />
-                </div>
-                <div className="space-y-1.5">
-                  <h3 className="text-xl sm:text-2xl font-black text-neutral-900 tracking-tight">
-                    Pesanan Berhasil Dikirim ke Kasir!
-                  </h3>
-                  <p className="text-xs sm:text-sm text-neutral-600 max-w-md mx-auto leading-relaxed">
-                    Rincian pesanan telah dikirimkan ke WhatsApp Kasir Toko Wadira. Keranjang belanja Anda telah otomatis dikosongkan agar siap untuk belanja berikutnya.
-                  </p>
-                </div>
+              kasbonSuccessInfo ? (
+                <div className="bg-white rounded-3xl border border-amber-200/90 p-8 sm:p-12 text-center max-w-xl mx-auto space-y-5 shadow-xs animate-in zoom-in-95 duration-200">
+                  <div className="w-20 h-20 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto shadow-xs">
+                    <Clock className="w-10 h-10" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <h3 className="text-xl sm:text-2xl font-black text-neutral-900 tracking-tight">
+                      Pengajuan Kasbon Belanja Terkirim!
+                    </h3>
+                    <p className="text-xs sm:text-sm text-neutral-600 max-w-md mx-auto leading-relaxed">
+                      Pesanan <span className="font-mono font-bold text-neutral-900">#{kasbonSuccessInfo.orderId}</span> sebesar{' '}
+                      <strong className="text-neutral-900">Rp {kasbonSuccessInfo.totalAmount.toLocaleString('id-ID')}</strong> telah tercatat dan sedang menunggu persetujuan kasir Toko Wadira.
+                    </p>
+                  </div>
 
-                <div className="p-3.5 bg-emerald-50 rounded-2xl border border-emerald-100 text-xs text-emerald-800 font-medium">
-                  Kasir akan segera merespons chat WhatsApp Anda untuk konfirmasi ketersediaan barang dan pengantaran.
-                </div>
+                  <div className="p-3.5 bg-amber-50 rounded-2xl border border-amber-200/80 text-xs text-amber-900 font-medium">
+                    Stok dan pesanan akan segera diproses setelah kasir menyetujui pengajuan kasbon Anda. Status dapat dipantau kapan saja di halaman Buku Kasbon.
+                  </div>
 
-                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-                  <Link
-                    href="/dashboard/pelanggan"
-                    onClick={() => setOrderSuccess(false)}
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#465427] hover:bg-[#38441f] text-white font-bold text-xs sm:text-sm shadow-xs transition"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Mulai Belanja Kebutuhan Lain</span>
-                  </Link>
-                  <Link
-                    href="/dashboard/pelanggan/struk"
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-700 font-bold text-xs sm:text-sm shadow-2xs transition"
-                  >
-                    <FileText className="w-4 h-4 text-emerald-600" />
-                    <span>Lihat Riwayat Struk</span>
-                  </Link>
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <Link
+                      href="/dashboard/pelanggan/kasbon"
+                      onClick={() => {
+                        setOrderSuccess(false);
+                        setKasbonSuccessInfo(null);
+                      }}
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#cbf14e] hover:bg-[#bde53f] text-[#1c240d] font-bold text-xs sm:text-sm shadow-xs transition"
+                    >
+                      <BookOpen className="w-4 h-4" />
+                      <span>Pantau Status di Buku Kasbon</span>
+                    </Link>
+                    <a
+                      href={kasbonSuccessInfo.waUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-700 font-bold text-xs sm:text-sm shadow-2xs transition"
+                    >
+                      <Send className="w-4 h-4 text-emerald-600" />
+                      <span>Kabari Kasir via WA</span>
+                    </a>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="bg-white rounded-3xl border border-emerald-200/90 p-8 sm:p-12 text-center max-w-xl mx-auto space-y-5 shadow-xs animate-in zoom-in-95 duration-200">
+                  <div className="w-20 h-20 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-xs">
+                    <CheckCircle2 className="w-10 h-10" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <h3 className="text-xl sm:text-2xl font-black text-neutral-900 tracking-tight">
+                      Pesanan Berhasil Dikirim ke Kasir!
+                    </h3>
+                    <p className="text-xs sm:text-sm text-neutral-600 max-w-md mx-auto leading-relaxed">
+                      Rincian pesanan telah dikirimkan ke WhatsApp Kasir Toko Wadira. Keranjang belanja Anda telah otomatis dikosongkan agar siap untuk belanja berikutnya.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 bg-emerald-50 rounded-2xl border border-emerald-100 text-xs text-emerald-800 font-medium">
+                    Kasir akan segera merespons chat WhatsApp Anda untuk konfirmasi ketersediaan barang dan pengantaran.
+                  </div>
+
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <Link
+                      href="/dashboard/pelanggan"
+                      onClick={() => setOrderSuccess(false)}
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#465427] hover:bg-[#38441f] text-white font-bold text-xs sm:text-sm shadow-xs transition"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Mulai Belanja Kebutuhan Lain</span>
+                    </Link>
+                    <Link
+                      href="/dashboard/pelanggan/struk"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-700 font-bold text-xs sm:text-sm shadow-2xs transition"
+                    >
+                      <FileText className="w-4 h-4 text-emerald-600" />
+                      <span>Lihat Riwayat Struk</span>
+                    </Link>
+                  </div>
+                </div>
+              )
             ) : (
               <div className="bg-white rounded-3xl border border-slate-200/80 p-12 text-center max-w-xl mx-auto space-y-4 shadow-xs">
                 <div className="w-20 h-20 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto">
@@ -710,7 +859,7 @@ ${fulfillmentType === 'delivery'
                         <div
                           onClick={() => {
                             setFulfillmentType('delivery');
-                            setPaymentMethod('qris');
+                            if (paymentMethod === 'cash') setPaymentMethod('qris');
                           }}
                           className={`p-4 rounded-2xl border cursor-pointer transition flex items-start gap-3 ${
                             fulfillmentType === 'delivery'
@@ -735,19 +884,37 @@ ${fulfillmentType === 'delivery'
                     </div>
 
                     {/* Form Identitas */}
-                    <div className="pt-2">
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Nama Pemesan <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          value={customerName}
-                          onChange={(e) => setCustomerName(e.target.value)}
-                          placeholder="Cth: Bu Rohmah / Pak Budi"
-                          className="w-full text-xs pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-[#d4f952] focus:border-neutral-900 bg-white"
-                        />
+                    <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Nama Pemesan <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            value={customerName}
+                            onChange={(e) => setCustomerName(e.target.value)}
+                            placeholder="Cth: Bu Rohmah / Pak Budi"
+                            className="w-full text-xs pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-[#d4f952] focus:border-neutral-900 bg-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Nomor WhatsApp / HP {paymentMethod === 'kasbon' || paymentMethod === 'qris' ? <span className="text-red-500">*</span> : ''}
+                        </label>
+                        <div className="relative">
+                          <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="tel"
+                            value={customerPhone}
+                            onChange={(e) => setCustomerPhone(e.target.value)}
+                            placeholder="Cth: 08123456789"
+                            className="w-full text-xs pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-[#d4f952] focus:border-neutral-900 bg-white"
+                          />
+                        </div>
                       </div>
                     </div>
 
@@ -774,25 +941,44 @@ ${fulfillmentType === 'delivery'
                     )}
 
                     {/* Pilihan Metode Bayar */}
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                         Metode Pembayaran
                       </label>
                       {fulfillmentType === 'delivery' ? (
-                        <div className="space-y-2">
-                          <div className="p-3.5 rounded-xl border-2 border-emerald-600 bg-emerald-50/30 flex items-center justify-between">
-                            <div className="flex items-center gap-2.5">
-                              <CreditCard className="w-4 h-4 text-emerald-700 shrink-0" />
+                        <div className="space-y-2.5">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <button
+                              type="button"
+                              onClick={() => setPaymentMethod('qris')}
+                              className={`p-3.5 rounded-xl border text-left transition flex items-start gap-2.5 cursor-pointer ${
+                                paymentMethod === 'qris'
+                                  ? 'border-2 border-emerald-600 bg-emerald-50/30 font-bold text-slate-900 shadow-2xs'
+                                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
+                              <CreditCard className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
                               <div>
                                 <div className="text-xs font-bold text-slate-900">Transfer / QRIS</div>
-                                <div className="text-[11px] text-slate-500">
-                                  Dibayar setelah penjual mengonfirmasi total belanja + ongkir kurir via WhatsApp.
-                                </div>
+                                <div className="text-[11px] text-slate-500 font-normal">Bayar online setelah ongkir dikonfirmasi</div>
                               </div>
-                            </div>
-                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md shrink-0">
-                              Otomatis Dipilih
-                            </span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setPaymentMethod('kasbon')}
+                              className={`p-3.5 rounded-xl border text-left transition flex items-start gap-2.5 cursor-pointer ${
+                                paymentMethod === 'kasbon'
+                                  ? 'border-2 border-[#465427] bg-[#f4f8ed] font-bold text-slate-900 shadow-2xs'
+                                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
+                              <BookOpen className="w-4 h-4 text-[#465427] shrink-0 mt-0.5" />
+                              <div>
+                                <div className="text-xs font-bold text-slate-900">Kasbon / Bayar Tempo</div>
+                                <div className="text-[11px] text-slate-500 font-normal">Perlu persetujuan kasir warung</div>
+                              </div>
+                            </button>
                           </div>
                           <div className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200/80 rounded-xl p-2.5 flex items-start gap-2">
                             <span>💡</span>
@@ -802,32 +988,85 @@ ${fulfillmentType === 'delivery'
                           </div>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                           <button
                             type="button"
                             onClick={() => setPaymentMethod('cash')}
-                            className={`p-3 rounded-xl border text-left transition flex items-center gap-2.5 ${
+                            className={`p-3 rounded-xl border text-left transition flex items-start gap-2.5 cursor-pointer ${
                               paymentMethod === 'cash'
-                                ? 'border-emerald-600 bg-emerald-50/25 font-bold text-slate-900 shadow-2xs'
+                                ? 'border-2 border-emerald-600 bg-emerald-50/25 font-bold text-slate-900 shadow-2xs'
                                 : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                             }`}
                           >
-                            <Banknote className="w-4 h-4 text-emerald-700 shrink-0" />
-                            <div className="text-xs">Tunai di Warung</div>
+                            <Banknote className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                            <div>
+                              <div className="text-xs font-bold">Tunai di Warung</div>
+                              <div className="text-[10px] text-slate-500 font-normal">Bayar saat ambil barang</div>
+                            </div>
                           </button>
 
                           <button
                             type="button"
                             onClick={() => setPaymentMethod('qris')}
-                            className={`p-3 rounded-xl border text-left transition flex items-center gap-2.5 ${
+                            className={`p-3 rounded-xl border text-left transition flex items-start gap-2.5 cursor-pointer ${
                               paymentMethod === 'qris'
-                                ? 'border-emerald-600 bg-emerald-50/25 font-bold text-slate-900 shadow-2xs'
+                                ? 'border-2 border-emerald-600 bg-emerald-50/25 font-bold text-slate-900 shadow-2xs'
                                 : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                             }`}
                           >
-                            <CreditCard className="w-4 h-4 text-emerald-700 shrink-0" />
-                            <div className="text-xs">Transfer / QRIS</div>
+                            <CreditCard className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                            <div>
+                              <div className="text-xs font-bold">Transfer / QRIS</div>
+                              <div className="text-[10px] text-slate-500 font-normal">Bayar instan via QRIS</div>
+                            </div>
                           </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod('kasbon')}
+                            className={`p-3 rounded-xl border text-left transition flex items-start gap-2.5 cursor-pointer ${
+                              paymentMethod === 'kasbon'
+                                ? 'border-2 border-[#465427] bg-[#f4f8ed] font-bold text-slate-900 shadow-2xs'
+                                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            <BookOpen className="w-4 h-4 text-[#465427] shrink-0 mt-0.5" />
+                            <div>
+                              <div className="text-xs font-bold">Kasbon / Tempo</div>
+                              <div className="text-[10px] text-slate-500 font-normal">Butuh persetujuan kasir</div>
+                            </div>
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Detail Kasbon jika memilih Kasbon / Tempo */}
+                      {paymentMethod === 'kasbon' && (
+                        <div className="p-4 rounded-2xl bg-[#f4f8ed] border border-[#d6e5c5] space-y-3 animate-in fade-in duration-150">
+                          <div className="flex items-start gap-2.5">
+                            <Clock className="w-4 h-4 text-[#465427] shrink-0 mt-0.5" />
+                            <div className="text-xs text-[#2b3617]">
+                              <span className="font-bold block">Pengajuan Kasbon Belanja Barang</span>
+                              <span className="text-[11px] opacity-90">
+                                Daftar belanjaan Anda ({totalKinds} jenis barang senilai Rp{grandTotal.toLocaleString('id-ID')}) akan dikirim ke Buku Piutang kasir untuk diperiksa dan disetujui terlebih dahulu.
+                              </span>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-bold text-[#2b3617] mb-1">
+                              Rencana Tanggal Pelunasan (Jatuh Tempo) <span className="text-red-500">*</span>
+                            </label>
+                            <div className="relative max-w-xs">
+                              <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                              <input
+                                type="date"
+                                min={new Date().toISOString().split('T')[0]}
+                                value={kasbonDueDate}
+                                onChange={(e) => setKasbonDueDate(e.target.value)}
+                                className="w-full text-xs pl-9 pr-3 py-2 rounded-xl border border-[#c9dcb0] bg-white focus:outline-hidden focus:ring-2 focus:ring-[#cbf14e]"
+                              />
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -891,7 +1130,17 @@ ${fulfillmentType === 'delivery'
                       </button>
 
                       <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2">
-                        {paymentMethod === 'qris' ? (
+                        {paymentMethod === 'kasbon' ? (
+                          <button
+                            type="button"
+                            disabled={isProcessingPayment}
+                            onClick={handleCheckoutKasbon}
+                            className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#cbf14e] hover:bg-[#bde53f] text-[#1c240d] font-extrabold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                          >
+                            <Clock className="w-4 h-4" />
+                            <span>{isProcessingPayment ? 'Mengirim Pengajuan...' : 'Ajukan Kasbon Pesanan Ini'}</span>
+                          </button>
+                        ) : paymentMethod === 'qris' ? (
                           <>
                             <button
                               type="button"
@@ -1002,7 +1251,17 @@ ${fulfillmentType === 'delivery'
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {paymentMethod === 'qris' ? (
+                        {paymentMethod === 'kasbon' ? (
+                          <button
+                            type="button"
+                            disabled={isProcessingPayment}
+                            onClick={handleCheckoutKasbon}
+                            className="w-full py-3.5 px-4 bg-[#cbf14e] hover:bg-[#bde53f] text-[#1c240d] font-extrabold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-sm transition active:scale-[0.99] cursor-pointer disabled:opacity-50"
+                          >
+                            <Clock className="w-4 h-4" />
+                            <span>{isProcessingPayment ? 'Mengirim Pengajuan...' : 'Ajukan Kasbon Pesanan Ini'}</span>
+                          </button>
+                        ) : paymentMethod === 'qris' ? (
                           <button
                             type="button"
                             disabled={isProcessingPayment}
