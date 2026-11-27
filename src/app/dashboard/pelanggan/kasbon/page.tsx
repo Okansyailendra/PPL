@@ -71,7 +71,11 @@ export default function KasbonPelangganPage() {
       const res = await fetch(url, { cache: 'no-store' });
       const data = await res.json();
 
-      if (data?.success) {
+      if (res.status === 401 || data?.requireLogin) {
+        setDebts([]);
+        setPaymentLogs([]);
+        setRequireLogin(true);
+      } else if (data?.success) {
         setDebts(data.debts || []);
         setPaymentLogs(data.paymentLogs || []);
         setRequireLogin(Boolean(data.requireLogin));

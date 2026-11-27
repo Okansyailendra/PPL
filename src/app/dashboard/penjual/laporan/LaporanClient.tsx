@@ -457,7 +457,7 @@ export default function LaporanClient({
                 Laporan laba rugi
               </h2>
               <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-[#eef5db] text-[#3b4c1a] uppercase">
-                COGS Analitik [DEL-7]
+                COGS Analitik
               </span>
             </div>
             <div className="space-y-3 text-xs sm:text-sm">
@@ -584,7 +584,7 @@ export default function LaporanClient({
                 }`}
             >
               <BarChart3 className="w-3.5 h-3.5" />
-              <span>Analitik Laba &amp; Arus Kas [DEL-7]</span>
+              <span>Analitik Laba &amp; Arus Kas</span>
             </button>
           </div>
 

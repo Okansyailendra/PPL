@@ -81,90 +81,10 @@ export async function login(formData: FormData) {
   }
 }
 
-export async function register(formData: FormData) {
-  const email = (formData.get('email') as string)?.trim()?.toLowerCase();
-  const password = formData.get('password') as string;
-  const store_name = (formData.get('store_name') as string)?.trim();
-  const owner_name = (formData.get('owner_name') as string)?.trim();
-  const phone_number = (formData.get('phone_number') as string)?.trim();
-  const requestedRole = ((formData.get('role') as string)?.trim() || 'pelanggan') as 'pelanggan' | 'penjual';
-  const role = requestedRole === 'penjual' ? 'penjual' : 'pelanggan';
-
-  if (!email || !password || !owner_name) {
-    return { error: 'Nama, email, dan kata sandi wajib diisi.' };
-  }
-
-  if (role === 'penjual' && !store_name) {
-    return { error: 'Nama warung wajib diisi untuk pendaftaran penjual.' };
-  }
-
-  if (password.length < 6) {
-    return { error: 'Kata sandi minimal harus 6 karakter.' };
-  }
-
-  const { data: existingUser } = await supabase
-    .from('users')
-    .select('id')
-    .eq('email', email)
-    .single();
-
-  if (existingUser) {
-    return { error: 'Email sudah terdaftar.' };
-  }
-
-  const hashedPassword = await hashPassword(password);
-  const newId = crypto.randomUUID();
-  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
-
-  const newRecord = {
-    id: newId,
-    email,
-    password: hashedPassword,
-    store_name: role === 'penjual' ? (store_name || 'Toko Wadira') : '',
-    owner_name,
-    phone_number: phone_number || '',
-    role,
-    avatar_url: '',
-    created_at: now,
+export async function register(_formData: FormData) {
+  return {
+    error: 'Pendaftaran akun baru melalui formulir telah ditutup. Silakan masuk menggunakan akun Google di halaman Login.',
   };
-
-  const { data: newUser, error } = await supabase
-    .from('users')
-    .insert([newRecord])
-    .select()
-    .single();
-
-  if (error || !newUser) {
-    console.error('Supabase Insert Error:', error);
-    return { error: error?.message || 'Terjadi kesalahan saat mendaftar.' };
-  }
-
-  const userData: UserSession = {
-    id: newUser.id || newId,
-    email: newUser.email || email,
-    store_name: newUser.store_name || newRecord.store_name,
-    owner_name: newUser.owner_name || owner_name,
-    phone_number: newUser.phone_number || phone_number || '',
-    role,
-  };
-
-  const FIVE_DAYS = 5 * 24 * 60 * 60;
-  const token = signSessionToken(userData, 30 * 24 * 60 * 60);
-  
-  const cookieStore = await cookies();
-  cookieStore.set('userSession', token, { 
-    httpOnly: true, 
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: FIVE_DAYS 
-  });
-
-  if (role === 'pelanggan') {
-    redirect('/dashboard/pelanggan');
-  } else {
-    redirect('/dashboard/penjual');
-  }
 }
 
 export async function logout() {

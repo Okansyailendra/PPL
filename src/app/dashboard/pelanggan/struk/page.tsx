@@ -139,7 +139,10 @@ export default function StrukPelangganPage() {
       const res = await fetch(url, { cache: 'no-store' });
       const data = await res.json();
 
-      if (data?.success) {
+      if (res.status === 401 || data?.requireLogin) {
+        setTransactions([]);
+        setRequireLogin(true);
+      } else if (data?.success) {
         setTransactions(data.transactions || []);
         setRequireLogin(Boolean(data.requireLogin));
       } else {

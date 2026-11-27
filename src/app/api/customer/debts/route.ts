@@ -6,79 +6,106 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
-    const search = searchParams.get('search')?.trim() || '';
-    const phone = searchParams.get('phone')?.trim() || '';
-
     const currentUser = await getCurrentUser();
-
-    // Default warung UMKM ID
-    const defaultUmkmId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
-
-    // Ambil data debts dari Supabase / MySQL
-    const query = supabase
-      .from('debts')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    // Jika penjual/admin yang sedang login, batasi ke warungnya
-    if (currentUser && (currentUser.role === 'penjual' || currentUser.role === 'admin')) {
-      query.eq('umkm_id', currentUser.id);
-    } else {
-      query.eq('umkm_id', defaultUmkmId);
-    }
-
-    const { data: allDebts, error } = await query;
-
-    if (error) {
-      console.error('Error querying customer debts:', error);
+    if (!currentUser?.id) {
       return NextResponse.json(
-        { success: false, error: 'Gagal mengambil catatan kasbon' },
-        { status: 500 }
+        {
+          success: false,
+          requireLogin: true,
+          error: 'Unauthorized. Silakan masuk terlebih dahulu untuk melihat catatan kasbon.',
+        },
+        { status: 401 }
       );
     }
 
-    const debtsList = allDebts || [];
+    const { searchParams } = new URL(req.url);
+    const search = searchParams.get('search')?.trim() || '';
+    const phone = searchParams.get('phone')?.trim() || '';
+    const isSeller = currentUser.role === 'penjual' || currentUser.role === 'admin';
 
-    // Filter berdasarkan kondisi
+    let debtsList: any[] = [];
+
+    if (isSeller) {
+      const { data: allDebts, error } = await supabase
+        .from('debts')
+        .select('*')
+        .eq('umkm_id', currentUser.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error querying seller debts:', error);
+        return NextResponse.json(
+          { success: false, error: 'Gagal mengambil catatan kasbon' },
+          { status: 500 }
+        );
+      }
+      debtsList = allDebts || [];
+    } else {
+      // Untuk pelanggan, ikat akses kasbon secara ketat pada transaksi milik currentUser.id
+      const { data: userTrx, error: trxErr } = await supabase
+        .from('transactions')
+        .select('id, debt_id')
+        .eq('customer_id', currentUser.id);
+
+      if (trxErr) {
+        console.error('Error querying customer transactions for debts:', trxErr);
+        return NextResponse.json(
+          { success: false, error: 'Gagal mengambil catatan kasbon' },
+          { status: 500 }
+        );
+      }
+
+      const ownedTrxIds = (userTrx || []).map((t: any) => t.id).filter(Boolean);
+      const ownedDebtIds = (userTrx || []).map((t: any) => t.debt_id).filter(Boolean);
+
+      if (ownedTrxIds.length > 0 || ownedDebtIds.length > 0) {
+        const [byDebtIdRes, byRelatedTrxRes] = await Promise.all([
+          ownedDebtIds.length > 0
+            ? supabase
+                .from('debts')
+                .select('*')
+                .in('id', ownedDebtIds)
+                .order('created_at', { ascending: false })
+            : Promise.resolve({ data: [], error: null }),
+          ownedTrxIds.length > 0
+            ? supabase
+                .from('debts')
+                .select('*')
+                .in('related_trx_id', ownedTrxIds)
+                .order('created_at', { ascending: false })
+            : Promise.resolve({ data: [], error: null }),
+        ]);
+
+        if (byDebtIdRes.error || byRelatedTrxRes.error) {
+          console.error('Error querying customer debts:', byDebtIdRes.error || byRelatedTrxRes.error);
+          return NextResponse.json(
+            { success: false, error: 'Gagal mengambil catatan kasbon' },
+            { status: 500 }
+          );
+        }
+
+        const merged = new Map<string, any>();
+        for (const d of [...(byDebtIdRes.data || []), ...(byRelatedTrxRes.data || [])]) {
+          if (d?.id) merged.set(d.id, d);
+        }
+        debtsList = Array.from(merged.values()).sort(
+          (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+        );
+      }
+    }
+
+    // Filter pencarian hanya menyaring di dalam data yang memang milik user aktif
     let filtered = debtsList;
-
     if (search || phone) {
       const term = (search || phone).toLowerCase();
-      filtered = filtered.filter((d) => {
+      filtered = debtsList.filter((d) => {
         const matchName = d.customer_name?.toLowerCase().includes(term);
         const matchPhone = d.customer_phone?.toLowerCase().includes(term);
         const matchNotes = d.notes?.toLowerCase().includes(term);
         return matchName || matchPhone || matchNotes;
       });
-    } else if (currentUser && (currentUser.role === 'penjual' || currentUser.role === 'admin')) {
-      // Jika akun penjual/admin membuka etalase pelanggan, tampilkan semua kasbon toko untuk preview
-      filtered = debtsList;
-    } else if (currentUser) {
-      // Jika user login tanpa filter manual, cari berdasarkan nomor telepon atau nama
-      const userPhone = currentUser.phone_number?.trim();
-      const userName = currentUser.owner_name?.trim().toLowerCase();
-
-      filtered = filtered.filter((d) => {
-        const debtPhone = d.customer_phone?.trim();
-        const debtName = d.customer_name?.trim().toLowerCase();
-
-        const matchPhone = userPhone && debtPhone && (userPhone === debtPhone || debtPhone.endsWith(userPhone.slice(-8)));
-        const matchName = userName && debtName && (debtName.includes(userName) || userName.includes(debtName));
-
-        return Boolean(matchPhone || matchName);
-      });
-    } else {
-      // Tidak login dan tidak ada parameter pencarian
-      return NextResponse.json({
-        success: true,
-        debts: [],
-        requireLogin: true,
-        summary: { totalRemaining: 0, totalPaid: 0, count: 0 },
-      });
     }
 
-    // Hitung ringkasan kasbon
     const totalRemaining = filtered.reduce((acc, curr) => {
       if (curr.status === 'UNPAID' || curr.status === 'PARTIAL') {
         const rem = Number(curr.remaining_amount ?? (curr.amount - (curr.paid_amount || 0)));
@@ -116,7 +143,7 @@ export async function GET(req: Request) {
       success: true,
       debts: filtered,
       paymentLogs,
-      requireLogin: !currentUser && !search && !phone,
+      requireLogin: false,
       summary: {
         totalRemaining,
         totalPending,
