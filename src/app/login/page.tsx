@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useTransition, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -9,12 +9,7 @@ import {
   Home,
   AlertCircle,
   Loader2,
-  Mail,
-  Lock,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
-import { login } from '@/app/actions/auth';
 import InstallPwaButton from '@/components/pwa/InstallPwaButton';
 
 /* =========================================================
@@ -223,8 +218,6 @@ function LoginContent() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [showEmailLogin, setShowEmailLogin] = useState(false);
-  const [isPendingEmail, startEmailTransition] = useTransition();
 
   useEffect(() => {
     if (errorParam) {
@@ -233,23 +226,10 @@ function LoginContent() {
       } else {
         setErrorMessage(decodeURIComponent(errorParam));
       }
-      if (errorParam.toLowerCase().includes('redirect') || errorParam.toLowerCase().includes('google')) {
-        setShowEmailLogin(true);
-      }
     } else if (sessionExpired) {
       setErrorMessage('Sesi Anda telah berakhir. Silakan masuk kembali.');
     }
   }, [errorParam, sessionExpired]);
-
-  const handleEmailFormAction = (formData: FormData) => {
-    setErrorMessage(null);
-    startEmailTransition(async () => {
-      const result = await login(formData);
-      if (result?.error) {
-        setErrorMessage(result.error);
-      }
-    });
-  };
 
   // Handler klik tombol "Lanjutkan dengan Google": Langsung ke OAuth resmi Google
   const handleGoogleClick = () => {
@@ -410,82 +390,6 @@ function LoginContent() {
             <p className="text-[11px] sm:text-xs text-neutral-400 text-center mt-3">
               Kendala masuk? Hubungi pengelola warung.
             </p>
-
-            {/* Fallback Login Email & Kata Sandi (untuk Admin Warung / saat Google OAuth belum di-whitelist) */}
-            <div className="mt-4 pt-3 border-t border-neutral-100">
-              <button
-                type="button"
-                onClick={() => setShowEmailLogin((prev) => !prev)}
-                className="w-full flex items-center justify-center gap-1.5 text-xs font-bold text-[#4a5829] hover:text-[#35401c] py-1.5 rounded-lg hover:bg-[#f4f7ec] transition cursor-pointer"
-              >
-                <Mail className="w-3.5 h-3.5" />
-                <span>Masuk dengan Email &amp; Kata Sandi</span>
-                {showEmailLogin ? (
-                  <ChevronUp className="w-3.5 h-3.5" />
-                ) : (
-                  <ChevronDown className="w-3.5 h-3.5" />
-                )}
-              </button>
-
-              {showEmailLogin && (
-                <form action={handleEmailFormAction} className="mt-3 space-y-3 text-left">
-                  <div>
-                    <label className="block text-[11px] font-bold text-neutral-700 mb-1">
-                      Email Akun
-                    </label>
-                    <div className="relative">
-                      <Mail className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="email"
-                        name="email"
-                        required
-                        placeholder="adminwadira12@gmail.com"
-                        className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-neutral-300 bg-white text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#4a5829]/30 focus:border-[#4a5829]"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-[11px] font-bold text-neutral-700">
-                        Kata Sandi
-                      </label>
-                      <Link
-                        href="/forgot-password"
-                        className="text-[11px] font-semibold text-[#4a5829] hover:underline"
-                      >
-                        Lupa kata sandi?
-                      </Link>
-                    </div>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="password"
-                        name="password"
-                        required
-                        placeholder="Masukkan kata sandi"
-                        className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-neutral-300 bg-white text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#4a5829]/30 focus:border-[#4a5829]"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isPendingEmail}
-                    className="w-full py-2.5 px-4 rounded-xl bg-[#4a5829] hover:bg-[#3a4520] text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-60"
-                  >
-                    {isPendingEmail ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Memverifikasi Akun...</span>
-                      </>
-                    ) : (
-                      <span>Masuk Sekarang</span>
-                    )}
-                  </button>
-                </form>
-              )}
-            </div>
 
             {/* Shortcut Pasang Aplikasi di HP */}
             <div className="mt-4">
