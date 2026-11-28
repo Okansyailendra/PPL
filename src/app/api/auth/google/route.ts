@@ -1,21 +1,24 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { getGoogleRedirectUri } from '@/lib/url';
+import { getGoogleRedirectUri, getRequestOrigin } from '@/lib/url';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const redirectParam = searchParams.get('redirect') || searchParams.get('callbackUrl') || '';
+  const rawRedirect = searchParams.get('redirect') || searchParams.get('callbackUrl') || '';
+  const redirectParam =
+    rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '';
   const isCheck = searchParams.get('check') === '1';
 
+  const origin = getRequestOrigin(req);
   const clientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
   const redirectUri = getGoogleRedirectUri(req);
 
   if (isCheck) {
-    return NextResponse.json({ hasConfig: Boolean(clientId) });
+    return NextResponse.json({ hasConfig: Boolean(clientId), redirectUri });
   }
 
   if (!clientId) {
-    return NextResponse.redirect(new URL('/login?error=GoogleClientIdBelumDiatur', req.url));
+    return NextResponse.redirect(new URL('/login?error=GoogleClientIdBelumDiatur', origin));
   }
 
   // Siapkan payload state untuk mempertahankan URL tujuan redirect dan mencegah CSRF

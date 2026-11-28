@@ -1,35 +1,45 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import crypto from 'crypto';
 import { supabase } from '@/lib/supabase';
 import { signSessionToken } from '@/lib/auth';
-import { getGoogleRedirectUri } from '@/lib/url';
+import { getGoogleRedirectUri, getRequestOrigin } from '@/lib/url';
 import type { UserSession } from '@/types';
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
+  const origin = getRequestOrigin(req);
+  const isHttps = origin.startsWith('https://');
   const code = url.searchParams.get('code');
   const error = url.searchParams.get('error');
   const stateRaw = url.searchParams.get('state');
 
   let redirectTarget = '/dashboard/pelanggan';
 
-  // Decode redirect target dari state
+  // Decode redirect target dari state (cegah open redirect //...)
   if (stateRaw) {
     try {
       const stateObj = JSON.parse(Buffer.from(stateRaw, 'base64url').toString('utf8'));
-      if (stateObj?.redirect && typeof stateObj.redirect === 'string' && stateObj.redirect.startsWith('/')) {
+      if (
+        stateObj?.redirect &&
+        typeof stateObj.redirect === 'string' &&
+        stateObj.redirect.startsWith('/') &&
+        !stateObj.redirect.startsWith('//')
+      ) {
         redirectTarget = stateObj.redirect;
       }
     } catch {
-      // ignore
+      // ignore invalid state
     }
   }
 
   if (error || !code) {
     console.error('Google OAuth callback error:', error);
+    const friendlyError =
+      error === 'access_denied'
+        ? 'Login Google dibatalkan atau akun email Anda belum terdaftar di Test Users Google Cloud Console.'
+        : error || 'Otorisasi Google dibatalkan atau kode tidak ditemukan.';
     return NextResponse.redirect(
-      new URL(`/login?error=${encodeURIComponent(error || 'Otorisasi Google dibatalkan atau kode tidak ditemukan')}`, req.url)
+      new URL(`/login?error=${encodeURIComponent(friendlyError)}`, origin)
     );
   }
 
@@ -38,7 +48,7 @@ export async function GET(req: Request) {
   const redirectUri = getGoogleRedirectUri(req);
 
   try {
-    // 1. Tukar authorization code dengan access token & id token ke Google OAuth
+    // 1. Tukar authorization code dengan access token ke Google OAuth
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
@@ -57,8 +67,12 @@ export async function GET(req: Request) {
 
     if (!tokenResponse.ok || !tokenData.access_token) {
       console.error('Gagal menukar token dengan Google:', tokenData);
+      const errDetail =
+        tokenData.error === 'redirect_uri_mismatch'
+          ? `Google Redirect URI tidak cocok (${redirectUri}).`
+          : tokenData.error_description || tokenData.error || 'Gagal verifikasi otorisasi dengan Google';
       return NextResponse.redirect(
-        new URL(`/login?error=${encodeURIComponent(tokenData.error_description || 'Gagal verifikasi otorisasi dengan Google')}`, req.url)
+        new URL(`/login?error=${encodeURIComponent(errDetail)}`, origin)
       );
     }
 
@@ -73,9 +87,7 @@ export async function GET(req: Request) {
 
     if (!userInfoResponse.ok || !googleUser?.email) {
       console.error('Gagal memuat profil pengguna dari Google:', googleUser);
-      return NextResponse.redirect(
-        new URL('/login?error=GagalMemuatProfilGoogle', req.url)
-      );
+      return NextResponse.redirect(new URL('/login?error=GagalMemuatProfilGoogle', origin));
     }
 
     const email = googleUser.email.trim().toLowerCase();
@@ -94,15 +106,12 @@ export async function GET(req: Request) {
     let finalRedirect = redirectTarget;
 
     if (existingUser && !queryError) {
-      // Akun terdaftar di database
-      // Jika memiliki role penjual/admin atau memiliki store_name dan bukan pelanggan
       const isPenjual =
         existingUser.role === 'penjual' ||
         existingUser.role === 'admin' ||
         (Boolean(existingUser.store_name) && existingUser.role !== 'pelanggan');
 
       if (isPenjual) {
-        // Otomatis ke dashboard penjual/admin
         userData = {
           id: existingUser.id,
           email: existingUser.email,
@@ -116,7 +125,6 @@ export async function GET(req: Request) {
         };
         finalRedirect = '/dashboard/penjual';
       } else {
-        // Akun pelanggan terdaftar
         userData = {
           id: existingUser.id,
           email: existingUser.email,
@@ -131,7 +139,6 @@ export async function GET(req: Request) {
         finalRedirect = redirectTarget;
       }
 
-      // Update avatar & google_id jika belum ada
       const userUpdates: Record<string, any> = {};
       if (avatar && !existingUser.avatar_url) userUpdates.avatar_url = avatar;
       if (googleId && !existingUser.google_id) userUpdates.google_id = googleId;
@@ -140,12 +147,11 @@ export async function GET(req: Request) {
         try {
           await supabase.from('users').update(userUpdates).eq('id', existingUser.id);
         } catch {
-          // ignore
+          // ignore non-critical profile sync failure
         }
       }
     } else {
-      // Akun BELUM terdaftar di database:
-      // Sesuai sistem Wadira, akun yang tidak didaftarkan sebagai admin otomatis menjadi PELANGGAN
+      // Akun BELUM terdaftar di database -> otomatis daftar sebagai PELANGGAN
       const newId = crypto.randomUUID();
       const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
       const newCustomer = {
@@ -162,40 +168,56 @@ export async function GET(req: Request) {
         created_at: now,
       };
 
-      try {
-        const { error: insertErr } = await supabase.from('users').insert([newCustomer]);
-        if (insertErr) {
-          console.error('[Google OAuth Callback] Error inserting new customer:', insertErr);
-        } else {
-          console.log(`[Google OAuth Callback] Pelanggan baru berhasil disimpan ke database: ${email}`);
+      const { error: insertErr } = await supabase.from('users').insert([newCustomer]);
+      let resolvedId = newId;
+      let resolvedRole: 'penjual' | 'pelanggan' | 'admin' = 'pelanggan';
+
+      if (insertErr) {
+        console.error('[Google OAuth Callback] Error inserting new customer:', insertErr);
+        // Cek ulang barangkali race condition (sudah masuk dari request paralel)
+        const { data: retryUser } = await supabase
+          .from('users')
+          .select('id, role')
+          .eq('email', email)
+          .single();
+
+        if (!retryUser) {
+          return NextResponse.redirect(
+            new URL(
+              `/login?error=${encodeURIComponent(
+                `Gagal menyimpan akun ke database (${insertErr.message || 'Database Error'}).`
+              )}`,
+              origin
+            )
+          );
         }
-      } catch (e) {
-        console.error('[Google OAuth Callback] Exception inserting customer:', e);
+        resolvedId = retryUser.id;
+        resolvedRole = retryUser.role || 'pelanggan';
       }
 
       userData = {
-        id: newId,
+        id: resolvedId,
         email,
         owner_name: name,
         store_name: '',
         phone_number: '',
-        role: 'pelanggan',
+        role: resolvedRole,
         avatar_url: avatar,
         google_id: googleId || null,
         address: null,
       };
 
-      finalRedirect = redirectTarget;
+      finalRedirect = resolvedRole === 'penjual' || resolvedRole === 'admin' ? '/dashboard/penjual' : redirectTarget;
     }
 
     // 4. Set Session Cookie HMAC signed (dikontrol cookie 5 hari ketidakaktifan)
     const FIVE_DAYS = 5 * 24 * 60 * 60;
     const token = signSessionToken(userData, 30 * 24 * 60 * 60);
 
-    const redirectResponse = NextResponse.redirect(new URL(finalRedirect, req.url));
+    const redirectResponse = NextResponse.redirect(new URL(finalRedirect, origin));
     redirectResponse.cookies.set('userSession', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isHttps,
       sameSite: 'lax',
       path: '/',
       maxAge: FIVE_DAYS,
@@ -205,7 +227,10 @@ export async function GET(req: Request) {
   } catch (err: any) {
     console.error('Error pada OAuth callback Google:', err);
     return NextResponse.redirect(
-      new URL(`/login?error=${encodeURIComponent(err?.message || 'Gagal memproses otorisasi Google')}`, req.url)
+      new URL(
+        `/login?error=${encodeURIComponent(err?.message || 'Gagal memproses otorisasi Google')}`,
+        origin
+      )
     );
   }
 }

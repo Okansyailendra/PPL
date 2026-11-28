@@ -10,7 +10,7 @@ export default async function PenjualLayout({
   const user = await getCurrentUser();
 
   if (!user) {
-    redirect('/login');
+    redirect('/login?session_expired=1');
   }
 
   if (user.role === 'pelanggan') {

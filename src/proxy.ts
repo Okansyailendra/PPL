@@ -81,7 +81,13 @@ export async function proxy(request: NextRequest) {
   }
 
   // 2. Redirect pengguna yang sudah terotentikasi saat membuka /login atau /register
-  if ((pathname === '/login' || pathname === '/register') && hasSession) {
+  // Kecuali jika baru saja diarahkan karena session_expired / error (mencegah infinite redirect loop)
+  const isLoginOrRegister = pathname === '/login' || pathname === '/register';
+  const hasAuthResetFlag =
+    request.nextUrl.searchParams.has('session_expired') ||
+    request.nextUrl.searchParams.has('error');
+
+  if (isLoginOrRegister && hasSession && !hasAuthResetFlag) {
     if (isPelanggan) {
       return NextResponse.redirect(new URL('/dashboard/pelanggan', request.url));
     }
@@ -90,11 +96,20 @@ export async function proxy(request: NextRequest) {
 
   const response = NextResponse.next();
 
+  // Bersihkan cookie basi jika diarahkan ke /login?session_expired=1
+  if (isLoginOrRegister && hasAuthResetFlag && userSession) {
+    response.cookies.delete('userSession');
+    return response;
+  }
+
+  const forwardedProto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
+  const isHttps = forwardedProto ? forwardedProto === 'https' : request.nextUrl.protocol === 'https:';
+
   // Sliding Session: Perpanjang masa aktif cookie 5 hari setiap kali user beraktivitas
   if (hasSession && userSession) {
     response.cookies.set('userSession', userSession, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isHttps,
       sameSite: 'lax',
       path: '/',
       maxAge: 5 * 24 * 60 * 60,

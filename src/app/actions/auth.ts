@@ -65,14 +65,21 @@ export async function login(formData: FormData) {
 
   const FIVE_DAYS = 5 * 24 * 60 * 60;
   const token = signSessionToken(userData, 30 * 24 * 60 * 60);
-  
+
+  const reqHeaders = await headers();
+  const reqProto = reqHeaders.get('x-forwarded-proto')?.split(',')[0]?.trim();
+  const hostHeader = reqHeaders.get('x-forwarded-host') || reqHeaders.get('host') || '';
+  const isHttps =
+    reqProto === 'https' ||
+    (!reqProto && process.env.NODE_ENV === 'production' && !/^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(hostHeader));
+
   const cookieStore = await cookies();
-  cookieStore.set('userSession', token, { 
-    httpOnly: true, 
-    secure: process.env.NODE_ENV === 'production',
+  cookieStore.set('userSession', token, {
+    httpOnly: true,
+    secure: isHttps,
     sameSite: 'lax',
     path: '/',
-    maxAge: FIVE_DAYS 
+    maxAge: FIVE_DAYS,
   });
 
   if (userData.role === 'pelanggan') {
