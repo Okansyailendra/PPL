@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { getGoogleRedirectUri } from '@/lib/url';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -7,7 +8,7 @@ export async function GET(req: Request) {
   const isCheck = searchParams.get('check') === '1';
 
   const clientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/auth/callback/google';
+  const redirectUri = getGoogleRedirectUri(req);
 
   if (isCheck) {
     return NextResponse.json({ hasConfig: Boolean(clientId) });

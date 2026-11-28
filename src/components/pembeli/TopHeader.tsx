@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { logout } from '@/app/actions/auth';
+import InstallPwaButton from '@/components/pwa/InstallPwaButton';
 import type { UserSession } from '@/types';
 
 interface TopHeaderProps {
@@ -64,8 +65,9 @@ export default function TopHeader({ initialUser = null }: TopHeaderProps) {
           </span>
         </div>
 
-        {/* Right Actions: Keranjang, User Auth */}
-        <div className="flex items-center gap-2.5 sm:gap-3">
+        {/* Right Actions: Install PWA, Keranjang, User Auth */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <InstallPwaButton variant="subtle" />
 
           {/* Shortcut Keranjang Belanja */}
           <Link

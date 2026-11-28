@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Loader2,
 } from 'lucide-react';
+import InstallPwaButton from '@/components/pwa/InstallPwaButton';
 
 /* =========================================================
  * GOOGLE "G" OFFICIAL LOGO SVG
@@ -386,6 +387,11 @@ function LoginContent() {
             <p className="text-[11px] sm:text-xs text-neutral-400 text-center mt-3">
               Kendala masuk? Hubungi pengelola warung.
             </p>
+
+            {/* Shortcut Pasang Aplikasi di HP */}
+            <div className="mt-4">
+              <InstallPwaButton variant="card" />
+            </div>
           </div>
         </div>
 

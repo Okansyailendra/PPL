@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import crypto from 'crypto';
 import { supabase } from '@/lib/supabase';
 import { signSessionToken } from '@/lib/auth';
+import { getGoogleRedirectUri } from '@/lib/url';
 import type { UserSession } from '@/types';
 
 export async function GET(req: Request) {
@@ -34,7 +35,7 @@ export async function GET(req: Request) {
 
   const clientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/auth/callback/google';
+  const redirectUri = getGoogleRedirectUri(req);
 
   try {
     // 1. Tukar authorization code dengan access token & id token ke Google OAuth

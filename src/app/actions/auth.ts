@@ -1,12 +1,13 @@
 'use server';
 
 import { supabase } from '@/lib/supabase';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import crypto from 'crypto';
 import type { UserSession } from '@/types';
 import { signSessionToken, verifyPassword, hashPassword } from '@/lib/auth';
 import { globalRateLimiter } from '@/lib/rate-limit';
+import { getAppBaseUrl } from '@/lib/url';
 
 export async function login(formData: FormData) {
   const email = (formData.get('email') as string)?.trim()?.toLowerCase();
@@ -142,7 +143,11 @@ export async function requestPasswordReset(formData: FormData) {
   const hmac = crypto.createHmac('sha256', getResetSecret()).update(data).digest('hex');
   const token = Buffer.from(`${data}:${hmac}`).toString('base64url');
 
-  const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const reqHeaders = await headers();
+  const appBaseUrl = getAppBaseUrl(
+    reqHeaders.get('x-forwarded-host') || reqHeaders.get('host'),
+    reqHeaders.get('x-forwarded-proto')
+  );
   const resetUrl = `${appBaseUrl}/reset-password?token=${token}&email=${encodeURIComponent(user.email)}`;
 
   const mailResult = await sendPasswordResetEmail({

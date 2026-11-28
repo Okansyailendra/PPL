@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { logout } from '@/app/actions/auth';
+import InstallPwaButton from '@/components/pwa/InstallPwaButton';
 import type { UserSession } from '@/types';
 import { Menu, X, LogOut } from 'lucide-react';
 
@@ -51,8 +52,11 @@ export default function Header({ user }: HeaderProps) {
           </span>
         </div>
 
-        {/* Right: Avatar, Owner & Logout */}
-        <div className="flex items-center gap-3 sm:gap-4">
+        {/* Right: Install App, Avatar, Owner & Logout */}
+        <div className="flex items-center gap-2.5 sm:gap-4">
+          {/* Tombol Pasang Aplikasi PWA ke HP/Laptop */}
+          <InstallPwaButton variant="header" />
+
           {/* User Profile */}
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full bg-white text-[#465427] font-extrabold text-xs flex items-center justify-center shadow-xs">
