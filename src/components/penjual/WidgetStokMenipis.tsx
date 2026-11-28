@@ -11,7 +11,8 @@ import {
   CheckCircle2, 
   ExternalLink,
   RefreshCw,
-  TrendingDown
+  TrendingDown,
+  Lightbulb
 } from 'lucide-react';
 import type { Product } from '@/types';
 import { linkWa } from '@/lib/penagih';
@@ -239,8 +240,9 @@ export default function WidgetStokMenipis({ products, storeName = 'Toko Wadira' 
 
       {/* Footer Info & Shortcut */}
       <div className="pt-2 flex flex-col sm:flex-row items-center justify-between text-xs text-neutral-500 gap-2 border-t border-neutral-100">
-        <span>
-          💡 Rekomendasi restock dihitung berdasarkan batas minimum stok dan perputaran barang warung.
+        <span className="inline-flex items-center gap-1.5">
+          <Lightbulb className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+          <span>Rekomendasi restock dihitung berdasarkan batas minimum stok dan perputaran barang warung.</span>
         </span>
         <Link
           href="/dashboard/penjual/stok"

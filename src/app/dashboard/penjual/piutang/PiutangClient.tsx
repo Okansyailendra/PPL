@@ -346,9 +346,10 @@ export default function PiutangClient({ initialDebts = [] }: PiutangClientProps)
             <button
               type="button"
               onClick={() => setSearch('')}
-              className="text-neutral-400 hover:text-neutral-600 text-xs px-1"
+              aria-label="Hapus pencarian"
+              className="text-neutral-400 hover:text-neutral-600 p-0.5 cursor-pointer"
             >
-              ✕
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
