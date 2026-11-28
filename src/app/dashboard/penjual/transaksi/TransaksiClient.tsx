@@ -31,6 +31,10 @@ import {
   Printer,
   CameraOff,
   AlertCircle,
+  AlertTriangle,
+  XCircle,
+  ChevronDown,
+  Lightbulb,
   RotateCcw,
   Loader2
 } from 'lucide-react';
@@ -109,6 +113,7 @@ export default function TransaksiClient({
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [scannerStatus, setScannerStatus] = useState('');
+  const [scannerTone, setScannerTone] = useState<'info' | 'success' | 'warning' | 'error'>('info');
   const [cameraLoading, setCameraLoading] = useState(false);
   const [cameraError, setCameraError] = useState<{
     type: 'permission' | 'not_found' | 'in_use' | 'unsupported' | 'unknown';
@@ -225,18 +230,21 @@ export default function TransaksiClient({
 
     if (found) {
       if (mode === 'SALE' && found.stock <= 0) {
-        setScannerStatus(`⚠️ Barang "${found.name}" stoknya habis (0 ${found.unit}).`);
+        setScannerTone('warning');
+        setScannerStatus(`Barang "${found.name}" stoknya habis (0 ${found.unit}).`);
         return;
       }
 
       const res = addToCart(found);
       if (!res.success) {
-        setScannerStatus(`⚠️ Stok "${found.name}" sudah mencapai batas maksimal.`);
+        setScannerTone('warning');
+        setScannerStatus(`Stok "${found.name}" sudah mencapai batas maksimal.`);
         return;
       }
 
       const displayPrice = mode === 'SALE' ? found.price : (found.cost_price || found.price * 0.8);
-      setScannerStatus(`✅ Scan berhasil: ${found.name} (${res.newQty} ${found.unit})`);
+      setScannerTone('success');
+      setScannerStatus(`Scan berhasil: ${found.name} (${res.newQty} ${found.unit})`);
       setLastScannedToast({
         name: found.name,
         price: displayPrice,
@@ -249,7 +257,8 @@ export default function TransaksiClient({
         setLastScannedToast(null);
       }, 3000);
     } else {
-      setScannerStatus(`❌ Barcode "${code}" tidak ditemukan di daftar barang.`);
+      setScannerTone('error');
+      setScannerStatus(`Barcode "${code}" tidak ditemukan di daftar barang.`);
     }
   };
 
@@ -269,6 +278,7 @@ export default function TransaksiClient({
         try {
           setCameraLoading(true);
           setCameraError(null);
+          setScannerTone('info');
           setScannerStatus('Mengaktifkan kamera...');
 
           if (!navigator?.mediaDevices?.getUserMedia) {
@@ -373,6 +383,7 @@ export default function TransaksiClient({
           }
 
           setCameraLoading(false);
+          setScannerTone('info');
           setScannerStatus('Arahkan kamera ke barcode produk...');
         } catch (err: any) {
           if (isCancelled) return;
@@ -822,9 +833,10 @@ export default function TransaksiClient({
                 <button
                   type="button"
                   onClick={() => setSearch('')}
-                  className="text-neutral-400 hover:text-neutral-600 text-xs px-1"
+                  aria-label="Hapus pencarian"
+                  className="text-neutral-400 hover:text-neutral-600 p-0.5 cursor-pointer"
                 >
-                  ✕
+                  <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
@@ -897,9 +909,7 @@ export default function TransaksiClient({
                   </option>
                 ))}
               </select>
-              <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 text-[10px]">
-                ▼
-              </span>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400" />
             </div>
           </div>
 
@@ -1742,9 +1752,10 @@ export default function TransaksiClient({
                           {cameraError.message}
                         </p>
                         {cameraError.instruction && (
-                          <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 mb-3 max-w-xs text-left">
+                          <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 mb-3 max-w-xs text-left flex items-start gap-1.5">
+                            <Lightbulb className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
                             <p className="text-[10px] text-neutral-300 leading-snug">
-                              💡 <span className="font-semibold text-neutral-200">Solusi:</span> {cameraError.instruction}
+                              <span className="font-semibold text-neutral-200">Solusi:</span> {cameraError.instruction}
                             </p>
                           </div>
                         )}
@@ -1820,16 +1831,24 @@ export default function TransaksiClient({
                   {scannerStatus && !cameraError && (
                     <div
                       className={`p-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 border ${
-                        scannerStatus.startsWith('✅')
+                        scannerTone === 'success'
                           ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                          : scannerStatus.startsWith('⚠️')
+                          : scannerTone === 'warning'
                           ? 'bg-amber-50 border-amber-200 text-amber-800'
-                          : scannerStatus.startsWith('❌')
+                          : scannerTone === 'error'
                           ? 'bg-red-50 border-red-200 text-red-800'
                           : 'bg-neutral-50 border-neutral-200 text-neutral-700'
                       }`}
                     >
-                      <Info className="w-4 h-4 shrink-0" />
+                      {scannerTone === 'success' ? (
+                        <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                      ) : scannerTone === 'warning' ? (
+                        <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+                      ) : scannerTone === 'error' ? (
+                        <XCircle className="w-4 h-4 shrink-0 text-red-600" />
+                      ) : (
+                        <Info className="w-4 h-4 shrink-0" />
+                      )}
                       <span className="leading-snug">{scannerStatus}</span>
                     </div>
                   )}
@@ -1885,11 +1904,22 @@ export default function TransaksiClient({
 
                     {scannerStatus && (
                       <p
-                        className={`text-xs font-medium ${
-                          scannerStatus.startsWith('✅') ? 'text-emerald-700' : 'text-red-600'
+                        className={`text-xs font-medium inline-flex items-center gap-1.5 ${
+                          scannerTone === 'success'
+                            ? 'text-emerald-700'
+                            : scannerTone === 'warning'
+                            ? 'text-amber-700'
+                            : 'text-red-600'
                         }`}
                       >
-                        {scannerStatus}
+                        {scannerTone === 'success' ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        ) : scannerTone === 'warning' ? (
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                        ) : (
+                          <XCircle className="w-3.5 h-3.5 shrink-0" />
+                        )}
+                        <span>{scannerStatus}</span>
                       </p>
                     )}
 

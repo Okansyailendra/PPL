@@ -125,7 +125,7 @@ export default function MidtransPaymentModal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 bg-neutral-950/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+      className="fixed inset-0 z-[60] bg-neutral-950/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
     >
       <div className="w-full max-w-md bg-white rounded-3xl border border-[#d6e5c5] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Header bertema Wadira Olive */}

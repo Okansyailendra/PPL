@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { CartProvider, useCart } from '@/context/CartContext';
 import Footer from '@/components/pembeli/Footer';
@@ -35,7 +34,8 @@ import {
   Clock,
   Calendar,
   BookOpen,
-  X 
+  X,
+  Lightbulb
 } from 'lucide-react';
 
 function KeranjangContent() {
@@ -700,17 +700,8 @@ ${fulfillmentType === 'delivery'
                             className="py-4 grid grid-cols-12 gap-3 items-center group"
                           >
                             {/* Product & Variant Selector */}
-                            <div className="col-span-6 sm:col-span-7 flex items-center gap-3 min-w-0">
-                              <div className="relative w-14 h-14 rounded-xl bg-slate-50 border border-slate-200/70 overflow-hidden shrink-0 flex items-center justify-center">
-                                <Image
-                                  src={item.product.image || '/assets/logo.png'}
-                                  alt={item.product.name}
-                                  fill
-                                  className="object-cover"
-                                />
-                              </div>
-
-                              <div className="min-w-0 flex-1 space-y-1">
+                            <div className="col-span-6 sm:col-span-7 min-w-0">
+                              <div className="min-w-0 space-y-1">
                                 <Link
                                   href={`/dashboard/pelanggan/produk/${item.product.id}`}
                                   className="font-bold text-slate-900 text-sm leading-tight block truncate hover:text-emerald-800 transition"
@@ -1026,7 +1017,7 @@ ${fulfillmentType === 'delivery'
                             </button>
                           </div>
                           <div className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200/80 rounded-xl p-2.5 flex items-start gap-2">
-                            <span>💡</span>
+                            <Lightbulb className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                             <span>
                               <strong>Metode Tunai / COD ditiadakan</strong> untuk opsi kirim karena pesanan diantar oleh kurir/ojol lokal independen.
                             </span>

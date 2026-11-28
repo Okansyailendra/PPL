@@ -99,16 +99,16 @@ function ProductDetailSkeleton() {
         </div>
       </div>
 
-      {/* Main Card Skeleton (2 Column Layout) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        <div className="lg:col-span-5 h-[420px] bg-slate-200/80 rounded-3xl" />
-        <div className="lg:col-span-7 h-[420px] bg-white border border-slate-200/90 rounded-3xl p-8 space-y-5">
-          <div className="h-6 w-32 bg-slate-200 rounded-full" />
-          <div className="h-8 w-3/4 bg-slate-200 rounded-xl" />
-          <div className="h-4 w-full bg-slate-100 rounded-md" />
-          <div className="h-24 w-full bg-slate-100 rounded-2xl mt-4" />
-          <div className="h-14 w-full bg-slate-200 rounded-2xl mt-6" />
+      {/* Main Card Skeleton (Single Detail Card Layout) */}
+      <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 space-y-5">
+        <div className="flex items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div className="h-6 w-40 bg-slate-200 rounded-full" />
+          <div className="h-7 w-32 bg-slate-200 rounded-xl" />
         </div>
+        <div className="h-8 w-3/4 bg-slate-200 rounded-xl" />
+        <div className="h-4 w-full bg-slate-100 rounded-md" />
+        <div className="h-24 w-full bg-slate-100 rounded-2xl mt-2" />
+        <div className="h-14 w-full bg-slate-200 rounded-2xl mt-4" />
       </div>
 
       <Footer />
@@ -728,119 +728,73 @@ function ProductDetailContent({ productId }: { productId: string }) {
       )}
 
       {/* ======================================================== */}
-      {/* KHUSUS PRODUK KELONTONG FISIK (Layout 2 Kolom Modern)   */}
+      {/* KHUSUS PRODUK KELONTONG FISIK (Layout Detail Fokus)      */}
       {/* ======================================================== */}
       {!isPPOB && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          {/* Kolom Kiri: Showcase Visual & Spesifikasi Barang (lg:col-span-5) */}
-          <div className="lg:col-span-5 bg-gradient-to-br from-[#f6fbe9] via-[#edf7d7] to-[#e4f3c5] rounded-3xl border border-[#d6ecb3] p-6 sm:p-8 flex flex-col justify-between shadow-xs relative overflow-hidden">
-            {/* Background Decorative Accent */}
-            <div className="absolute -right-8 -bottom-8 w-44 h-44 bg-[#cbf14e]/20 rounded-full blur-2xl pointer-events-none" />
-            <div className="absolute -left-8 -top-8 w-32 h-32 bg-white/40 rounded-full blur-xl pointer-events-none" />
-
-            <div className="space-y-6 relative z-10">
-              {/* Badges Atas */}
+        <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-xs flex flex-col justify-between space-y-6">
+          <div className="space-y-5">
+            {/* Top Metadata & Stock Status Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white text-emerald-900 border border-emerald-200/80 shadow-2xs">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#f6fbe9] text-emerald-900 border border-[#d6ecb3]">
                   <Tag className="w-3.5 h-3.5 text-emerald-700" />
                   <span>{activeProduct.categoryLabel || activeProduct.category || 'Katalog Warung'}</span>
                 </span>
-                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-950/10 text-emerald-950 border border-emerald-900/10">
+                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
                   Satuan: {activeProduct.unit || 'pcs'}
                 </span>
+                {activeProduct.brand && (
+                  <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+                    Merek: {activeProduct.brand}
+                  </span>
+                )}
               </div>
 
-              {/* Box Ilustrasi / Icon Produk */}
-              <div className="py-4 flex flex-col items-center justify-center text-center">
-                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-white shadow-md border border-white/80 flex items-center justify-center text-emerald-800 mb-4 group hover:scale-105 transition duration-300">
-                  <Package className="w-12 h-12 sm:w-14 sm:h-14 stroke-[1.5] text-[#2c3d10]" />
-                </div>
-                <span className="text-[11px] font-bold text-emerald-800/80 uppercase tracking-widest">
-                  {activeProduct.brand || 'Warung Digital Madura'}
-                </span>
-                <h3 className="text-lg sm:text-xl font-black text-slate-900 mt-1 max-w-xs leading-snug">
-                  {activeProduct.name}
-                </h3>
-              </div>
-
-              {/* Grid Mini Kartu Spesifikasi */}
-              <div className="grid grid-cols-2 gap-2.5 pt-2">
-                <div className="bg-white/80 backdrop-blur-xs p-3.5 rounded-2xl border border-white/90">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ketersediaan</p>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <span className={`w-2 h-2 rounded-full ${isOutOfStock ? 'bg-rose-500' : isLowStock ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500 animate-pulse'}`} />
-                    <p className="text-xs font-extrabold text-slate-900 truncate">
-                      {isOutOfStock ? 'Habis' : `${stock} ${activeProduct.unit || 'pcs'}`}
-                    </p>
-                  </div>
-                  <p className="text-[10px] text-slate-500 mt-0.5">Stok fisik di rak</p>
-                </div>
-
-                <div className="bg-white/80 backdrop-blur-xs p-3.5 rounded-2xl border border-white/90">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Kualitas</p>
-                  <p className="text-xs font-extrabold text-slate-900 mt-1 flex items-center gap-1">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                    <span>100% Baru</span>
-                  </p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">Produk original</p>
-                </div>
+              <div className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-bold ${
+                isOutOfStock
+                  ? 'bg-rose-50 border-rose-200 text-rose-800'
+                  : isLowStock
+                    ? 'bg-amber-50 border-amber-200 text-amber-800'
+                    : 'bg-emerald-50/70 border-emerald-200/80 text-emerald-900'
+              }`}>
+                {isOutOfStock ? (
+                  <>
+                    <Ban className="w-3.5 h-3.5 text-rose-600" />
+                    <span>Stok Habis</span>
+                  </>
+                ) : isLowStock ? (
+                  <>
+                    <Package className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Tersisa {stock} {activeProduct.unit || 'pcs'}</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Stok Tersedia: {stock} {activeProduct.unit || 'pcs'}</span>
+                  </>
+                )}
               </div>
             </div>
 
-            {/* Jaminan Warung */}
-            <div className="mt-6 pt-4 border-t border-emerald-900/10 relative z-10 space-y-1.5">
-              <div className="flex items-center gap-2 text-xs font-semibold text-emerald-950">
-                <Store className="w-4 h-4 text-emerald-800 shrink-0" />
-                <span>Tersedia langsung di Toko Wadira</span>
-              </div>
-              <p className="text-[11px] text-emerald-900/70 leading-relaxed">
-                Belanja langsung di kasir atau pesan daring untuk diantar ke rumah Anda.
+            {/* Title, Desc & Store Info */}
+            <div className="space-y-2.5">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                {activeProduct.name}
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
+                {activeProduct.description || 'Pilihan tepat untuk kebutuhan harian keluarga dan dapur Anda.'}
               </p>
-            </div>
-          </div>
-
-          {/* Kolom Kanan: Rincian Harga & Pengaturan Jumlah Belanja (lg:col-span-7) */}
-          <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-xs flex flex-col justify-between space-y-6">
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-slate-100">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  Informasi Pembelian
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-600 pt-1">
+                <span className="inline-flex items-center gap-1.5 font-medium">
+                  <Store className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>Tersedia langsung di Toko Wadira</span>
                 </span>
-                <div className={`px-3 py-1 rounded-xl border flex items-center gap-1.5 text-xs font-bold ${
-                  isOutOfStock 
-                    ? 'bg-rose-50 border-rose-200 text-rose-800' 
-                    : isLowStock 
-                      ? 'bg-amber-50 border-amber-200 text-amber-800'
-                      : 'bg-emerald-50/70 border-emerald-200/80 text-emerald-900'
-                }`}>
-                  {isOutOfStock ? (
-                    <>
-                      <Ban className="w-3.5 h-3.5 text-rose-600" />
-                      <span>Stok Habis</span>
-                    </>
-                  ) : isLowStock ? (
-                    <>
-                      <Package className="w-3.5 h-3.5 text-amber-600" />
-                      <span>Tersisa {stock} {activeProduct.unit || 'pcs'}</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Stok Tersedia: {stock} {activeProduct.unit || 'pcs'}</span>
-                    </>
-                  )}
-                </div>
+                <span className="inline-flex items-center gap-1.5 font-medium">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Produk original &amp; berkualitas</span>
+                </span>
               </div>
-
-              {/* Title & Desc */}
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                  {activeProduct.name}
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">
-                  {activeProduct.description || 'Pilihan tepat untuk kebutuhan harian keluarga dan dapur Anda.'}
-                </p>
-              </div>
+            </div>
 
               {/* Price Card */}
               <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#f8faf4] to-white border border-[#e2edd4] flex items-center justify-between">
@@ -1031,7 +985,6 @@ function ProductDetailContent({ productId }: { productId: string }) {
               </div>
             </div>
           </div>
-        </div>
       )}
 
       <Footer />

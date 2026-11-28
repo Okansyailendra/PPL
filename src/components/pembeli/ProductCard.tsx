@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Plus, Check, Ban, ArrowRight, Zap } from 'lucide-react';
@@ -40,43 +39,44 @@ export default function ProductCard({ product }: ProductCardProps) {
         ? 'border-neutral-200 opacity-75' 
         : 'border-neutral-200/90 hover:shadow-md hover:border-neutral-400'
     }`}>
-      <Link href={`/dashboard/pelanggan/produk/${product.id}`} className="block">
-        <div className="relative w-full aspect-4/3 rounded-xl bg-neutral-100 overflow-hidden mb-3 flex items-center justify-center">
-          <Image
-            src={product.image || '/assets/logo.png'}
-            alt={product.name}
-            fill
-            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
-            className={`object-cover transition-transform duration-300 ${
-              isOutOfStock ? 'grayscale' : 'group-hover:scale-105'
-            }`}
-          />
+      <Link href={`/dashboard/pelanggan/produk/${product.id}`} className="flex-1 flex flex-col justify-between gap-3 mb-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] font-bold text-neutral-600 bg-neutral-100 px-2.5 py-0.5 rounded-full uppercase tracking-wider truncate">
+            {product.categoryLabel || product.category || 'Produk'}
+          </span>
           {isOutOfStock ? (
-            <span className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full bg-rose-600 text-white font-bold text-[10px] tracking-wide shadow-2xs">
+            <span className="shrink-0 px-2.5 py-0.5 rounded-full bg-rose-600 text-white font-bold text-[10px] tracking-wide">
               Stok Habis
             </span>
           ) : isLowStock ? (
-            <span className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full bg-amber-500 text-white font-bold text-[10px] tracking-wide shadow-2xs">
+            <span className="shrink-0 px-2.5 py-0.5 rounded-full bg-amber-500 text-white font-bold text-[10px] tracking-wide">
               Sisa {stock} {product.unit || 'pcs'}
             </span>
           ) : (
-            <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-emerald-600/90 text-white font-bold text-[9px] tracking-wide shadow-2xs">
+            <span className="shrink-0 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-[10px] tracking-wide">
               Tersedia
             </span>
           )}
         </div>
 
-        <div className="space-y-0.5 mb-2">
-          <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">
-            {product.categoryLabel || product.category || 'Produk'}
-          </span>
-          <h4 className="font-bold text-neutral-950 text-sm leading-snug line-clamp-1 group-hover:text-emerald-700 transition">
+        <div className="space-y-1">
+          <h4 className="font-bold text-neutral-950 text-sm sm:text-[15px] leading-snug line-clamp-2 group-hover:text-emerald-700 transition">
             {product.name}
           </h4>
           <p className="text-[11px] text-neutral-500 truncate">
-            {product.brand || product.unit || ''}
+            {[product.brand, product.unit ? `Satuan ${product.unit}` : ''].filter(Boolean).join(' • ') || 'Kebutuhan harian'}
           </p>
+          {product.description && (
+            <p className="text-[11px] text-neutral-400 line-clamp-2 leading-relaxed pt-0.5">
+              {product.description}
+            </p>
+          )}
         </div>
+
+        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 opacity-80 group-hover:opacity-100 group-hover:translate-x-0.5 transition">
+          <span>Lihat detail</span>
+          <ArrowRight className="w-3 h-3" />
+        </span>
       </Link>
 
       <div className="pt-2.5 border-t border-neutral-100 flex items-center justify-between mt-auto">
