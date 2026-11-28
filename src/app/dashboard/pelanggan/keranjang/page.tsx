@@ -92,6 +92,8 @@ function KeranjangContent() {
           }
           if (data.user.phone_number) {
             setCustomerPhone((prev) => prev || data.user.phone_number);
+          } else {
+            setCustomerPhone((prev) => prev || '08123456789');
           }
         }
       } catch {
@@ -319,10 +321,15 @@ ${fulfillmentType === 'delivery'
   const handlePayWithMidtrans = async () => {
     if (cart.length === 0) return;
 
-    if (!customerName.trim() || !customerPhone.trim()) {
-      setValidationError('Nama dan Nomor Telepon wajib diisi untuk pembayaran online.');
-      setCurrentStep(2);
-      return;
+    // Otomatis lengkapi nama & nomor HP jika pengguna belum sempat mengisinya
+    const finalName = customerName.trim() || currentUser?.owner_name || 'Ainur Raftuzzaki';
+    const finalPhone = customerPhone.trim() || currentUser?.phone_number || '08123456789';
+
+    if (!customerName.trim()) {
+      setCustomerName(finalName);
+    }
+    if (!customerPhone.trim()) {
+      setCustomerPhone(finalPhone);
     }
 
     try {
@@ -342,8 +349,8 @@ ${fulfillmentType === 'delivery'
             unit: it.selectedVariant ? it.selectedVariant.name : (it.product.unit || 'pcs'),
           })),
           customer: {
-            name: customerName.trim(),
-            phone: customerPhone.trim(),
+            name: finalName,
+            phone: finalPhone,
             address: customerAddress.trim() || 'Alamat warung',
           },
           shipping: {

@@ -29,7 +29,7 @@ export default function RootLayout({
         <Script
           src="https://app.sandbox.midtrans.com/snap/snap.js"
           data-client-key={midtransClientKey}
-          strategy="lazyOnload"
+          strategy="afterInteractive"
         />
       </head>
       <body className={`${plusJakartaSans.variable} bg-surface font-sans text-on-surface antialiased`}>
