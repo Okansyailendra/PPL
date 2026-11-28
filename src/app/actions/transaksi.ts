@@ -2,10 +2,10 @@
 
 import { supabase } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
-import { getCurrentUser } from '@/lib/auth';
+import { getSellerUser } from '@/lib/auth';
 import type { UserSession } from '@/types';
 
-const getUser = getCurrentUser;
+const getUser = getSellerUser;
 
 export interface CartItemInput {
   productId: string;

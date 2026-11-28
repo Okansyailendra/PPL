@@ -1,9 +1,21 @@
 import { NextResponse } from 'next/server';
-import { coreApi, verifyMidtransSignature } from '@/lib/midtrans';
+import {
+  coreApi,
+  isMidtransConfigured,
+  syncMidtransTransactionStatus,
+  verifyMidtransSignature,
+} from '@/lib/midtrans';
 import { supabase } from '@/lib/supabase';
 
 export async function POST(req: Request) {
   try {
+    if (!isMidtransConfigured()) {
+      return NextResponse.json(
+        { error: 'Layanan webhook Midtrans belum dikonfigurasi.' },
+        { status: 503 }
+      );
+    }
+
     let notificationJson: any;
     try {
       notificationJson = await req.json();
@@ -74,93 +86,29 @@ export async function POST(req: Request) {
       );
     }
 
-    let statusResponse: any = notificationJson;
-    const isConfiguredKey =
-      Boolean(process.env.MIDTRANS_SERVER_KEY) &&
-      process.env.MIDTRANS_SERVER_KEY !== 'SB-Mid-server-placeholder';
-
-    if (isConfiguredKey) {
-      try {
-        statusResponse = await coreApi.transaction.notification(notificationJson);
-      } catch (e: any) {
-        console.error(`[Midtrans Webhook] Verifikasi ke Midtrans Core API gagal:`, e?.message);
-        return NextResponse.json(
-          { error: 'Gagal memverifikasi status pembayaran langsung ke server Midtrans' },
-          { status: 400 }
-        );
-      }
+    let statusResponse: any;
+    try {
+      statusResponse = await coreApi.transaction.notification(notificationJson);
+    } catch (e: any) {
+      console.error(`[Midtrans Webhook] Verifikasi ke Midtrans Core API gagal:`, e?.message);
+      return NextResponse.json(
+        { error: 'Gagal memverifikasi status pembayaran langsung ke server Midtrans' },
+        { status: 400 }
+      );
     }
 
-    const transactionStatus = statusResponse.transaction_status;
-    const fraudStatus = statusResponse.fraud_status;
-
-    console.log(
-      `[Midtrans Webhook] Verified Order: ${orderId}, Status: ${transactionStatus}, Fraud: ${fraudStatus}`
-    );
-
-    let newPaymentStatus: 'PENDING' | 'SETTLEMENT' | 'EXPIRE' | 'CANCEL' | 'FAILED' = 'PENDING';
-
-    if (transactionStatus === 'capture') {
-      if (fraudStatus === 'accept') {
-        newPaymentStatus = 'SETTLEMENT';
-      } else if (fraudStatus === 'challenge') {
-        newPaymentStatus = 'PENDING';
-      }
-    } else if (transactionStatus === 'settlement') {
-      newPaymentStatus = 'SETTLEMENT';
-    } else if (
-      transactionStatus === 'cancel' ||
-      transactionStatus === 'deny'
-    ) {
-      newPaymentStatus = 'CANCEL';
-    } else if (transactionStatus === 'expire') {
-      newPaymentStatus = 'EXPIRE';
-    } else if (transactionStatus === 'pending') {
-      newPaymentStatus = 'PENDING';
-    } else {
-      newPaymentStatus = 'FAILED';
-    }
-
-    // Idempotency: cegah proses ulang jika sudah lunas sebelumnya
     if (existingTrx.payment_status === 'SETTLEMENT') {
-      console.log(`[Midtrans Webhook] Transaksi ${orderId} sudah berstatus SETTLEMENT.`);
       return NextResponse.json({
         status: 'OK',
         message: 'Transaksi sudah lunas sebelumnya (idempotent)',
       });
     }
 
-    await supabase
-      .from('transactions')
-      .update({ payment_status: newPaymentStatus })
-      .eq('id', orderId);
-
-    if (newPaymentStatus === 'SETTLEMENT') {
-      const items =
-        typeof existingTrx.items === 'string'
-          ? JSON.parse(existingTrx.items)
-          : existingTrx.items || [];
-
-      for (const it of items) {
-        const productId = it.productId || it.id;
-        if (productId) {
-          const { data: product } = await supabase
-            .from('products')
-            .select('id, stock')
-            .eq('id', productId)
-            .single();
-
-          if (product) {
-            const qty = Number(it.quantity) || 1;
-            const updatedStock = Math.max(0, (Number(product.stock) || 0) - qty);
-            await supabase
-              .from('products')
-              .update({ stock: updatedStock })
-              .eq('id', product.id);
-          }
-        }
-      }
-    }
+    const newPaymentStatus = await syncMidtransTransactionStatus(
+      orderId,
+      existingTrx,
+      statusResponse
+    );
 
     return NextResponse.json({
       status: 'OK',

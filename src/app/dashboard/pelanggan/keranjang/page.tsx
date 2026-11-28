@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { CartProvider, useCart } from '@/context/CartContext';
 import Footer from '@/components/pembeli/Footer';
 import CartDrawer from '@/components/pembeli/CartDrawer';
+import MidtransPaymentModal, { type MidtransChargeData } from '@/components/pembeli/MidtransPaymentModal';
+import type { PaymentChannel } from '@/lib/midtrans';
 import { ProductVariant, UserSession } from '@/types';
 import { 
   Plus, 
@@ -65,12 +67,19 @@ function KeranjangContent() {
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerNote, setCustomerNote] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris' | 'kasbon'>('cash');
+  const [selectedPayChannel, setSelectedPayChannel] = useState<PaymentChannel>('qris');
+  const [activeCharge, setActiveCharge] = useState<MidtransChargeData | null>(null);
   const [kasbonDueDate, setKasbonDueDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 7);
     return d.toISOString().split('T')[0];
   });
   const [kasbonSuccessInfo, setKasbonSuccessInfo] = useState<{
+    orderId: string;
+    totalAmount: number;
+    waUrl: string;
+  } | null>(null);
+  const [midtransSuccessInfo, setMidtransSuccessInfo] = useState<{
     orderId: string;
     totalAmount: number;
     waUrl: string;
@@ -114,6 +123,14 @@ function KeranjangContent() {
   // Nomor WhatsApp Toko Wadira Resmi
   const WARUNG_WA_NUMBER = '6289516201846';
   const WARUNG_NAME = 'Toko Wadira (Warung Madura)';
+
+  const buildWaUrl = (message: string): string => {
+    const encoded = encodeURIComponent(message);
+    const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    return isMobile
+      ? `https://wa.me/${WARUNG_WA_NUMBER}?text=${encoded}`
+      : `https://web.whatsapp.com/send?phone=${WARUNG_WA_NUMBER}&text=${encoded}`;
+  };
 
   // Load profile from LocalStorage if available
   useEffect(() => {
@@ -210,18 +227,13 @@ ${fulfillmentType === 'delivery'
   ? `_Halo Kasir ${WARUNG_NAME}, saya mau pesan belanjaan di atas untuk dikirim. Mohon infokan ketersediaan stok beserta ongkos kirim ojol ke alamat saya agar bisa langsung saya transfer totalnya. Terima kasih!_`
   : `_Halo Kasir ${WARUNG_NAME}, saya mau order kebutuhan belanja di atas untuk diambil di warung. Mohon dicek ketersediaan stoknya. Terima kasih!_`}`;
 
-    const encodedMessage = encodeURIComponent(formattedMessage);
-
-    // Smart Device Detection: Desktop -> WhatsApp Web, Mobile -> wa.me
-    const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    const waUrl = isMobile
-      ? `https://wa.me/${WARUNG_WA_NUMBER}?text=${encodedMessage}`
-      : `https://web.whatsapp.com/send?phone=${WARUNG_WA_NUMBER}&text=${encodedMessage}`;
+    const waUrl = buildWaUrl(formattedMessage);
 
     window.open(waUrl, '_blank');
 
     // Kosongkan keranjang belanja agar saat belanja berikutnya keranjang bersih
     setKasbonSuccessInfo(null);
+    setMidtransSuccessInfo(null);
     clearCart();
     setOrderSuccess(true);
     setCurrentStep(1);
@@ -298,11 +310,9 @@ ${fulfillmentType === 'delivery'
         .map((it, idx) => `${idx + 1}. ${it.name} (${it.quantity} ${it.unit})`)
         .join('\n');
       const waMsg = `Halo Kasir ${WARUNG_NAME}, saya atas nama *${customerName.trim()}* (${customerPhone.trim()}) baru saja mengajukan *KASBON BELANJA* (#${data.orderId}):\n\n${itemsText}\n\nTotal: *Rp ${Number(data.totalAmount || grandTotal).toLocaleString('id-ID')}*\nRencana Pelunasan: ${kasbonDueDate}\nMohon tinjauan dan persetujuannya. Terima kasih!`;
-      const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      const waUrl = isMobile
-        ? `https://wa.me/${WARUNG_WA_NUMBER}?text=${encodeURIComponent(waMsg)}`
-        : `https://web.whatsapp.com/send?phone=${WARUNG_WA_NUMBER}&text=${encodeURIComponent(waMsg)}`;
+      const waUrl = buildWaUrl(waMsg);
 
+      setMidtransSuccessInfo(null);
       setKasbonSuccessInfo({
         orderId: data.orderId,
         totalAmount: Number(data.totalAmount || grandTotal),
@@ -336,11 +346,12 @@ ${fulfillmentType === 'delivery'
       setIsProcessingPayment(true);
       setValidationError('');
 
-      // Kirim request ke backend untuk mendapatkan Snap Token
+      // Kirim request ke backend untuk membuat tagihan Midtrans Core API (QRIS / Virtual Account)
       const res = await fetch('/api/payment/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          paymentChannel: selectedPayChannel,
           items: cart.map((it) => ({
             productId: it.product.id,
             name: `${it.product.name}${it.selectedVariant ? ` (${it.selectedVariant.name})` : ''}`,
@@ -362,49 +373,38 @@ ${fulfillmentType === 'delivery'
       });
 
       const data = await res.json();
-      if (!res.ok || !data.snapToken) {
+      if (!res.ok || !data.success || !data.orderId) {
         throw new Error(data.error || 'Gagal membuat tagihan pembayaran');
       }
 
-      // Periksa apakah Snap JS sudah dimuat
-      const snapObj = (window as any).snap;
-      if (snapObj) {
-        snapObj.pay(data.snapToken, {
-          onSuccess: function (result: any) {
-            console.log('Payment success:', result);
-            setPaymentResult({
-              status: 'success',
-              message: 'Pembayaran berhasil diselesaikan!',
-              orderId: data.orderId,
-            });
-            clearCart();
-            setOrderSuccess(true);
-            setCurrentStep(1);
-          },
-          onPending: function (result: any) {
-            console.log('Payment pending:', result);
-            setPaymentResult({
-              status: 'pending',
-              message: 'Menunggu pembayaran selesai. Silakan cek instruksi pembayaran.',
-              orderId: data.orderId,
-            });
-          },
-          onError: function (result: any) {
-            console.error('Payment error:', result);
-            setValidationError('Pembayaran gagal atau dibatalkan.');
-          },
-          onClose: function () {
-            console.log('Customer closed the popup without finishing the payment');
-          },
-        });
-      } else {
-        // Fallback jika Snap JS belum termuat sempurna
-        if (data.redirectUrl) {
-          window.open(data.redirectUrl, '_blank');
-        } else {
-          alert('Snap SDK belum termuat atau Token Simulasi: ' + data.snapToken);
-        }
-      }
+      const snapItemsSnapshot = cart.map((it) => {
+        const price = it.selectedVariant ? it.selectedVariant.price : it.product.price;
+        const unit = it.selectedVariant ? it.selectedVariant.name : (it.product.unit || 'pcs');
+        const variantSuffix = it.selectedVariant ? ` (${it.selectedVariant.name})` : '';
+        return `${it.product.name}${variantSuffix} (${it.quantity} ${unit} = Rp ${(price * it.quantity).toLocaleString('id-ID')})`;
+      });
+      const paidTotal = Number(data.grossAmount || grandTotal);
+      const paidWaMsg = `Halo Kasir ${WARUNG_NAME}, saya atas nama *${finalName}* (${finalPhone}) sudah *MEMBAYAR LUNAS via ${data.channelLabel || 'QRIS/Transfer'}* untuk pesanan *#${data.orderId}*:\n\n${snapItemsSnapshot.map((s, idx) => `${idx + 1}. ${s}`).join('\n')}\n\nTotal Dibayar: *Rp ${paidTotal.toLocaleString('id-ID')}*\nPengambilan: ${fulfillmentType === 'delivery' ? `Dikirim (${customerAddress.trim() || 'Sesuai alamat'})` : 'Ambil Sendiri di Warung'}${customerNote.trim() ? `\nCatatan: ${customerNote.trim()}` : ''}\n\nMohon diproses ya. Terima kasih!`;
+      const paidWaUrl = buildWaUrl(paidWaMsg);
+
+      setPaymentResult({
+        status: 'pending',
+        message: 'Tagihan siap dibayar. Selesaikan pembayaran pada jendela di bawah.',
+        orderId: data.orderId,
+      });
+
+      setActiveCharge({
+        orderId: data.orderId,
+        grossAmount: paidTotal,
+        paymentChannel: data.paymentChannel || selectedPayChannel,
+        channelLabel: data.channelLabel || 'QRIS / Virtual Account',
+        qrImageUrl: data.qrImageUrl || null,
+        qrString: data.qrString || null,
+        vaNumber: data.vaNumber || null,
+        bank: data.bank || null,
+        expiryTime: data.expiryTime || null,
+        waUrl: paidWaUrl,
+      });
     } catch (err: any) {
       console.error('Midtrans Checkout Error:', err);
       setValidationError(err?.message || 'Terjadi kesalahan sistem pembayaran.');
@@ -548,6 +548,44 @@ ${fulfillmentType === 'delivery'
                       <Send className="w-4 h-4 text-emerald-600" />
                       <span>Kabari Kasir via WA</span>
                     </a>
+                  </div>
+                </div>
+              ) : midtransSuccessInfo ? (
+                <div className="bg-white rounded-3xl border border-emerald-200/90 p-8 sm:p-12 text-center max-w-xl mx-auto space-y-5 shadow-xs animate-in zoom-in-95 duration-200">
+                  <div className="w-20 h-20 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-xs">
+                    <CheckCircle2 className="w-10 h-10" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <h3 className="text-xl sm:text-2xl font-black text-neutral-900 tracking-tight">
+                      Pembayaran QRIS / Transfer Berhasil!
+                    </h3>
+                    <p className="text-xs sm:text-sm text-neutral-600 max-w-md mx-auto leading-relaxed">
+                      Pesanan <span className="font-mono font-bold text-neutral-900">#{midtransSuccessInfo.orderId}</span> sebesar{' '}
+                      <strong className="text-neutral-900">Rp {midtransSuccessInfo.totalAmount.toLocaleString('id-ID')}</strong> telah dibayar via Midtrans. Silakan kabari kasir lewat WhatsApp agar pesanan segera disiapkan.
+                    </p>
+                  </div>
+
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <a
+                      href={midtransSuccessInfo.waUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-xs transition"
+                    >
+                      <Send className="w-4 h-4" />
+                      <span>Kirim Bukti / Kabari Kasir via WA</span>
+                    </a>
+                    <Link
+                      href={`/dashboard/pelanggan/struk?search=${encodeURIComponent(midtransSuccessInfo.orderId)}`}
+                      onClick={() => {
+                        setOrderSuccess(false);
+                        setMidtransSuccessInfo(null);
+                      }}
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-700 font-bold text-xs sm:text-sm shadow-2xs transition"
+                    >
+                      <FileText className="w-4 h-4 text-emerald-600" />
+                      <span>Lihat Riwayat Struk</span>
+                    </Link>
                   </div>
                 </div>
               ) : (
@@ -1046,6 +1084,44 @@ ${fulfillmentType === 'delivery'
                         </div>
                       )}
 
+                      {/* Pilihan Kanal Transfer / QRIS jika memilih paymentMethod === 'qris' */}
+                      {paymentMethod === 'qris' && (
+                        <div className="p-4 rounded-2xl bg-[#f4f8ed] border border-[#d6e5c5] space-y-2.5 animate-in fade-in duration-150">
+                          <div className="text-[11px] font-bold text-[#2b3617] uppercase tracking-wider">
+                            Pilih Metode Pembayaran Online
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            {(
+                              [
+                                { id: 'qris', title: 'QRIS', sub: 'E-Wallet / Mobile' },
+                                { id: 'bca_va', title: 'BCA VA', sub: 'Virtual Account' },
+                                { id: 'bni_va', title: 'BNI VA', sub: 'Virtual Account' },
+                                { id: 'bri_va', title: 'BRI VA', sub: 'Virtual Account' },
+                              ] as const
+                            ).map((ch) => {
+                              const active = selectedPayChannel === ch.id;
+                              return (
+                                <button
+                                  key={ch.id}
+                                  type="button"
+                                  onClick={() => setSelectedPayChannel(ch.id)}
+                                  className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+                                    active
+                                      ? 'bg-[#465427] text-white border-[#465427] shadow-xs'
+                                      : 'bg-white text-neutral-800 border-[#c9dcb0] hover:border-[#465427]'
+                                  }`}
+                                >
+                                  <div className="text-xs font-extrabold">{ch.title}</div>
+                                  <div className={`text-[10px] ${active ? 'text-white/80' : 'text-neutral-500'}`}>
+                                    {ch.sub}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Detail Kasbon jika memilih Kasbon / Tempo */}
                       {paymentMethod === 'kasbon' && (
                         <div className="p-4 rounded-2xl bg-[#f4f8ed] border border-[#d6e5c5] space-y-3 animate-in fade-in duration-150">
@@ -1148,26 +1224,21 @@ ${fulfillmentType === 'delivery'
                             <span>{isProcessingPayment ? 'Mengirim Pengajuan...' : 'Ajukan Kasbon Pesanan Ini'}</span>
                           </button>
                         ) : paymentMethod === 'qris' ? (
-                          <>
-                            <button
-                              type="button"
-                              disabled={isProcessingPayment}
-                              onClick={handlePayWithMidtrans}
-                              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                            >
-                              <CreditCard className="w-4 h-4" />
-                              <span>{isProcessingPayment ? 'Memproses...' : 'Bayar Sekarang via QRIS'}</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={handleCheckoutWA}
-                              className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
-                            >
-                              <Send className="w-3.5 h-3.5 text-emerald-600" />
-                              <span>Kirim via WA</span>
-                            </button>
-                          </>
+                          <button
+                            type="button"
+                            disabled={isProcessingPayment}
+                            onClick={handlePayWithMidtrans}
+                            className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                          >
+                            <CreditCard className="w-4 h-4" />
+                            <span>
+                              {isProcessingPayment
+                                ? 'Membuat Tagihan...'
+                                : selectedPayChannel === 'qris'
+                                ? 'Bayar Sekarang via QRIS'
+                                : `Bayar via ${selectedPayChannel.replace('_va', '').toUpperCase()} VA`}
+                            </span>
+                          </button>
                         ) : (
                           <button
                             type="button"
@@ -1276,7 +1347,13 @@ ${fulfillmentType === 'delivery'
                             className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 shadow-sm transition active:scale-[0.99] cursor-pointer disabled:opacity-50"
                           >
                             <CreditCard className="w-4 h-4" />
-                            <span>{isProcessingPayment ? 'Memproses...' : 'Bayar Sekarang via QRIS'}</span>
+                            <span>
+                              {isProcessingPayment
+                                ? 'Membuat Tagihan...'
+                                : selectedPayChannel === 'qris'
+                                ? 'Bayar Sekarang via QRIS'
+                                : `Bayar via ${selectedPayChannel.replace('_va', '').toUpperCase()} VA`}
+                            </span>
                           </button>
                         ) : (
                           <button
@@ -1418,6 +1495,31 @@ ${fulfillmentType === 'delivery'
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal Pembayaran Custom Wadira (Midtrans Core API) */}
+      {activeCharge && (
+        <MidtransPaymentModal
+          charge={activeCharge}
+          onClose={() => setActiveCharge(null)}
+          onPaidSuccess={(paidCharge) => {
+            setActiveCharge(null);
+            setPaymentResult({
+              status: 'success',
+              message: 'Pembayaran berhasil diselesaikan!',
+              orderId: paidCharge.orderId,
+            });
+            setKasbonSuccessInfo(null);
+            setMidtransSuccessInfo({
+              orderId: paidCharge.orderId,
+              totalAmount: paidCharge.grossAmount,
+              waUrl: paidCharge.waUrl,
+            });
+            clearCart();
+            setOrderSuccess(true);
+            setCurrentStep(1);
+          }}
+        />
       )}
 
       {/* Slide-over Cart Drawer */}

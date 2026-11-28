@@ -3,10 +3,10 @@
 import { supabase } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
 import { resolveCategoryForUmkm } from '@/lib/product-utils';
-import { getCurrentUser } from '@/lib/auth';
+import { getSellerUser } from '@/lib/auth';
 import type { UserSession } from '@/types';
 
-const getUser = getCurrentUser;
+const getUser = getSellerUser;
 
 export async function addProduct(formData: FormData) {
   const user = await getUser();

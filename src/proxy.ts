@@ -1,16 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-const SESSION_SECRET =
-  process.env.SESSION_SECRET ||
-  process.env.AUTH_SECRET ||
-  'wadira-secure-session-secret-key-32chars-min-2026';
-
 /**
  * Memvalidasi token sesi secara kriptografis menggunakan Web Crypto API.
  * Berjalan optimal di Next.js Edge/Node runtime tanpa dependensi modul native.
  */
 async function getSessionPayload(token?: string): Promise<{ id: string; email: string; role?: string; exp: number } | null> {
-  if (!token || typeof token !== 'string') return null;
+  const sessionSecret = process.env.SESSION_SECRET || process.env.AUTH_SECRET;
+  if (!sessionSecret || !token || typeof token !== 'string') return null;
 
   const parts = token.split('.');
   if (parts.length !== 2) return null;
@@ -22,7 +18,7 @@ async function getSessionPayload(token?: string): Promise<{ id: string; email: s
     const enc = new TextEncoder();
     const key = await crypto.subtle.importKey(
       'raw',
-      enc.encode(SESSION_SECRET),
+      enc.encode(sessionSecret),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['verify']

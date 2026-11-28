@@ -97,3 +97,59 @@ export function normalizeUnit(unitInput: unknown, fallback = 'pcs'): string {
   return unitInput.trim();
 }
 
+export const DEFAULT_STORE_UMKM_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+
+const PPOB_PULSA_PRICES = [7000, 12000, 17000, 22000, 27000, 32000, 52000, 102000];
+const PPOB_LISTRIK_PRICES = [2500, 22000, 52000, 102000, 202000, 502000];
+const PPOB_PDAM_PRICES = [2500];
+
+/**
+ * Menentukan harga resmi item pesanan di sisi server untuk mencegah manipulasi harga (termasuk PPOB).
+ */
+export function resolveOfficialOrderPrice(
+  product: any,
+  requestedPrice?: unknown
+): { price?: number; error?: string } {
+  const dbPrice = Number(product?.price) || 0;
+  if (product?.category !== 'Tagihan & Pulsa') {
+    return { price: dbPrice };
+  }
+
+  const parsedPrice =
+    requestedPrice !== undefined && requestedPrice !== null && requestedPrice !== ''
+      ? Math.round(Number(requestedPrice))
+      : dbPrice;
+
+  if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+    return { error: `Nominal PPOB untuk "${product?.name || 'Produk'}" tidak valid.` };
+  }
+
+  const lowerName = String(product?.name || '').toLowerCase();
+  let allowedPrices: number[] | null = null;
+
+  if (lowerName.includes('pulsa')) {
+    allowedPrices = PPOB_PULSA_PRICES;
+  } else if (lowerName.includes('listrik') || lowerName.includes('token')) {
+    allowedPrices = PPOB_LISTRIK_PRICES;
+  } else if (lowerName.includes('pdam') || lowerName.includes('air')) {
+    allowedPrices = PPOB_PDAM_PRICES;
+  }
+
+  if (allowedPrices) {
+    if (!allowedPrices.includes(parsedPrice)) {
+      return {
+        error: `Nominal PPOB Rp${parsedPrice.toLocaleString('id-ID')} untuk "${product.name}" tidak tersedia dalam daftar resmi.`,
+      };
+    }
+    return { price: parsedPrice };
+  }
+
+  if (parsedPrice !== dbPrice) {
+    return {
+      error: `Harga untuk "${product?.name || 'Produk PPOB'}" harus sesuai harga resmi toko.`,
+    };
+  }
+
+  return { price: dbPrice };
+}
+

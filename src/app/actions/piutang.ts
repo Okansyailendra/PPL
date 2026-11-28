@@ -3,10 +3,10 @@
 import { supabase } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
 import crypto from 'crypto';
-import { getCurrentUser } from '@/lib/auth';
+import { getSellerUser } from '@/lib/auth';
 import type { Debt, PaymentLog, UserSession } from '@/types';
 
-const getUser = getCurrentUser;
+const getUser = getSellerUser;
 
 export interface AddDebtInput {
   customer_name: string;

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { supabase } from '@/lib/supabase';
 import { applyRateLimit } from '@/lib/rate-limit';
 import { getCurrentUser } from '@/lib/auth';
+import { DEFAULT_STORE_UMKM_ID, resolveOfficialOrderPrice } from '@/lib/product-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,13 @@ export async function POST(req: Request) {
     }
 
     const currentUser = await getCurrentUser();
+    if (!currentUser?.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized. Silakan masuk terlebih dahulu untuk membuat pesanan.' },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
     const { items, customer, fulfillmentType, paymentMethod, dueDate } = body;
 
@@ -38,9 +46,13 @@ export async function POST(req: Request) {
       );
     }
 
-    const umkmId = body?.umkmId || 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+    const umkmId = DEFAULT_STORE_UMKM_ID;
 
     const productIds = items.map((it: any) => it.productId || it.id).filter(Boolean);
+    if (productIds.length !== items.length) {
+      return NextResponse.json({ error: 'Setiap item pesanan wajib memiliki productId yang valid' }, { status: 400 });
+    }
+
     const { data: dbProducts, error: fetchErr } = await supabase
       .from('products')
       .select('*')
@@ -53,6 +65,7 @@ export async function POST(req: Request) {
     }
 
     const productMap = new Map<string, any>((dbProducts || []).map((p: any) => [p.id, p]));
+    const formattedItems: any[] = [];
 
     for (const item of items) {
       const pid = item.productId || item.id;
@@ -63,34 +76,40 @@ export async function POST(req: Request) {
           { status: 404 }
         );
       }
-      const requiredQty = Math.max(1, Math.round(Number(item.quantity) || 1));
+      const rawQty = Number(item.quantity);
+      if (!Number.isFinite(rawQty) || rawQty < 1) {
+        return NextResponse.json(
+          { error: `Jumlah pesanan untuk "${dbProd.name}" minimal 1.` },
+          { status: 400 }
+        );
+      }
+      const requiredQty = Math.round(rawQty);
       if (Number(dbProd.stock) < requiredQty) {
         return NextResponse.json(
           { error: `Stok "${dbProd.name}" tidak mencukupi (sisa ${dbProd.stock} ${dbProd.unit || 'pcs'})` },
           { status: 400 }
         );
       }
-    }
 
-    // Gunakan harga resmi database (mencegah price tampering)
-    const formattedItems = items.map((it: any) => {
-      const pid = it.productId || it.id;
-      const prod = productMap.get(pid)!;
-      const qty = Math.max(1, Math.round(Number(it.quantity) || 1));
-      let officialPrice = Number(prod.price) || 0;
-      if (prod.category === 'Tagihan & Pulsa' && Number(it.price) > 0) {
-        officialPrice = Number(it.price);
+      const priceResult = resolveOfficialOrderPrice(dbProd, item.price);
+      if (priceResult.error || priceResult.price === undefined) {
+        return NextResponse.json(
+          { error: priceResult.error || 'Harga produk tidak valid.' },
+          { status: 400 }
+        );
       }
-      return {
-        productId: prod.id,
-        name: it.name || prod.name || 'Produk Warung',
-        quantity: qty,
+
+      const officialPrice = priceResult.price;
+      formattedItems.push({
+        productId: dbProd.id,
+        name: item.name || dbProd.name || 'Produk Warung',
+        quantity: requiredQty,
         price: officialPrice,
-        costPrice: prod.cost_price ?? 0,
-        unit: it.unit || prod.unit || 'pcs',
-        subtotal: officialPrice * qty,
-      };
-    });
+        costPrice: dbProd.cost_price ?? 0,
+        unit: item.unit || dbProd.unit || 'pcs',
+        subtotal: officialPrice * requiredQty,
+      });
+    }
 
     const totalAmount = formattedItems.reduce((sum, it) => sum + it.subtotal, 0);
 

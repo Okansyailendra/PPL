@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { getCurrentUser } from '@/lib/auth';
+import { requireSellerApi } from '@/lib/auth';
 import { startChatWithFallback } from '@/lib/gemini';
 import { applyRateLimit } from '@/lib/rate-limit';
 import type { ChatMessage } from '@/types';
@@ -16,13 +16,11 @@ export async function POST(req: NextRequest) {
       return rateLimitCheck.response;
     }
 
-    const user = await getCurrentUser();
-    if (!user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized: Sesi telah berakhir atau Anda belum login' },
-        { status: 401 }
-      );
+    const auth = await requireSellerApi(req);
+    if (auth.errorResponse) {
+      return auth.errorResponse;
     }
+    const user = auth.user;
 
     if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json(

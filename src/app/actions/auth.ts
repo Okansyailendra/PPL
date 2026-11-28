@@ -95,7 +95,13 @@ export async function logout() {
 
 import { sendPasswordResetEmail } from '@/lib/mail';
 
-const RESET_SECRET = process.env.RESET_TOKEN_SECRET || 'wadira-secure-reset-token-secret-2026';
+function getResetSecret(): string {
+  const secret = process.env.RESET_TOKEN_SECRET;
+  if (!secret || secret.trim().length < 16) {
+    throw new Error('RESET_TOKEN_SECRET belum dikonfigurasi dengan aman.');
+  }
+  return secret;
+}
 
 export async function requestPasswordReset(formData: FormData) {
   const email = (formData.get('email') as string)?.trim()?.toLowerCase();
@@ -133,7 +139,7 @@ export async function requestPasswordReset(formData: FormData) {
   const expiresAt = Date.now() + 60 * 60 * 1000;
   const passwordNonce = (user.password || '').slice(-16);
   const data = `${user.email}:${passwordNonce}:${expiresAt}`;
-  const hmac = crypto.createHmac('sha256', RESET_SECRET).update(data).digest('hex');
+  const hmac = crypto.createHmac('sha256', getResetSecret()).update(data).digest('hex');
   const token = Buffer.from(`${data}:${hmac}`).toString('base64url');
 
   const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -207,7 +213,7 @@ export async function verifyResetToken(token: string, email: string): Promise<{ 
     }
 
     const data = `${tokenEmail}:${currentNonce}:${expiresAt}`;
-    const expectedHmac = crypto.createHmac('sha256', RESET_SECRET).update(data).digest('hex');
+    const expectedHmac = crypto.createHmac('sha256', getResetSecret()).update(data).digest('hex');
 
     // Constant-time comparison (Mencegah serangan Timing Attack)
     const hmacBuf = Buffer.from(hmac, 'hex');

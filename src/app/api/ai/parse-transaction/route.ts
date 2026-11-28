@@ -1,22 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { getAuthenticatedCashier } from '@/lib/auth';
+import { requireSellerApi } from '@/lib/auth';
 import { applyRateLimit } from '@/lib/rate-limit';
 import { parseTransactionText } from '@/lib/ai-transaction-parser';
 import type { Product } from '@/types';
 
 /**
  * GET /api/ai/parse-transaction
- * Digunakan untuk:
- * 1. Health check & dokumentasi schema API jika tanpa query params
- * 2. Pengujian cepat via query parameter: ?text=laku+indomi+3,+telur+1/2+kg
+ * Wajib terautentikasi sebagai Penjual / Admin.
  */
 export async function GET(req: NextRequest) {
+  const auth = await requireSellerApi(req);
+  if (auth.errorResponse) return auth.errorResponse;
+
   const { searchParams } = new URL(req.url);
   const textQuery = searchParams.get('text');
 
   if (textQuery) {
-    return handleParseRequest(req, textQuery);
+    return handleParseRequest(auth.user.id, textQuery);
   }
 
   // Dokumentasi Endpoint untuk Pengembang / Dosen Penguji
@@ -82,6 +83,9 @@ export async function POST(req: NextRequest) {
       return rateLimitCheck.response;
     }
 
+    const auth = await requireSellerApi(req);
+    if (auth.errorResponse) return auth.errorResponse;
+
     let body: any;
     try {
       body = await req.json();
@@ -107,8 +111,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const explicitStoreId = typeof body?.store_id === 'string' ? body.store_id.trim() : undefined;
-    return await handleParseRequest(req, text, explicitStoreId);
+    return await handleParseRequest(auth.user.id, text);
   } catch (err: any) {
     console.error('[API /api/ai/parse-transaction] Unhandled error:', err);
     return NextResponse.json(
@@ -121,25 +124,16 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function handleParseRequest(req: NextRequest, text: string, explicitStoreId?: string) {
-  const activeUser = await getAuthenticatedCashier(req);
-  const targetUmkmId = explicitStoreId || activeUser?.id;
-
+async function handleParseRequest(targetUmkmId: string, text: string) {
   let catalogProducts: Product[] = [];
   try {
-    let query = supabase.from('products').select('*');
-    if (targetUmkmId) {
-      query = query.eq('umkm_id', targetUmkmId);
-    }
+    const { data: dbProducts, error: dbError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('umkm_id', targetUmkmId);
 
-    const { data: dbProducts, error: dbError } = await query;
-    if (!dbError && dbProducts && dbProducts.length > 0) {
+    if (!dbError && dbProducts) {
       catalogProducts = dbProducts as Product[];
-    } else {
-      const { data: fallbackProducts } = await supabase.from('products').select('*');
-      if (fallbackProducts) {
-        catalogProducts = fallbackProducts as Product[];
-      }
     }
   } catch (dbQueryErr) {
     console.warn('[API /api/ai/parse-transaction] Gagal memuat produk database:', dbQueryErr);

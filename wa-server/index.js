@@ -2,13 +2,42 @@ const express = require('express');
 const cors = require('cors');
 const { makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode-terminal');
+const fs = require('fs');
 const path = require('path');
+
+function loadWaApiKeyFromEnvFiles() {
+    if (process.env.WA_API_KEY) return process.env.WA_API_KEY;
+    const candidates = [
+        path.join(__dirname, '.env'),
+        path.join(__dirname, '..', '.env.local'),
+        path.join(__dirname, '..', '.env'),
+    ];
+    for (const filePath of candidates) {
+        try {
+            if (!fs.existsSync(filePath)) continue;
+            const content = fs.readFileSync(filePath, 'utf8');
+            for (const line of content.split(/\r?\n/)) {
+                const match = line.match(/^\s*WA_API_KEY\s*=\s*(.+?)\s*$/);
+                if (match) {
+                    return match[1].replace(/^["']|["']$/g, '').trim();
+                }
+            }
+        } catch {
+            // ignore unreadable env candidate
+        }
+    }
+    return '';
+}
 
 const app = express();
 
 const PORT = Number(process.env.PORT) || 3001;
 const HOST = process.env.HOST || '127.0.0.1';
-const WA_API_KEY = process.env.WA_API_KEY || 'wadira-internal-wa-secret-key';
+const WA_API_KEY = loadWaApiKeyFromEnvFiles();
+if (!WA_API_KEY || WA_API_KEY.length < 16) {
+    console.error('❌ WA_API_KEY belum disetel (minimal 16 karakter). Tambahkan WA_API_KEY di .env.local atau environment.');
+    process.exit(1);
+}
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://127.0.0.1:3000')
     .split(',')
     .map(o => o.trim());

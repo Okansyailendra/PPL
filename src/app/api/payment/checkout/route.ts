@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server';
-import { snap } from '@/lib/midtrans';
+import {
+  coreApi,
+  isMidtransConfigured,
+  PAYMENT_CHANNEL_CONFIG,
+  type PaymentChannel,
+} from '@/lib/midtrans';
 import { supabase } from '@/lib/supabase';
 import { applyRateLimit } from '@/lib/rate-limit';
+import { getCurrentUser } from '@/lib/auth';
+import { DEFAULT_STORE_UMKM_ID, resolveOfficialOrderPrice } from '@/lib/product-utils';
 import crypto from 'crypto';
 
 export async function POST(req: Request) {
@@ -15,10 +22,29 @@ export async function POST(req: Request) {
       return rateLimitCheck.response;
     }
 
-    const body = await req.json();
-    const { items, customer, shipping, umkmId } = body;
+    const currentUser = await getCurrentUser();
+    if (!currentUser?.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized. Silakan masuk terlebih dahulu untuk melakukan checkout pembayaran.' },
+        { status: 401 }
+      );
+    }
 
-    if (!items || items.length === 0) {
+    if (!isMidtransConfigured()) {
+      return NextResponse.json(
+        { error: 'Gateway pembayaran Midtrans belum dikonfigurasi di server.' },
+        { status: 503 }
+      );
+    }
+
+    const body = await req.json();
+    const { items, customer, shipping } = body;
+    const rawChannel = String(body?.paymentChannel || 'qris') as PaymentChannel;
+    const paymentChannel: PaymentChannel = rawChannel in PAYMENT_CHANNEL_CONFIG ? rawChannel : 'qris';
+    const channelConfig = PAYMENT_CHANNEL_CONFIG[paymentChannel];
+    const umkmId = DEFAULT_STORE_UMKM_ID;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
         { error: 'Keranjang belanja tidak boleh kosong' },
         { status: 400 }
@@ -32,12 +58,11 @@ export async function POST(req: Request) {
       );
     }
 
-    // Ambil data produk resmi untuk validasi integritas harga
     const productIds = items
       .map((it: any) => it.productId || it.id)
       .filter(Boolean);
 
-    if (productIds.length === 0) {
+    if (productIds.length !== items.length) {
       return NextResponse.json(
         { error: 'Produk dalam keranjang tidak valid' },
         { status: 400 }
@@ -47,7 +72,8 @@ export async function POST(req: Request) {
     const { data: dbProducts, error: dbErr } = await supabase
       .from('products')
       .select('*')
-      .in('id', productIds);
+      .in('id', productIds)
+      .eq('umkm_id', umkmId);
 
     if (dbErr || !dbProducts || dbProducts.length === 0) {
       return NextResponse.json(
@@ -57,8 +83,6 @@ export async function POST(req: Request) {
     }
 
     const productMap = new Map<string, any>((dbProducts as any[]).map((p: any) => [p.id, p]));
-
-    // Validasi stok dan hitung total menggunakan harga resmi database
     const validatedItems: any[] = [];
     let itemsTotal = 0;
 
@@ -73,7 +97,14 @@ export async function POST(req: Request) {
         );
       }
 
-      const qty = Math.max(1, Math.round(Number(it.quantity) || 1));
+      const rawQty = Number(it.quantity);
+      if (!Number.isFinite(rawQty) || rawQty < 1) {
+        return NextResponse.json(
+          { error: `Jumlah pembelian untuk "${dbProd.name}" minimal 1.` },
+          { status: 400 }
+        );
+      }
+      const qty = Math.round(rawQty);
       if (Number(dbProd.stock) < qty) {
         return NextResponse.json(
           {
@@ -83,11 +114,15 @@ export async function POST(req: Request) {
         );
       }
 
-      // Selalu gunakan harga resmi dari database kecuali produk PPOB (Tagihan & Pulsa) dengan nominal dinamis
-      let officialPrice = Number(dbProd.price) || 0;
-      if (dbProd.category === 'Tagihan & Pulsa' && Number(it.price) > 0) {
-        officialPrice = Number(it.price);
+      const priceResult = resolveOfficialOrderPrice(dbProd, it.price);
+      if (priceResult.error || priceResult.price === undefined) {
+        return NextResponse.json(
+          { error: priceResult.error || 'Harga produk tidak valid.' },
+          { status: 400 }
+        );
       }
+
+      const officialPrice = priceResult.price;
       const subtotal = officialPrice * qty;
       itemsTotal += subtotal;
 
@@ -96,15 +131,14 @@ export async function POST(req: Request) {
         productId: dbProd.id,
         name: (it.name || dbProd.name || 'Produk').slice(0, 50),
         price: officialPrice,
+        costPrice: dbProd.cost_price ?? 0,
         quantity: qty,
         unit: it.unit || dbProd.unit || 'pcs',
         subtotal,
       });
     }
 
-    const shippingCost = 0;
-    const grossAmount = itemsTotal;
-
+    const grossAmount = Math.round(itemsTotal);
     const orderId = `ORDER-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 
     const itemDetails = validatedItems.map((it: any) => ({
@@ -114,74 +148,76 @@ export async function POST(req: Request) {
       name: it.name.slice(0, 50),
     }));
 
-    if (shippingCost > 0) {
-      itemDetails.push({
-        id: 'SHIPPING-COST',
-        price: Math.round(shippingCost),
-        quantity: 1,
-        name: `Ongkir (${shipping?.courier || 'Ekspedisi'} - ${shipping?.service || 'REG'})`.slice(0, 50),
-      });
-    }
-
-    const parameter = {
+    const chargePayload: Record<string, any> = {
+      payment_type: channelConfig.paymentType,
       transaction_details: {
         order_id: orderId,
-        gross_amount: Math.round(grossAmount),
+        gross_amount: grossAmount,
       },
       customer_details: {
         first_name: customer.name,
         email: customer.email || `${customer.phone.replace(/[^0-9]/g, '')}@warungppl.local`,
         phone: customer.phone,
-        billing_address: {
-          first_name: customer.name,
-          phone: customer.phone,
-          address: customer.address || 'Alamat tidak diisi',
-        },
-        shipping_address: {
-          first_name: customer.name,
-          phone: customer.phone,
-          address: customer.address || 'Alamat tidak diisi',
-        },
       },
       item_details: itemDetails,
     };
 
-    let snapToken = '';
-    let redirectUrl = '';
-    try {
-      const transaction = await snap.createTransaction(parameter);
-      snapToken = transaction.token;
-      redirectUrl = transaction.redirect_url;
-    } catch (midtransErr: any) {
-      console.error('Midtrans Snap Error:', midtransErr?.message || midtransErr);
-      // Fallback simulasi token jika env keys belum dikonfigurasi
-      snapToken = `SIMULATED-TOKEN-${orderId}`;
+    if (channelConfig.paymentType === 'qris') {
+      chargePayload.qris = { acquirer: 'gopay' };
+    } else if (channelConfig.paymentType === 'bank_transfer' && channelConfig.bank) {
+      chargePayload.bank_transfer = { bank: channelConfig.bank };
     }
+
+    let chargeRes: any;
+    try {
+      chargeRes = await coreApi.charge(chargePayload);
+    } catch (midtransErr: any) {
+      console.error('Midtrans Core API Charge Error:', midtransErr?.message || midtransErr);
+      return NextResponse.json(
+        { error: 'Gagal membuat tagihan pembayaran ke Midtrans. Silakan coba lagi.' },
+        { status: 502 }
+      );
+    }
+
+    const actions = Array.isArray(chargeRes?.actions) ? chargeRes.actions : [];
+    const qrAction =
+      actions.find((a: any) => a.name === 'generate-qr-code-v2') ||
+      actions.find((a: any) => a.name === 'generate-qr-code');
+
+    const qrImageUrl = qrAction?.url || null;
+    const qrString = chargeRes?.qr_string || null;
+    const vaInfo = Array.isArray(chargeRes?.va_numbers) ? chargeRes.va_numbers[0] : null;
+    const vaNumber = vaInfo?.va_number || null;
+    const bank = vaInfo?.bank ? String(vaInfo.bank).toUpperCase() : null;
+    const expiryTime = chargeRes?.expiry_time || null;
 
     const nowIso = new Date().toISOString();
     const trxData = {
       id: orderId,
-      umkm_id: umkmId || 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', // default warung
+      umkm_id: umkmId,
+      customer_id: currentUser.id,
       customer_name: customer.name,
       customer_phone: customer.phone,
       type: 'IN',
-      category: 'Penjualan Online E-Commerce',
-      payment_method: 'ONLINE',
+      category: 'PESANAN_ONLINE',
+      payment_method: paymentChannel === 'qris' ? 'QRIS' : 'ONLINE',
       payment_status: 'PENDING',
       total_amount: grossAmount,
-      shipping_cost: shippingCost,
+      shipping_cost: 0,
       courier: shipping?.courier || null,
       courier_service: shipping?.service || null,
       shipping_address: customer.address || null,
-      snap_token: snapToken,
+      snap_token: chargeRes?.transaction_id || null,
       items: validatedItems.map((it: any) => ({
         productId: it.productId,
         name: it.name,
         quantity: it.quantity,
         price: it.price,
+        costPrice: it.costPrice,
         unit: it.unit,
         subtotal: it.subtotal,
       })),
+      transaction_date: nowIso,
       created_at: nowIso,
     };
 
@@ -191,14 +227,23 @@ export async function POST(req: Request) {
 
     if (insertErr) {
       console.error('Database Error saving order:', insertErr);
+      return NextResponse.json(
+        { error: 'Gagal menyimpan pesanan ke database.' },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
       success: true,
       orderId,
-      snapToken,
-      redirectUrl,
       grossAmount,
+      paymentChannel,
+      channelLabel: channelConfig.label,
+      qrImageUrl,
+      qrString,
+      vaNumber,
+      bank,
+      expiryTime,
     });
   } catch (error: any) {
     console.error('Payment checkout API error:', error);
@@ -208,4 +253,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
